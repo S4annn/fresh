@@ -1,0 +1,501 @@
+category,quantity,shelf_life,storage_condition,days_to_expiry,risk_level
+Dairy,227.0,6,Refrigerated,-39,Warning
+Dairy,435.0,15,Refrigerated,-41,Safe
+Dairy,710.0,22,Frozen,-18,Safe
+Dairy,647.0,14,Refrigerated,-34,Safe
+Dairy,227.0,11,Refrigerated,-33,Safe
+Dairy,17.0,29,Refrigerated,0,Safe
+Dairy,123.0,5,Refrigerated,-21,Warning
+Dairy,431.0,7,Refrigerated,-32,Warning
+Dairy Products,500.0,7,Room Temperature,1,High Risk
+Dairy,430.0,27,Frozen,9,Safe
+Dairy,290.0,68,Refrigerated,22,Safe
+Dairy,7.0,13,Refrigerated,-32,Safe
+Dairy,368.0,24,Refrigerated,-30,Safe
+Dairy,193.0,70,Frozen,45,Safe
+Meat,350.0,7,Room Temperature,7,Safe
+Meat,484.0,7,Refrigerated,1,High Risk
+Dairy,203.0,21,Frozen,16,Safe
+Dairy,656.0,2,Polythene Packet,-41,High Risk
+Dairy,14.0,10,Refrigerated,-26,Safe
+Dairy,119.0,28,Refrigerated,-7,Safe
+Dairy,25.0,25,Tetra Pack,12,Safe
+Dairy,269.0,36,Frozen,9,Safe
+Dairy,49.0,5,Refrigerated,-3,Warning
+Vegetables,350.0,7,Room Temperature,7,Safe
+Fruit,1.0,14,Room Temperature,8,Safe
+Dairy,24.0,61,Refrigerated,11,Safe
+Dairy Products,350.0,7,Room Temperature,7,Safe
+Dairy,101.0,35,Frozen,-13,Safe
+Meat,480.0,7,Refrigerated,3,Warning
+Dairy,841.0,23,Frozen,-23,Safe
+Dairy,439.0,38,Refrigerated,33,Safe
+Dairy Products,300.0,7,Room Temperature,7,Safe
+Meat,420.0,7,Room Temperature,1,High Risk
+Dairy,475.0,15,Refrigerated,-12,Safe
+Dairy,199.0,10,Refrigerated,-22,Safe
+Dairy Products,350.0,7,Room Temperature,3,Warning
+Dairy,53.0,10,Refrigerated,-43,Safe
+Dairy,243.0,29,Frozen,-30,Safe
+Dairy,724.0,6,Refrigerated,-15,Warning
+Fruit,4.0,5,Refrigerated,2,Warning
+Fruit,6.0,30,Room Temperature,9,Warning
+Dairy,421.0,26,Refrigerated,16,Safe
+Dairy,32.0,5,Refrigerated,1,Warning
+Dairy,290.0,12,Refrigerated,3,Safe
+Dairy,560.0,121,Ambient,75,Safe
+Dairy,37.0,39,Frozen,25,Safe
+Dairy Products,420.0,7,Room Temperature,7,Safe
+Dairy,34.0,7,Refrigerated,-19,Warning
+Dairy,192.0,8,Refrigerated,-44,Safe
+Dairy,236.0,26,Frozen,-26,Safe
+Dairy,157.0,108,Ambient,53,Safe
+Fruits,400.0,7,Room Temperature,1,High Risk
+Dairy,738.0,27,Refrigerated,2,Safe
+Dairy,53.0,14,Refrigerated,-16,Safe
+Fruits,480.0,7,Room Temperature,7,Safe
+Dairy,845.0,26,Tetra Pack,22,Safe
+Dairy,196.0,36,Refrigerated,16,Safe
+Dairy,432.0,11,Refrigerated,-20,Safe
+Dairy,49.0,11,Refrigerated,-48,Safe
+Dairy,58.0,100,Ambient,54,Safe
+Meat,400.0,7,Refrigerated,3,Warning
+Dairy,208.0,6,Refrigerated,-11,Warning
+Dairy,179.0,40,Frozen,25,Safe
+Fruits,500.0,7,Room Temperature,1,High Risk
+Dairy,21.0,21,Refrigerated,14,Safe
+Dairy,322.0,13,Refrigerated,-24,Safe
+Dairy,394.0,13,Refrigerated,-16,Safe
+Dairy,270.0,136,Ambient,103,Safe
+Dairy,244.0,28,Refrigerated,18,Safe
+Dairy,116.0,8,Refrigerated,-52,Safe
+Dairy,253.0,6,Refrigerated,-2,Warning
+Baked Goods,282.0,7,Room Temperature,3,Warning
+Dairy,77.0,25,Tetra Pack,-30,Safe
+Dairy Products,400.0,7,Room Temperature,3,Warning
+Fruits,500.0,7,Room Temperature,3,Warning
+Dairy,510.0,27,Refrigerated,19,Safe
+Dairy Products,350.0,7,Room Temperature,7,Safe
+Dairy,211.0,22,Frozen,5,Safe
+Dairy,231.0,23,Refrigerated,-33,Safe
+Dairy,119.0,12,Refrigerated,-28,Safe
+Dairy,836.0,89,Refrigerated,61,Safe
+Dairy,180.0,88,Ambient,80,Safe
+Dairy,33.0,28,Frozen,9,Safe
+Dairy,479.0,27,Frozen,-20,Safe
+Meat,400.0,7,Refrigerated,7,Safe
+Dairy,532.0,12,Refrigerated,11,Safe
+Vegetables,400.0,7,Refrigerated,3,Warning
+Dairy,298.0,28,Frozen,0,Safe
+Dairy,6.0,16,Refrigerated,10,Safe
+Dairy,843.0,27,Frozen,7,Safe
+Dairy,45.0,32,Frozen,-28,Safe
+Dairy,320.0,11,Refrigerated,-2,Safe
+Dairy,44.0,21,Tetra Pack,18,Safe
+Dairy,115.0,39,Refrigerated,19,Safe
+Dairy,402.0,23,Frozen,-20,Safe
+Dairy,4.0,14,Refrigerated,9,Safe
+Dairy,134.0,7,Refrigerated,-28,Warning
+Meat,500.0,7,Refrigerated,3,Warning
+Dairy,672.0,13,Refrigerated,10,Safe
+Meat,350.0,7,Refrigerated,7,Safe
+Dairy,318.0,27,Frozen,0,Safe
+Vegetables,400.0,7,Refrigerated,3,Warning
+Dairy,25.0,6,Refrigerated,-11,Warning
+Dairy Products,300.0,7,Room Temperature,7,Safe
+Dairy,150.0,14,Refrigerated,-36,Safe
+Dairy,238.0,24,Tetra Pack,17,Safe
+Fruit,8.0,7,Refrigerated,5,Safe
+Dairy,238.0,10,Refrigerated,-33,Safe
+Dairy,396.0,144,Ambient,124,Safe
+Dairy,345.0,61,Refrigerated,18,Safe
+Dairy,5.0,13,Refrigerated,11,Safe
+Dairy,194.0,10,Refrigerated,3,Safe
+Dairy,695.0,14,Refrigerated,-46,Safe
+Dairy,605.0,113,Ambient,98,Safe
+Baked Goods,350.0,7,Room Temperature,3,Warning
+Dairy,93.0,27,Tetra Pack,15,Safe
+Vegetables,350.0,7,Refrigerated,7,Safe
+Dairy,359.0,65,Ambient,56,Safe
+Dairy,46.0,6,Refrigerated,-20,Warning
+Dairy,330.0,13,Refrigerated,-28,Safe
+Dairy,120.0,2,Polythene Packet,-37,High Risk
+Dairy,897.0,7,Refrigerated,-2,Warning
+Dairy,758.0,118,Ambient,68,Safe
+Dairy,415.0,29,Refrigerated,4,Safe
+Dairy,639.0,28,Frozen,-26,Safe
+Vegetables,450.0,7,Refrigerated,3,Warning
+Dairy,6.0,22,Frozen,11,Safe
+Dairy,78.0,29,Tetra Pack,-30,Safe
+Dairy,517.0,39,Frozen,-9,Safe
+Dairy,35.0,6,Refrigerated,-44,Warning
+Dairy,115.0,8,Refrigerated,-25,Safe
+Baked Goods,348.0,7,Room Temperature,7,Safe
+Dairy Products,350.0,7,Room Temperature,7,Safe
+Dairy,64.0,12,Refrigerated,-14,Safe
+Dairy,512.0,16,Refrigerated,-19,Safe
+Dairy,116.0,8,Refrigerated,-36,Safe
+Dairy,203.0,33,Frozen,-12,Safe
+Dairy Products,400.0,7,Room Temperature,3,Warning
+Dairy,16.0,16,Refrigerated,-18,Safe
+Dairy,90.0,130,Ambient,118,Safe
+Vegetables,495.0,7,Refrigerated,1,High Risk
+Dairy,170.0,91,Ambient,38,Safe
+Fruits,450.0,7,Room Temperature,3,Warning
+Dairy,100.0,29,Frozen,-14,Safe
+Dairy Products,400.0,7,Room Temperature,7,Safe
+Dairy,143.0,14,Refrigerated,-8,Safe
+Dairy,106.0,89,Ambient,65,Safe
+Dairy Products,300.0,7,Room Temperature,7,Safe
+Dairy,120.0,14,Refrigerated,-16,Safe
+Dairy,380.0,40,Refrigerated,-16,Safe
+Dairy,108.0,34,Refrigerated,-20,Safe
+Vegetables,350.0,7,Refrigerated,7,Safe
+Dairy,41.0,6,Refrigerated,-49,Warning
+Dairy,366.0,134,Ambient,94,Safe
+Dairy,70.0,17,Refrigerated,-16,Safe
+Dairy,118.0,23,Frozen,3,Safe
+Dairy,52.0,13,Refrigerated,-22,Safe
+Dairy,268.0,12,Refrigerated,-10,Safe
+Dairy,54.0,8,Refrigerated,-48,Safe
+Fruits,500.0,7,Room Temperature,1,High Risk
+Baked Goods,400.0,7,Room Temperature,3,Warning
+Dairy,788.0,6,Refrigerated,-38,Warning
+Dairy,153.0,11,Refrigerated,-43,Safe
+Meat,450.0,7,Refrigerated,1,High Risk
+Dairy,268.0,11,Refrigerated,-1,Safe
+Dairy,231.0,13,Refrigerated,-18,Safe
+Dairy,259.0,28,Frozen,26,Safe
+Dairy,80.0,99,Ambient,55,Safe
+Dairy,104.0,25,Frozen,20,Safe
+Dairy,267.0,12,Refrigerated,-35,Safe
+Dairy,675.0,23,Frozen,-19,Safe
+Dairy,16.0,21,Tetra Pack,-17,Safe
+Dairy,181.0,23,Frozen,-7,Safe
+Dairy,0.0,6,Refrigerated,-45,Warning
+Dairy,7.0,11,Refrigerated,-23,Safe
+Dairy,435.0,26,Frozen,13,Safe
+Dairy,358.0,29,Frozen,25,Safe
+Dairy,221.0,144,Ambient,101,Safe
+Dairy,473.0,30,Frozen,25,Safe
+Dairy,21.0,23,Refrigerated,-5,Safe
+Dairy,838.0,9,Refrigerated,-17,Safe
+Dairy,2.0,6,Refrigerated,-52,Warning
+Dairy,187.0,6,Refrigerated,-7,Warning
+Dairy,69.0,13,Refrigerated,-26,Safe
+Dairy,172.0,1,Polythene Packet,-21,High Risk
+Dairy,709.0,23,Refrigerated,-22,Safe
+Dairy,277.0,24,Refrigerated,0,Safe
+Dairy,54.0,5,Refrigerated,-26,Warning
+Dairy,3.0,26,Frozen,-25,Safe
+Fruit,8.0,10,Room Temperature,10,Safe
+Dairy,138.0,26,Frozen,9,Safe
+Dairy,556.0,27,Tetra Pack,-10,Safe
+Dairy,299.0,7,Refrigerated,-49,Warning
+Fruit,6.0,5,Refrigerated,-1,High Risk
+Dairy,307.0,6,Refrigerated,-22,Warning
+Baked Goods,371.0,7,Room Temperature,3,Warning
+Meat,350.0,7,Refrigerated,7,Safe
+Dairy Products,405.0,7,Room Temperature,3,Warning
+Dairy,510.0,109,Ambient,49,Safe
+Fruit,5.0,90,Room Temperature,8,High Risk
+Fruits,400.0,7,Room Temperature,3,Warning
+Dairy,13.0,38,Refrigerated,-11,Safe
+Dairy,66.0,21,Frozen,-19,Safe
+Dairy,25.0,6,Refrigerated,3,Warning
+Dairy Products,400.0,7,Room Temperature,3,Warning
+Baked Goods,400.0,7,Room Temperature,7,Safe
+Dairy,539.0,53,Refrigerated,33,Safe
+Dairy Products,350.0,7,Room Temperature,7,Safe
+Fruits,498.0,7,Room Temperature,1,High Risk
+Meat,350.0,7,Refrigerated,7,Safe
+Fruit,5.0,21,Room Temperature,14,Safe
+Dairy,129.0,41,Frozen,17,Safe
+Dairy,61.0,12,Refrigerated,-4,Safe
+Fruits,500.0,7,Room Temperature,1,High Risk
+Dairy,357.0,17,Refrigerated,-20,Safe
+Dairy,47.0,29,Refrigerated,-6,Safe
+Dairy,31.0,13,Refrigerated,-33,Safe
+Meat,400.0,7,Room Temperature,7,Safe
+Dairy,201.0,26,Frozen,9,Safe
+Dairy,90.0,9,Refrigerated,-29,Safe
+Dairy,127.0,18,Refrigerated,4,Safe
+Meat,400.0,7,Refrigerated,1,High Risk
+Baked Goods,350.0,7,Room Temperature,3,Warning
+Dairy,492.0,7,Refrigerated,-27,Warning
+Dairy Products,497.0,7,Room Temperature,3,Warning
+Fruit,2.0,10,Room Temperature,10,Safe
+Fruits,350.0,7,Room Temperature,7,Safe
+Baked Goods,300.0,7,Room Temperature,7,Safe
+Dairy,23.0,27,Frozen,7,Safe
+Dairy,493.0,13,Refrigerated,12,Safe
+Dairy,58.0,23,Frozen,8,Safe
+Dairy,576.0,76,Refrigerated,29,Safe
+Meat,350.0,7,Refrigerated,7,Safe
+Fruits,450.0,7,Room Temperature,1,High Risk
+Dairy,520.0,30,Frozen,7,Safe
+Meat,500.0,7,Refrigerated,1,High Risk
+Dairy,163.0,28,Frozen,-18,Safe
+Dairy,79.0,88,Refrigerated,48,Safe
+Dairy,215.0,40,Refrigerated,15,Safe
+Dairy,22.0,33,Refrigerated,10,Safe
+Baked Goods,500.0,7,Room Temperature,3,Warning
+Dairy,177.0,30,Refrigerated,-18,Safe
+Dairy,269.0,11,Refrigerated,-21,Safe
+Baked Goods,400.0,7,Room Temperature,1,High Risk
+Dairy,29.0,33,Frozen,20,Safe
+Baked Goods,300.0,7,Room Temperature,7,Safe
+Dairy,371.0,9,Refrigerated,-29,Safe
+Dairy,20.0,90,Ambient,81,Safe
+Dairy,241.0,29,Tetra Pack,10,Safe
+Fruit,4.0,10,Room Temperature,8,Safe
+Dairy,437.0,5,Refrigerated,-45,Warning
+Dairy,161.0,28,Frozen,10,Safe
+Meat,450.0,7,Room Temperature,3,Warning
+Dairy,33.0,25,Refrigerated,-14,Safe
+Dairy,186.0,145,Ambient,128,Safe
+Fruit,8.0,7,Refrigerated,5,Safe
+Dairy,347.0,7,Refrigerated,-50,Warning
+Dairy,382.0,23,Frozen,19,Safe
+Fruits,400.0,7,Room Temperature,3,Warning
+Dairy,46.0,9,Refrigerated,-36,Safe
+Baked Goods,493.0,7,Room Temperature,3,Warning
+Dairy,66.0,26,Frozen,6,Safe
+Vegetables,350.0,7,Refrigerated,3,Warning
+Dairy,143.0,29,Tetra Pack,-26,Safe
+Dairy,122.0,29,Frozen,15,Safe
+Dairy,84.0,24,Frozen,9,Safe
+Dairy Products,420.0,7,Room Temperature,1,High Risk
+Dairy,284.0,7,Refrigerated,-49,Warning
+Dairy,8.0,26,Refrigerated,19,Safe
+Dairy,169.0,22,Frozen,-20,Safe
+Dairy,21.0,24,Frozen,22,Safe
+Dairy,71.0,5,Refrigerated,3,Warning
+Dairy,15.0,6,Refrigerated,-22,Warning
+Dairy,849.0,51,Refrigerated,28,Safe
+Dairy,531.0,26,Frozen,-20,Safe
+Dairy,948.0,13,Refrigerated,-26,Safe
+Dairy,104.0,29,Frozen,13,Safe
+Dairy,66.0,14,Refrigerated,-1,Safe
+Dairy,188.0,135,Ambient,103,Safe
+Dairy,444.0,11,Refrigerated,-13,Safe
+Dairy,34.0,137,Ambient,126,Safe
+Dairy,476.0,130,Ambient,108,Safe
+Dairy,680.0,36,Frozen,-5,Safe
+Dairy,174.0,25,Refrigerated,-34,Safe
+Dairy Products,400.0,7,Room Temperature,7,Safe
+Dairy,220.0,5,Refrigerated,-8,Warning
+Dairy,356.0,7,Refrigerated,-45,Warning
+Dairy Products,350.0,7,Room Temperature,7,Safe
+Dairy,97.0,46,Refrigerated,-14,Safe
+Dairy,546.0,7,Refrigerated,-45,Warning
+Dairy,392.0,7,Refrigerated,2,Warning
+Dairy,152.0,17,Refrigerated,-28,Safe
+Dairy,316.0,30,Refrigerated,17,Safe
+Fruits,350.0,7,Room Temperature,3,Warning
+Dairy,314.0,28,Frozen,-17,Safe
+Dairy,175.0,73,Ambient,36,Safe
+Fruit,7.0,7,Refrigerated,5,Safe
+Fruit,3.0,5,Refrigerated,5,Safe
+Dairy,250.0,28,Frozen,-30,Safe
+Baked Goods,400.0,7,Room Temperature,1,High Risk
+Dairy,134.0,12,Refrigerated,10,Safe
+Dairy,152.0,28,Frozen,13,Safe
+Dairy,955.0,5,Refrigerated,-9,Warning
+Dairy,307.0,5,Refrigerated,-47,Warning
+Dairy,611.0,8,Refrigerated,-3,Safe
+Dairy,50.0,86,Refrigerated,59,Safe
+Dairy,247.0,27,Refrigerated,14,Safe
+Dairy,70.0,10,Refrigerated,-12,Safe
+Dairy,500.0,14,Refrigerated,-2,Safe
+Dairy,2.0,12,Refrigerated,-40,Safe
+Dairy,55.0,23,Refrigerated,-17,Safe
+Dairy,9.0,26,Refrigerated,-29,Safe
+Fruits,450.0,7,Room Temperature,1,High Risk
+Fruit,4.0,365,Room Temperature,347,Safe
+Baked Goods,348.0,7,Room Temperature,7,Safe
+Meat,500.0,7,Refrigerated,3,Warning
+Dairy,818.0,13,Refrigerated,-5,Safe
+Dairy,124.0,28,Refrigerated,-24,Safe
+Dairy,170.0,5,Refrigerated,-15,Warning
+Vegetables,478.0,7,Room Temperature,1,High Risk
+Dairy,492.0,24,Frozen,19,Safe
+Meat,400.0,7,Room Temperature,3,Warning
+Dairy,241.0,13,Refrigerated,-46,Safe
+Fruits,350.0,7,Room Temperature,3,Warning
+Dairy,384.0,33,Frozen,8,Safe
+Dairy,367.0,128,Ambient,123,Safe
+Baked Goods,450.0,7,Room Temperature,3,Warning
+Dairy,372.0,28,Refrigerated,-14,Safe
+Dairy,58.0,2,Polythene Packet,-39,High Risk
+Dairy,27.0,2,Polythene Packet,-15,High Risk
+Dairy,434.0,15,Refrigerated,-17,Safe
+Dairy,105.0,18,Refrigerated,-30,Safe
+Dairy,151.0,77,Ambient,67,Safe
+Dairy,478.0,30,Tetra Pack,-12,Safe
+Dairy,313.0,6,Refrigerated,-52,Warning
+Dairy,46.0,13,Refrigerated,-42,Safe
+Dairy Products,495.0,7,Room Temperature,1,High Risk
+Fruit,2.0,7,Refrigerated,2,Warning
+Fruits,480.0,7,Refrigerated,1,High Risk
+Dairy,23.0,135,Ambient,108,Safe
+Fruits,450.0,7,Room Temperature,1,High Risk
+Dairy,784.0,12,Refrigerated,-17,Safe
+Dairy,36.0,5,Refrigerated,-55,Warning
+Dairy,594.0,30,Frozen,-4,Safe
+Dairy,202.0,5,Refrigerated,-3,Warning
+Dairy,13.0,27,Frozen,7,Safe
+Dairy Products,450.0,7,Room Temperature,3,Warning
+Fruit,5.0,7,Refrigerated,4,Safe
+Dairy,162.0,15,Refrigerated,5,Safe
+Dairy,260.0,24,Frozen,-30,Safe
+Dairy,256.0,12,Refrigerated,-34,Safe
+Dairy Products,300.0,7,Room Temperature,7,Safe
+Dairy,10.0,28,Frozen,-11,Safe
+Dairy,863.0,12,Refrigerated,-39,Safe
+Dairy,160.0,38,Frozen,5,Safe
+Dairy,47.0,119,Ambient,60,Safe
+Dairy,179.0,1,Polythene Packet,-30,High Risk
+Dairy,111.0,13,Refrigerated,-47,Safe
+Meat,350.0,7,Refrigerated,7,Safe
+Dairy Products,400.0,7,Room Temperature,7,Safe
+Meat,350.0,7,Room Temperature,3,Warning
+Dairy,435.0,24,Frozen,-33,Safe
+Dairy,34.0,23,Frozen,17,Safe
+Fruit,2.0,10,Room Temperature,2,Warning
+Dairy,66.0,9,Refrigerated,-33,Safe
+Dairy,276.0,30,Tetra Pack,9,Safe
+Dairy,579.0,15,Refrigerated,-10,Safe
+Dairy Products,350.0,7,Room Temperature,3,Warning
+Dairy Products,450.0,7,Room Temperature,7,Safe
+Dairy,324.0,68,Ambient,25,Safe
+Dairy,18.0,13,Refrigerated,-29,Safe
+Dairy,441.0,13,Refrigerated,-14,Safe
+Dairy,443.0,27,Frozen,-21,Safe
+Vegetables,393.0,7,Room Temperature,3,Warning
+Dairy,102.0,5,Refrigerated,3,Warning
+Dairy,493.0,26,Frozen,4,Safe
+Fruits,500.0,7,Refrigerated,3,Warning
+Dairy,293.0,143,Ambient,136,Safe
+Dairy,74.0,28,Refrigerated,-10,Safe
+Dairy,28.0,14,Refrigerated,-42,Safe
+Dairy,50.0,22,Tetra Pack,-5,Safe
+Dairy,203.0,6,Refrigerated,-51,Warning
+Dairy,53.0,31,Frozen,18,Safe
+Meat,282.0,7,Refrigerated,3,Warning
+Dairy,139.0,46,Frozen,-8,Safe
+Dairy Products,500.0,7,Room Temperature,3,Warning
+Dairy,284.0,104,Ambient,74,Safe
+Dairy,7.0,7,Refrigerated,-7,Warning
+Vegetables,400.0,7,Refrigerated,3,Warning
+Fruit,4.0,7,Refrigerated,5,Safe
+Fruit,4.0,14,Room Temperature,11,Safe
+Fruit,7.0,30,Room Temperature,22,Safe
+Vegetables,500.0,7,Room Temperature,1,High Risk
+Dairy,25.0,9,Refrigerated,-15,Safe
+Fruit,2.0,7,Refrigerated,-2,High Risk
+Meat,496.0,7,Refrigerated,1,High Risk
+Dairy,98.0,26,Refrigerated,-9,Safe
+Dairy,21.0,14,Refrigerated,-45,Safe
+Dairy,257.0,13,Refrigerated,5,Safe
+Dairy,115.0,6,Refrigerated,-41,Warning
+Baked Goods,480.0,7,Room Temperature,1,High Risk
+Dairy,225.0,30,Frozen,-22,Safe
+Dairy,87.0,106,Ambient,74,Safe
+Dairy,240.0,8,Refrigerated,-50,Safe
+Dairy,46.0,21,Tetra Pack,-30,Safe
+Dairy,89.0,1,Polythene Packet,-39,High Risk
+Dairy,472.0,5,Refrigerated,-2,Warning
+Dairy,380.0,14,Refrigerated,1,Safe
+Dairy,387.0,11,Refrigerated,-23,Safe
+Dairy,181.0,6,Refrigerated,-14,Warning
+Dairy,15.0,5,Refrigerated,-51,Warning
+Fruit,7.0,7,Refrigerated,2,Warning
+Baked Goods,350.0,7,Room Temperature,7,Safe
+Dairy,32.0,10,Refrigerated,7,Safe
+Dairy Products,400.0,7,Room Temperature,1,High Risk
+Fruit,9.0,14,Room Temperature,11,Safe
+Meat,450.0,7,Refrigerated,3,Warning
+Dairy,85.0,21,Frozen,-39,Safe
+Dairy,298.0,9,Refrigerated,-23,Safe
+Dairy,222.0,93,Ambient,56,Safe
+Vegetables,500.0,7,Refrigerated,7,Safe
+Fruit,9.0,7,Refrigerated,0,High Risk
+Dairy,243.0,22,Frozen,-16,Safe
+Dairy,182.0,13,Refrigerated,-10,Safe
+Dairy,131.0,129,Ambient,75,Safe
+Dairy,77.0,8,Refrigerated,-51,Safe
+Dairy,929.0,28,Refrigerated,-7,Safe
+Dairy,82.0,14,Refrigerated,-17,Safe
+Meat,450.0,7,Refrigerated,7,Safe
+Baked Goods,500.0,7,Room Temperature,3,Warning
+Dairy,453.0,90,Ambient,37,Safe
+Dairy,340.0,68,Refrigerated,21,Safe
+Dairy,282.0,14,Refrigerated,-31,Safe
+Dairy,303.0,13,Refrigerated,-8,Safe
+Vegetables,400.0,7,Refrigerated,7,Safe
+Dairy,267.0,54,Refrigerated,42,Safe
+Dairy,49.0,107,Ambient,101,Safe
+Dairy,12.0,35,Frozen,-8,Safe
+Vegetables,350.0,7,Refrigerated,7,Safe
+Dairy,210.0,5,Refrigerated,-42,Warning
+Fruits,300.0,7,Room Temperature,7,Safe
+Dairy,206.0,10,Refrigerated,-24,Safe
+Dairy,96.0,10,Refrigerated,-10,Safe
+Fruit,5.0,30,Room Temperature,10,Warning
+Dairy,119.0,9,Refrigerated,-22,Safe
+Baked Goods,400.0,7,Room Temperature,1,High Risk
+Dairy Products,350.0,7,Room Temperature,3,Warning
+Dairy,24.0,10,Refrigerated,-25,Safe
+Dairy,492.0,26,Frozen,13,Safe
+Dairy Products,400.0,7,Room Temperature,3,Warning
+Dairy,83.0,29,Frozen,13,Safe
+Dairy,479.0,23,Frozen,3,Safe
+Dairy,280.0,26,Frozen,-14,Safe
+Vegetables,400.0,7,Refrigerated,3,Warning
+Dairy,198.0,63,Ambient,28,Safe
+Dairy,36.0,8,Refrigerated,-9,Safe
+Dairy Products,500.0,7,Room Temperature,1,High Risk
+Dairy,367.0,26,Frozen,-20,Safe
+Dairy Products,480.0,7,Room Temperature,3,Warning
+Dairy,29.0,31,Refrigerated,9,Safe
+Dairy,534.0,12,Refrigerated,-6,Safe
+Dairy,461.0,2,Polythene Packet,-26,High Risk
+Dairy,115.0,79,Refrigerated,76,Safe
+Dairy Products,350.0,7,Room Temperature,7,Safe
+Dairy,227.0,38,Refrigerated,-13,Safe
+Fruit,7.0,90,Room Temperature,6,High Risk
+Dairy,827.0,40,Frozen,-2,Safe
+Dairy,220.0,38,Refrigerated,-2,Safe
+Dairy,36.0,2,Polythene Packet,-5,High Risk
+Dairy Products,450.0,7,Room Temperature,3,Warning
+Dairy,468.0,87,Refrigerated,75,Safe
+Dairy,8.0,8,Refrigerated,-51,Safe
+Dairy,217.0,22,Tetra Pack,-9,Safe
+Dairy,534.0,8,Refrigerated,-32,Safe
+Dairy Products,480.0,7,Room Temperature,3,Warning
+Dairy Products,350.0,7,Room Temperature,7,Safe
+Dairy,70.0,14,Refrigerated,-11,Safe
+Dairy,749.0,71,Frozen,67,Safe
+Dairy,313.0,7,Refrigerated,-45,Warning
+Dairy,249.0,8,Refrigerated,-27,Safe
+Dairy,69.0,17,Refrigerated,13,Safe
+Dairy,486.0,2,Polythene Packet,-2,High Risk
+Dairy,490.0,18,Refrigerated,-20,Safe
+Fruit,8.0,21,Room Temperature,9,Safe
+Dairy,21.0,80,Frozen,46,Safe
+Dairy Products,350.0,7,Room Temperature,3,Warning
+Fruit,1.0,10,Room Temperature,8,Safe
+Vegetables,350.0,7,Room Temperature,7,Safe
+Dairy,191.0,66,Refrigerated,43,Safe
+Baked Goods,400.0,7,Room Temperature,3,Warning
+Dairy,2.0,69,Frozen,34,Safe
+Dairy,10.0,22,Refrigerated,-1,Safe
+Dairy,358.0,37,Refrigerated,-5,Safe
+Fruit,3.0,5,Refrigerated,5,Safe
+Vegetables,450.0,7,Refrigerated,3,Warning
+Dairy,163.0,25,Refrigerated,-26,Safe
+Dairy,213.0,86,Frozen,66,Safe
+Fruit,9.0,7,Refrigerated,-1,High Risk
+Dairy,39.0,16,Refrigerated,-6,Safe
+Dairy,15.0,127,Ambient,71,Safe
