@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+fresh.db
+.ipynb_checkpoints/
+.DS_Store
+*.log
+
+# Do not ignore artifacts/ for this MVP because the model files are deployed with Railway.

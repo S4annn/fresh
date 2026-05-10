@@ -1,90 +1,104 @@
-# F.R.E.S.H MVP — Instalasi, Konfigurasi, dan Deployment
+# F.R.E.S.H MVP - Instalasi, Konfigurasi, dan Deployment
 
-Dokumen ini menjelaskan alur lengkap dari dataset sementara, notebook AI, FastAPI backend, React frontend, sampai deployment Railway dan Vercel.
+Dokumen ini berisi langkah teknis untuk menjalankan F.R.E.S.H dari lokal sampai deployment. README utama menjelaskan konteks project, sedangkan file ini fokus ke setup.
 
 ## 1. Arsitektur MVP
 
 ```txt
 User Browser
-   |
-   v
+    |
+    v
 React Frontend (Vercel)
-   |
-   v
+    |
+    v
 FastAPI Backend (Railway)
-   |
-   +-- SQLite lokal / PostgreSQL Railway
-   |
-   +-- AI Risk Model: backend/artifacts/risk_model.joblib
+    |
+    +-- SQLite lokal / PostgreSQL Railway
+    |
+    +-- Risk Model: backend/artifacts/risk_model.joblib
+    |
+    +-- Vision Model optional: backend/artifacts/food_vision_model.keras
 ```
 
 Fitur MVP:
-- Inventory makanan
-- Prediksi risiko food waste
-- Rekomendasi penggunaan/donasi
-- Dashboard ringkas
-- Marketplace/donasi sederhana
+
+- inventory makanan;
+- prediksi risiko food waste;
+- rekomendasi penggunaan, marketplace, atau donasi;
+- dashboard personal;
+- dashboard business berbasis dummy data dan stub API;
+- scanner makanan dengan model vision atau fallback.
 
 ## 2. Jalankan Notebook AI
 
-### Di Google Colab
+Notebook training ada di:
 
-1. Upload folder `data/` atau 3 file CSV:
-   - `cleaned_dairy_dataset.csv`
-   - `cleaned_fruits_dataset.csv`
-   - `cleaned_food_wastage_data.csv`
+```txt
+notebooks/FRESH_AI_Training_Notebook.ipynb
+```
 
-2. Buka:
-   - `notebooks/FRESH_AI_Training_Notebook.ipynb`
+Dataset sample ada di:
 
+```txt
+data/cleaned_dairy_dataset.csv
+data/cleaned_fruits_dataset.csv
+data/cleaned_food_wastage_data.csv
+```
+
+Alur training:
+
+1. Upload folder `data/` atau tiga file CSV ke Google Colab.
+2. Buka notebook training.
 3. Jalankan semua cell.
+4. Download artifact model.
+5. Copy artifact ke `backend/artifacts/`.
 
-4. Download artifact:
-   - `risk_model.joblib`
-   - `model_metadata.json`
+Artifact utama:
 
-5. Copy ke:
-   - `backend/artifacts/`
+```txt
+risk_model.joblib
+model_metadata.json
+```
 
-Catatan:
-- Model default di package ini adalah Scikit-learn agar ringan saat deploy.
-- Bagian TensorFlow/Keras tetap disediakan sebagai opsional untuk memenuhi learning path AI.
+Artifact scanner optional:
 
-## 3. Jalankan Backend FastAPI Lokal
+```txt
+food_vision_model.keras
+food_labels.json
+food_metadata.json
+```
+
+Catatan: model risk prediction memakai Scikit-learn agar ringan untuk deployment. TensorFlow/Keras hanya dipakai jika scanner vision ingin dijalankan penuh.
+
+## 3. Jalankan Backend Lokal
 
 ```bash
 cd backend
-
 python -m venv .venv
-```
-
-Windows:
-```bash
 .venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
 
 Mac/Linux:
+
 ```bash
+cd backend
+python -m venv .venv
 source .venv/bin/activate
-```
-
-Install:
-```bash
 pip install -r requirements.txt
-```
-
-Run:
-```bash
 uvicorn app.main:app --reload
 ```
 
 Buka:
+
 ```txt
 http://localhost:8000
 http://localhost:8000/docs
 ```
 
-Test endpoint:
+Test prediksi risiko:
+
 ```bash
 curl -X POST http://localhost:8000/predict-risk ^
   -H "Content-Type: application/json" ^
@@ -92,6 +106,7 @@ curl -X POST http://localhost:8000/predict-risk ^
 ```
 
 Mac/Linux:
+
 ```bash
 curl -X POST http://localhost:8000/predict-risk \
   -H "Content-Type: application/json" \
@@ -103,136 +118,170 @@ curl -X POST http://localhost:8000/predict-risk \
 ```bash
 cd frontend
 npm install
-cp .env.example .env
 npm run dev
 ```
 
-Isi `.env`:
+Jika ingin memakai backend lokal, buat `frontend/.env`:
+
 ```env
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
 Buka:
+
 ```txt
 http://localhost:5173
 ```
 
 ## 5. Deploy Backend ke Railway
 
-### Opsi A — GitHub
+### Opsi GitHub
 
-1. Buat repo GitHub, misalnya `fresh-mvp`.
-2. Push folder project ini.
-3. Buka Railway.
-4. New Project → Deploy from GitHub repo.
-5. Pilih repo.
-6. Root directory arahkan ke:
-   ```txt
-   backend
-   ```
-7. Start command:
-   ```bash
-   uvicorn app.main:app --host 0.0.0.0 --port $PORT
-   ```
+1. Push project ke GitHub.
+2. Buka Railway.
+3. Pilih `New Project`.
+4. Pilih `Deploy from GitHub repo`.
+5. Pilih repository F.R.E.S.H.
+6. Set root directory ke:
+
+```txt
+backend
+```
+
+7. Set start command:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
 8. Generate public domain.
-9. Test:
-   ```txt
-   https://your-api.up.railway.app/docs
-   ```
+9. Test Swagger:
 
-### Environment Variable Railway
+```txt
+https://your-api.up.railway.app/docs
+```
+
+### Environment Railway
 
 Minimal:
+
 ```env
 CORS_ORIGINS=https://your-frontend.vercel.app
 ```
 
-Opsional PostgreSQL:
+Opsional jika memakai PostgreSQL Railway:
+
 ```env
 DATABASE_URL=${{ Postgres.DATABASE_URL }}
 ```
 
-Jika tidak pakai PostgreSQL, backend akan memakai SQLite. Untuk demo bisa, tapi untuk production lebih baik pakai PostgreSQL.
+Jika tidak memakai PostgreSQL, backend memakai SQLite. Untuk demo masih cukup, tetapi untuk production lebih baik memakai PostgreSQL.
 
 ## 6. Deploy Frontend ke Vercel
 
 1. Buka Vercel.
-2. Add New Project.
-3. Import repo GitHub.
-4. Root directory:
-   ```txt
-   frontend
-   ```
-5. Framework Preset:
-   ```txt
-   Vite
-   ```
+2. Pilih `Add New Project`.
+3. Import repository GitHub.
+4. Set root directory ke:
+
+```txt
+frontend
+```
+
+5. Framework preset:
+
+```txt
+Vite
+```
+
 6. Build command:
-   ```bash
-   npm run build
-   ```
+
+```bash
+npm run build
+```
+
 7. Output directory:
-   ```txt
-   dist
-   ```
-8. Environment Variable:
-   ```env
-   VITE_API_BASE_URL=https://your-api.up.railway.app
-   ```
+
+```txt
+dist
+```
+
+8. Environment variable:
+
+```env
+VITE_API_BASE_URL=https://your-api.up.railway.app
+```
+
 9. Deploy.
 
-## 7. Update CORS Setelah Frontend Jadi
+## 7. Update CORS
 
-Setelah Vercel memberi domain, misalnya:
+Setelah frontend punya domain Vercel, misalnya:
+
 ```txt
 https://fresh-mvp.vercel.app
 ```
 
-Masukkan ke Railway:
+Masukkan domain itu ke Railway:
+
 ```env
 CORS_ORIGINS=https://fresh-mvp.vercel.app
 ```
 
-Deploy ulang backend.
+Redeploy backend setelah environment diganti.
 
 ## 8. Endpoint Penting
 
 | Method | Endpoint | Fungsi |
-|---|---|---|
+| --- | --- | --- |
 | GET | `/` | Cek API |
-| GET | `/docs` | Swagger API |
+| GET | `/health` | Health check |
+| GET | `/docs` | Swagger docs |
+| GET | `/model/metadata` | Metadata model |
 | POST | `/predict-risk` | Prediksi risiko makanan |
-| POST | `/foods` | Tambah makanan |
 | GET | `/foods` | Ambil inventory |
-| PUT | `/foods/{id}` | Update makanan |
-| DELETE | `/foods/{id}` | Hapus makanan |
+| POST | `/foods` | Tambah makanan |
+| PUT | `/foods/{food_id}` | Update makanan |
+| DELETE | `/foods/{food_id}` | Hapus makanan |
 | GET | `/dashboard` | Ringkasan dashboard |
-| POST | `/marketplace/listings` | Buat listing donasi/jual |
+| POST | `/scan-food` | Scan gambar makanan |
+| GET | `/scan-food/status` | Status scanner |
 | GET | `/marketplace/listings` | Ambil listing marketplace |
+| POST | `/marketplace/listings` | Buat listing marketplace |
+| GET | `/business/inventory` | Stub inventory bisnis |
+| GET | `/business/orders` | Stub order bisnis |
+| GET | `/business/branches` | Stub cabang bisnis |
+| GET | `/business/analytics` | Placeholder analytics bisnis |
 
-## 9. Improve Lanjutan
+## 9. Bagian Yang Masih Bisa Dilanjutkan
 
 ### AI
-- Tambahkan data real user: frekuensi konsumsi, stok masuk/keluar, kondisi penyimpanan.
-- Tambahkan model rekomendasi menu berbasis bahan yang tersedia.
-- Gunakan explainability sederhana: alasan kenapa item masuk High Risk.
+
+- Latih model dengan data real user.
+- Tambahkan fitur frekuensi konsumsi, stok masuk/keluar, dan kondisi penyimpanan yang lebih detail.
+- Buat rekomendasi menu berdasarkan bahan yang tersedia.
+- Tambahkan alasan prediksi supaya user tahu kenapa item masuk `High Risk`.
 
 ### Backend
-- Tambahkan auth JWT.
-- Tambahkan role: household, restaurant, admin.
-- Gunakan PostgreSQL dari awal untuk deploy production.
+
+- Tambahkan auth JWT atau integrasi Firebase token verification.
+- Tambahkan endpoint donation terpisah.
+- Lengkapi CRUD business inventory, orders, dan branches.
 - Tambahkan migration Alembic.
 - Tambahkan logging dan monitoring.
 
 ### Frontend
-- Tambahkan login/register.
-- Tambahkan edit food item.
-- Tambahkan filter berdasarkan risiko.
-- Tambahkan notifikasi expiry.
-- Tambahkan halaman detail marketplace.
+
+- Kurangi dummy data setelah backend lengkap.
+- Tambahkan notifikasi expiry berbasis jadwal.
+- Tambahkan filter risiko yang lebih detail.
+- Tambahkan halaman detail marketplace dan donation.
+- Tambahkan empty state dan error state yang lebih konsisten.
 
 ### Product
-- Fokus demo ke 3 alur:
-  1. User tambah stok makanan.
-  2. AI memprediksi risiko.
-  3. User mendapatkan rekomendasi atau membuat listing donasi.
+
+Demo paling kuat sebaiknya fokus ke tiga alur:
+
+1. user menambahkan stok makanan;
+2. sistem memprediksi risiko makanan terbuang;
+3. user mengambil tindakan lewat rekomendasi, marketplace, atau donasi.
