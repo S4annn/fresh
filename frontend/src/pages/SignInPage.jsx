@@ -51,10 +51,16 @@ export default function SignInPage() {
     setLoading(true);
     try {
       setRole(selectedRole);
-      await signInWithGoogle();
-      navigate(getRedirectPath(selectedRole));
+      const googleUser = await signInWithGoogle();
+      if (googleUser) navigate(getRedirectPath(selectedRole));
     } catch (err) {
-      setError(err.message || 'Google sign in failed.');
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('Domain aplikasi belum ditambahkan di Firebase Authentication > Settings > Authorized domains.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Popup login diblokir browser. Izinkan popup untuk situs ini atau coba lagi dengan mode redirect.');
+      } else {
+        setError(err.message || 'Google sign in failed.');
+      }
     } finally {
       setLoading(false);
     }
