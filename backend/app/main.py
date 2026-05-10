@@ -32,7 +32,15 @@ from .schemas import (
     MarketplaceUpdate,
     PredictInput,
 )
-from .vision_model import predict_food_from_image, vision_model_status
+from .vision_model import (
+    ARTIFACTS_DIR,
+    LABELS_PATH,
+    METADATA_PATH,
+    MODEL_PATH,
+    load_assets,
+    predict_food_from_image,
+    vision_model_status,
+)
 
 create_db_and_tables()
 
@@ -55,6 +63,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def load_vision_model_on_startup():
+    load_assets()
 
 
 def _today_plus(days: int) -> date:
@@ -633,6 +646,18 @@ def get_metadata():
 @app.get("/scan-food/status")
 def scan_food_status():
     return vision_model_status()
+
+
+@app.get("/debug-artifacts")
+def debug_artifacts():
+    return {
+        "artifacts_dir": str(ARTIFACTS_DIR),
+        "model_path": str(MODEL_PATH),
+        "model_exists": MODEL_PATH.exists(),
+        "labels_exists": LABELS_PATH.exists(),
+        "metadata_exists": METADATA_PATH.exists(),
+        "files": [p.name for p in ARTIFACTS_DIR.glob("*")] if ARTIFACTS_DIR.exists() else [],
+    }
 
 
 @app.post("/scan-food")

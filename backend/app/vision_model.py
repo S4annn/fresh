@@ -8,11 +8,12 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any, Optional
 
-ROOT = Path(__file__).resolve().parents[1]
-ARTIFACT_DIR = ROOT / "artifacts"
-MODEL_PATH = ARTIFACT_DIR / "food_vision_model.keras"
-LABELS_PATH = ARTIFACT_DIR / "food_labels.json"
-METADATA_PATH = ARTIFACT_DIR / "food_metadata.json"
+BASE_DIR = Path(__file__).resolve().parent.parent
+ARTIFACTS_DIR = BASE_DIR / "artifacts"
+
+MODEL_PATH = ARTIFACTS_DIR / "food_vision_model.keras"
+LABELS_PATH = ARTIFACTS_DIR / "food_labels.json"
+METADATA_PATH = ARTIFACTS_DIR / "food_metadata.json"
 IMAGE_SIZE = (160, 160)
 
 _ASSETS: dict[str, Any] = {
@@ -55,6 +56,12 @@ def load_assets() -> dict[str, Any]:
         return _ASSETS
 
     _ASSETS["loaded"] = True
+    print("ARTIFACTS_DIR:", ARTIFACTS_DIR, flush=True)
+    print("MODEL_PATH:", MODEL_PATH, flush=True)
+    print("MODEL_EXISTS:", MODEL_PATH.exists(), flush=True)
+    print("LABELS_EXISTS:", LABELS_PATH.exists(), flush=True)
+    print("METADATA_EXISTS:", METADATA_PATH.exists(), flush=True)
+
     labels = _extract_labels(_safe_json(LABELS_PATH, []))
     metadata = _safe_json(METADATA_PATH, {})
     _ASSETS["labels"] = labels
@@ -62,10 +69,12 @@ def load_assets() -> dict[str, Any]:
 
     if not MODEL_PATH.exists():
         _ASSETS["error"] = "food_vision_model.keras not found"
+        print("MODEL_LOAD_ERROR:", _ASSETS["error"], flush=True)
         return _ASSETS
 
     if importlib.util.find_spec("tensorflow") is None:
         _ASSETS["error"] = "tensorflow is not installed"
+        print("MODEL_LOAD_ERROR:", _ASSETS["error"], flush=True)
         return _ASSETS
 
     try:
@@ -75,23 +84,38 @@ def load_assets() -> dict[str, Any]:
             "preprocess_input": tf.keras.applications.mobilenet_v2.preprocess_input,
             "function": tf.keras.applications.mobilenet_v2.preprocess_input,
         }
+        original_dense_from_config = tf.keras.layers.Dense.from_config
+
+        @classmethod
+        def dense_from_config_compat(cls: Any, config: dict[str, Any]) -> Any:
+            clean_config = dict(config)
+            clean_config.pop("quantization_config", None)
+            return original_dense_from_config(clean_config)
+
         try:
-            _ASSETS["model"] = tf.keras.models.load_model(
-                MODEL_PATH,
-                compile=False,
-                custom_objects=custom_objects,
-                safe_mode=False,
-            )
-        except TypeError:
-            _ASSETS["model"] = tf.keras.models.load_model(
-                MODEL_PATH,
-                compile=False,
-                custom_objects=custom_objects,
-            )
+            tf.keras.layers.Dense.from_config = dense_from_config_compat
+            try:
+                _ASSETS["model"] = tf.keras.models.load_model(
+                    MODEL_PATH,
+                    compile=False,
+                    custom_objects=custom_objects,
+                    safe_mode=False,
+                )
+            except TypeError:
+                _ASSETS["model"] = tf.keras.models.load_model(
+                    MODEL_PATH,
+                    compile=False,
+                    custom_objects=custom_objects,
+                )
+        finally:
+            tf.keras.layers.Dense.from_config = original_dense_from_config
+
         _ASSETS["error"] = None
+        print("MODEL_LOADED: True", flush=True)
     except Exception as exc:
         _ASSETS["model"] = None
         _ASSETS["error"] = str(exc)[:700]
+        print("MODEL_LOAD_ERROR:", str(exc), flush=True)
 
     return _ASSETS
 
@@ -224,6 +248,8 @@ def predict_food_from_image(image_bytes: bytes, filename: Optional[str] = None) 
     labels = assets.get("labels") or []
 
     if model is None:
+        if assets.get("error"):
+            print("MODEL_UNAVAILABLE:", assets.get("error"), flush=True)
         return _fallback_from_filename(filename)
 
     try:
@@ -244,13 +270,16 @@ def predict_food_from_image(image_bytes: bytes, filename: Optional[str] = None) 
         confidence = float(probabilities[pred_idx])
         label = labels[pred_idx] if pred_idx < len(labels) else f"class_{pred_idx}"
         return _food_response(label, confidence, "tensorflow_vision_model")
-    except Exception:
+    except Exception as exc:
+        _ASSETS["error"] = str(exc)[:700]
+        print("MODEL_PREDICT_ERROR:", str(exc), flush=True)
         return _fallback_from_filename(filename)
 
 
 def vision_model_status() -> dict[str, Any]:
     assets = load_assets()
     return {
+        "artifacts_dir": str(ARTIFACTS_DIR),
         "model_file": str(MODEL_PATH),
         "model_available": MODEL_PATH.exists(),
         "labels_file": str(LABELS_PATH),
