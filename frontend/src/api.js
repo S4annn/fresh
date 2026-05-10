@@ -63,6 +63,7 @@ export async function analyzeFoodImage(file) {
 function localFoodClassifier(filename) {
   const name = filename.toLowerCase();
   const foodMap = [
+    { keywords: ['greenbeans', 'greenbean', 'green-beans', 'green-bean', 'beans', 'bean', 'buncis'], food: 'Bean', category: 'Vegetable', shelf: 5, storage: 'Refrigerator', confidence: 0.72, risk: 'Warning', recs: ['Store in a sealed container in the refrigerator', 'Use for stir-fry, soup, or vegetable mix', 'Use within 3-5 days for best freshness'] },
     { keywords: ['banana', 'pisang'], food: 'Banana', category: 'Fruit', shelf: 3, storage: 'Room Temperature', confidence: 0.88, risk: 'Warning', recs: ['Use within 2-3 days', 'Make banana smoothie or banana bread', 'Freeze sliced banana for later use', 'If still fresh, list in marketplace or donate'] },
     { keywords: ['apple', 'apel'], food: 'Apple', category: 'Fruit', shelf: 7, storage: 'Refrigerator', confidence: 0.91, risk: 'Safe', recs: ['Store in refrigerator to extend freshness', 'Make apple juice or apple crumble', 'Great for snacking or salads'] },
     { keywords: ['tomato', 'tomat'], food: 'Tomato', category: 'Vegetable', shelf: 5, storage: 'Room Temperature', confidence: 0.85, risk: 'Warning', recs: ['Use within 3-5 days', 'Make homemade tomato sauce', 'Add to salads or sandwiches'] },
@@ -84,6 +85,7 @@ function localFoodClassifier(filename) {
     confidence: item.confidence,
     estimated_shelf_life_days: item.shelf,
     risk_label: item.risk,
+    classifier: 'frontend_filename_fallback',
     storage_advice: `Store in ${item.storage}. ${item.shelf <= 2 ? 'Use immediately.' : item.shelf <= 5 ? 'Use within a few days.' : 'Monitor regularly.'}`,
     recommendations: item.recs,
     suggested_inventory: {

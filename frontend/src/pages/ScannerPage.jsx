@@ -186,6 +186,13 @@ export default function ScannerPage() {
 
   const risk    = result ? riskConfig[result.risk_label] || riskConfig.Safe : null;
   const RiskIcon = risk?.icon;
+  const scannerSourceLabel = result?.classifier === 'vision_model'
+    ? `Vision model${result.model_label ? `: ${result.model_label}` : ''}`
+    : result?.classifier === 'frontend_filename_fallback'
+      ? 'Local fallback scanner'
+      : result?.classifier === 'filename_fallback'
+        ? 'Filename fallback scanner'
+        : null;
 
   const inventoryLabel  = isBusiness() ? 'Add to Business Inventory' : 'Add to Home Inventory';
   const marketplacePath = isBusiness() ? '/business/marketplace' : '/marketplace';
@@ -425,6 +432,7 @@ export default function ScannerPage() {
                   <div>
                     <h2 className="text-2xl font-extrabold text-gray-800">{result.detected_food}</h2>
                     <p className="text-gray-500 text-sm mt-0.5">{result.category}</p>
+                    {scannerSourceLabel && <p className="text-gray-400 text-xs mt-1">{scannerSourceLabel}</p>}
                   </div>
                   <span className={`badge ${risk.color} text-sm px-3 py-1.5`}>{result.risk_label}</span>
                 </div>

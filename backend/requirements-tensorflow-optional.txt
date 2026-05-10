@@ -1,3 +1,4 @@
 # Gunakan file ini jika ingin menjalankan model TensorFlow/Keras asli.
 # Catatan: tensorflow cukup berat untuk free tier deployment.
-tensorflow-cpu==2.18.0
+tensorflow>=2.19,<2.21
+pillow>=10,<12

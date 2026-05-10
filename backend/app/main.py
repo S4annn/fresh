@@ -11,7 +11,7 @@ from .schemas import (
     ListingCreate, ListingOut
 )
 from .ml import predict_food_risk, model_metadata
-from .scanner import scan_food_image
+from .scanner import scan_food_image, scanner_model_status
 
 Base.metadata.create_all(bind=engine)
 
@@ -169,8 +169,8 @@ async def scan_food(image: UploadFile = File(...)):
     AI Food Scanner endpoint.
     Accepts an image file and returns food classification results.
 
-    Current: Uses filename-based fallback classifier.
-    Future: Replace with CNN/Transfer Learning model in scanner.py
+    Uses the Keras vision model from artifacts when available, with a safe
+    filename fallback if optional ML dependencies are missing.
     """
     try:
         image_bytes = await image.read()
@@ -181,6 +181,12 @@ async def scan_food(image: UploadFile = File(...)):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Scan failed: {str(e)}")
+
+
+@app.get("/scan-food/status")
+def scan_food_status():
+    """Return scanner model readiness and artifact metadata."""
+    return scanner_model_status()
 
 
 # ─── Business Endpoints (Stubs — ready for full implementation) ───────────────

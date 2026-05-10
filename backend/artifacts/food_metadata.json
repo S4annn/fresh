@@ -1,0 +1,152 @@
+{
+    "Bean": {
+        "category": "Vegetable",
+        "shelf_life": 5,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Store in a sealed container in the refrigerator",
+            "Use for stir-fry, soup, or vegetable mix",
+            "Use within 3-5 days for best freshness"
+        ]
+    },
+    "Bitter_Gourd": {
+        "category": "Vegetable",
+        "shelf_life": 5,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Store in refrigerator to maintain freshness",
+            "Use for stir-fry or soup",
+            "Use soon if skin starts softening"
+        ]
+    },
+    "Bottle_Gourd": {
+        "category": "Vegetable",
+        "shelf_life": 7,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Store in refrigerator",
+            "Use for soup or curry",
+            "Cut only when ready to cook"
+        ]
+    },
+    "Brinjal": {
+        "category": "Vegetable",
+        "shelf_life": 4,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Store in a cool place or refrigerator",
+            "Use for stir-fry, curry, or grilled dishes",
+            "Avoid storing too long because texture softens quickly"
+        ]
+    },
+    "Broccoli": {
+        "category": "Vegetable",
+        "shelf_life": 5,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Store in refrigerator in a breathable bag",
+            "Use for soup, stir-fry, or steamed vegetables",
+            "Use before florets turn yellow"
+        ]
+    },
+    "Cabbage": {
+        "category": "Vegetable",
+        "shelf_life": 10,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Store whole cabbage in refrigerator",
+            "Use for soup, stir-fry, salad, or pickles",
+            "Wrap cut cabbage tightly"
+        ]
+    },
+    "Capsicum": {
+        "category": "Vegetable",
+        "shelf_life": 7,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Store in refrigerator",
+            "Use for stir-fry, salad, or topping",
+            "Use before skin becomes wrinkled"
+        ]
+    },
+    "Carrot": {
+        "category": "Vegetable",
+        "shelf_life": 14,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Store in refrigerator",
+            "Use for soup, stir-fry, or juice",
+            "Keep away from excess moisture"
+        ]
+    },
+    "Cauliflower": {
+        "category": "Vegetable",
+        "shelf_life": 5,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Store in refrigerator",
+            "Use for soup, stir-fry, or steamed vegetables",
+            "Use before brown spots appear"
+        ]
+    },
+    "Cucumber": {
+        "category": "Vegetable",
+        "shelf_life": 5,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Store in refrigerator",
+            "Use for salad, pickles, or fresh side dish",
+            "Use soon if it starts becoming soft"
+        ]
+    },
+    "Papaya": {
+        "category": "Fruit",
+        "shelf_life": 4,
+        "storage": "Room Temperature/Refrigerator",
+        "recommendations": [
+            "Store unripe papaya at room temperature",
+            "Move to refrigerator when ripe",
+            "Use for fruit bowl, juice, or dessert"
+        ]
+    },
+    "Potato": {
+        "category": "Vegetable",
+        "shelf_life": 21,
+        "storage": "Cool Dry Place",
+        "recommendations": [
+            "Store in a cool, dry, dark place",
+            "Do not store with onions",
+            "Use for soup, fries, mashed potato, or curry"
+        ]
+    },
+    "Pumpkin": {
+        "category": "Vegetable",
+        "shelf_life": 14,
+        "storage": "Cool Dry Place/Refrigerator after cut",
+        "recommendations": [
+            "Store whole pumpkin in a cool dry place",
+            "Refrigerate after cutting",
+            "Use for soup, curry, or dessert"
+        ]
+    },
+    "Radish": {
+        "category": "Vegetable",
+        "shelf_life": 7,
+        "storage": "Refrigerator",
+        "recommendations": [
+            "Remove leaves before storing",
+            "Store in refrigerator",
+            "Use for soup, salad, or pickles"
+        ]
+    },
+    "Tomato": {
+        "category": "Vegetable",
+        "shelf_life": 5,
+        "storage": "Room Temperature/Refrigerator",
+        "recommendations": [
+            "Store unripe tomatoes at room temperature",
+            "Refrigerate ripe tomatoes if needed",
+            "Use for sauce, soup, salad, or stir-fry"
+        ]
+    }
+}
