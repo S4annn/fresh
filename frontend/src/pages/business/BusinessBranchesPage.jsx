@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DUMMY_BRANCHES } from '../../data/businessDummyData';
+import { useAuth } from '../../context/AuthContext';
 import { GitBranch, Plus, X, Save, MapPin, User, Phone, Package, AlertTriangle, TrendingDown, ShoppingBag } from 'lucide-react';
 
 export default function BusinessBranchesPage() {
-  const [branches, setBranches] = useState(DUMMY_BRANCHES);
+  const { isDemoMode } = useAuth();
+  const [branches, setBranches] = useState(() => isDemoMode ? DUMMY_BRANCHES : []);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ branch_name: '', location: '', latitude: '', longitude: '', manager_name: '', contact: '' });
+
+  useEffect(() => {
+    setBranches(isDemoMode ? DUMMY_BRANCHES : []);
+  }, [isDemoMode]);
 
   function handleSubmit(e) {
     e.preventDefault();

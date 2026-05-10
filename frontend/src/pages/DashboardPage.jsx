@@ -9,19 +9,25 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isDemoMode } = useAuth();
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [isDemoMode]);
 
   async function loadData() {
     setLoading(true);
+    if (!isDemoMode) {
+      setFoods([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const data = await api.getFoods();
-      setFoods(data);
+      setFoods(Array.isArray(data) && data.length > 0 ? data : DUMMY_FOODS);
     } catch {
       setFoods(DUMMY_FOODS);
     } finally {
@@ -42,7 +48,7 @@ export default function DashboardPage() {
     { title: 'Total Food Items', value: totalItems, icon: Package, color: 'from-blue-500 to-cyan-500', bg: 'bg-blue-50', text: 'text-blue-600' },
     { title: 'High Risk Items', value: highRisk, icon: AlertTriangle, color: 'from-red-500 to-rose-500', bg: 'bg-red-50', text: 'text-red-600' },
     { title: 'Expiring Soon', value: expiringSoon, icon: Clock, color: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-600' },
-    { title: 'Saved Waste Est.', value: `${DUMMY_ANALYTICS.total_waste_prevented}`, icon: TrendingDown, color: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+    { title: 'Saved Waste Est.', value: `${isDemoMode ? DUMMY_ANALYTICS.total_waste_prevented : 0}`, icon: TrendingDown, color: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-50', text: 'text-emerald-600' },
   ];
 
   const quickActions = [
@@ -58,7 +64,7 @@ export default function DashboardPage() {
     .sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date))
     .slice(0, 4);
 
-  const topRecommendations = DUMMY_RECOMMENDATIONS.slice(0, 3);
+  const topRecommendations = isDemoMode ? DUMMY_RECOMMENDATIONS.slice(0, 3) : [];
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';

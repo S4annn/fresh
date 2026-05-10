@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DUMMY_BUSINESS_INVENTORY, DUMMY_BRANCHES, BUSINESS_TYPES } from '../../data/businessDummyData';
 import { FOOD_CATEGORIES, UNITS } from '../../data/dummyData';
+import { useAuth } from '../../context/AuthContext';
 import {
   Package, Plus, Search, Edit3, Trash2, X, Save, ChevronDown, AlertTriangle, CheckCircle2, Flame,
 } from 'lucide-react';
@@ -8,7 +9,9 @@ import {
 const today = new Date().toISOString().slice(0, 10);
 
 export default function BusinessInventoryPage() {
-  const [inventory, setInventory] = useState(DUMMY_BUSINESS_INVENTORY);
+  const { isDemoMode } = useAuth();
+  const branches = isDemoMode ? DUMMY_BRANCHES : [];
+  const [inventory, setInventory] = useState(() => isDemoMode ? DUMMY_BUSINESS_INVENTORY : []);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,9 +22,13 @@ export default function BusinessInventoryPage() {
   const [form, setForm] = useState({
     item_name: '', category: 'Protein', batch_code: '', quantity: 1, unit: 'kg',
     supplier: '', purchase_date: today, expiry_date: today,
-    branch: DUMMY_BRANCHES[0]?.branch_name || '', storage_area: '',
+    branch: branches[0]?.branch_name || '', storage_area: '',
     cost_per_unit: '', selling_price: '', status: 'Safe',
   });
+
+  useEffect(() => {
+    setInventory(isDemoMode ? DUMMY_BUSINESS_INVENTORY : []);
+  }, [isDemoMode]);
 
   const filtered = useMemo(() => inventory.filter((item) => {
     const q = searchQuery.toLowerCase();
@@ -34,7 +41,7 @@ export default function BusinessInventoryPage() {
   }), [inventory, searchQuery, filterBranch, filterCategory, filterRisk]);
 
   function resetForm() {
-    setForm({ item_name: '', category: 'Protein', batch_code: '', quantity: 1, unit: 'kg', supplier: '', purchase_date: today, expiry_date: today, branch: DUMMY_BRANCHES[0]?.branch_name || '', storage_area: '', cost_per_unit: '', selling_price: '', status: 'Safe' });
+    setForm({ item_name: '', category: 'Protein', batch_code: '', quantity: 1, unit: 'kg', supplier: '', purchase_date: today, expiry_date: today, branch: branches[0]?.branch_name || '', storage_area: '', cost_per_unit: '', selling_price: '', status: 'Safe' });
     setEditingItem(null);
     setShowForm(false);
   }
@@ -64,7 +71,7 @@ export default function BusinessInventoryPage() {
     setInventory(inventory.filter((i) => i.id !== id));
   }
 
-  const branchNames = ['All', ...DUMMY_BRANCHES.map((b) => b.branch_name)];
+  const branchNames = ['All', ...branches.map((b) => b.branch_name)];
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in">
@@ -74,7 +81,7 @@ export default function BusinessInventoryPage() {
             <Package className="w-6 h-6 text-blue-600" />
             Business Inventory
           </h1>
-          <p className="text-gray-500 mt-1">{inventory.length} stock items across {DUMMY_BRANCHES.length} branches</p>
+          <p className="text-gray-500 mt-1">{inventory.length} stock items across {branches.length} branches</p>
         </div>
         <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary text-sm self-start" style={{ background: 'linear-gradient(to right, #3b82f6, #6366f1)' }}>
           <Plus className="w-4 h-4" /> Add Stock
@@ -201,7 +208,7 @@ export default function BusinessInventoryPage() {
                 <div>
                   <label className="input-label">Branch</label>
                   <select value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })} className="input-field">
-                    {DUMMY_BRANCHES.map((b) => <option key={b.id} value={b.branch_name}>{b.branch_name}</option>)}
+                    {branches.map((b) => <option key={b.id} value={b.branch_name}>{b.branch_name}</option>)}
                   </select>
                 </div>
                 <div>

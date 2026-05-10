@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DUMMY_FOODS, FOOD_CATEGORIES, STORAGE_TYPES, UNITS } from '../data/dummyData';
+import { useAuth } from '../context/AuthContext';
 import * as api from '../api';
 import {
   Package, Plus, Search, Filter, Edit3, Trash2, X, Save, AlertTriangle,
@@ -15,6 +16,7 @@ function getRiskFromDays(daysToExpiry) {
 }
 
 export default function InventoryPage() {
+  const { isDemoMode } = useAuth();
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -35,13 +37,19 @@ export default function InventoryPage() {
 
   useEffect(() => {
     loadFoods();
-  }, []);
+  }, [isDemoMode]);
 
   async function loadFoods() {
     setLoading(true);
+    if (!isDemoMode) {
+      setFoods([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const data = await api.getFoods();
-      setFoods(data);
+      setFoods(Array.isArray(data) && data.length > 0 ? data : DUMMY_FOODS);
     } catch {
       setFoods(DUMMY_FOODS);
     } finally {
@@ -86,6 +94,16 @@ export default function InventoryPage() {
       risk_score: Math.min(100, riskScore),
       recommendation: riskLevel === 'High Risk' ? 'Segera gunakan atau donasikan.' : riskLevel === 'Warning' ? 'Rencanakan penggunaan segera.' : 'Stok aman.',
     };
+
+    if (!isDemoMode) {
+      if (editingFood) {
+        setFoods(foods.map((f) => f.id === editingFood.id ? { ...f, ...newFood } : f));
+      } else {
+        setFoods([...foods, { ...newFood, id: 'f' + Date.now() }]);
+      }
+      resetForm();
+      return;
+    }
 
     if (editingFood) {
       try {

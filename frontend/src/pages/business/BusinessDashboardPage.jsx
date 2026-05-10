@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { DUMMY_BUSINESS_INVENTORY, DUMMY_BRANCHES, DUMMY_ORDERS, DUMMY_BUSINESS_ANALYTICS } from '../../data/businessDummyData';
@@ -9,9 +9,17 @@ import {
 } from 'lucide-react';
 
 export default function BusinessDashboardPage() {
-  const { user } = useAuth();
-  const [inventory] = useState(DUMMY_BUSINESS_INVENTORY);
-  const analytics = DUMMY_BUSINESS_ANALYTICS;
+  const { user, isDemoMode } = useAuth();
+  const inventory = isDemoMode ? DUMMY_BUSINESS_INVENTORY : [];
+  const branches = isDemoMode ? DUMMY_BRANCHES : [];
+  const orders = isDemoMode ? DUMMY_ORDERS : [];
+  const analytics = isDemoMode
+    ? DUMMY_BUSINESS_ANALYTICS
+    : {
+      estimated_loss_prevented: 0,
+      surplus_listings: 0,
+      monthly_waste_reduction: 0,
+    };
 
   const highRisk = inventory.filter((i) => i.risk_level === 'High Risk').length;
   const warning = inventory.filter((i) => i.risk_level === 'Warning').length;
@@ -26,7 +34,7 @@ export default function BusinessDashboardPage() {
     { title: 'High Risk Inventory', value: highRisk, icon: AlertTriangle, color: 'from-red-500 to-rose-500', bg: 'bg-red-50', text: 'text-red-600', sub: 'Needs immediate action' },
     { title: 'Est. Loss Prevented', value: `Rp${(analytics.estimated_loss_prevented / 1000000).toFixed(1)}M`, icon: TrendingDown, color: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-50', text: 'text-emerald-600', sub: 'This month' },
     { title: 'Surplus Listings', value: analytics.surplus_listings, icon: ShoppingBag, color: 'from-pink-500 to-rose-500', bg: 'bg-pink-50', text: 'text-pink-600', sub: 'Active marketplace' },
-    { title: 'Active Branches', value: DUMMY_BRANCHES.length, icon: GitBranch, color: 'from-violet-500 to-purple-500', bg: 'bg-violet-50', text: 'text-violet-600', sub: 'All operational' },
+    { title: 'Active Branches', value: branches.length, icon: GitBranch, color: 'from-violet-500 to-purple-500', bg: 'bg-violet-50', text: 'text-violet-600', sub: 'All operational' },
     { title: 'Waste Reduction', value: `${analytics.monthly_waste_reduction}%`, icon: Leaf, color: 'from-teal-500 to-cyan-500', bg: 'bg-teal-50', text: 'text-teal-600', sub: 'vs last month' },
   ];
 
@@ -207,7 +215,7 @@ export default function BusinessDashboardPage() {
             </Link>
           </div>
           <div className="space-y-3">
-            {DUMMY_ORDERS.map((order) => (
+            {orders.map((order) => (
               <div key={order.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${order.status === 'Completed' ? 'bg-emerald-500' : order.status === 'Confirmed' ? 'bg-blue-500' : 'bg-amber-400'}`} />
                 <div className="flex-1 min-w-0">
@@ -222,6 +230,9 @@ export default function BusinessDashboardPage() {
                 </div>
               </div>
             ))}
+            {orders.length === 0 && (
+              <p className="text-center text-sm text-gray-400 py-8">No orders yet.</p>
+            )}
           </div>
         </div>
       </div>
@@ -238,7 +249,7 @@ export default function BusinessDashboardPage() {
           </Link>
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
-          {DUMMY_BRANCHES.map((branch) => (
+          {branches.map((branch) => (
             <div key={branch.id} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -269,6 +280,9 @@ export default function BusinessDashboardPage() {
               </div>
             </div>
           ))}
+          {branches.length === 0 && (
+            <div className="sm:col-span-3 text-center py-10 text-gray-400">No branches yet.</div>
+          )}
         </div>
       </div>
     </div>

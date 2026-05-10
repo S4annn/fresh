@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DUMMY_FOODS } from '../data/dummyData';
+import { useAuth } from '../context/AuthContext';
 import {
   Bell, AlertTriangle, Clock, Lightbulb, ShoppingBag, Heart,
   CheckCircle2, X, Flame, ChefHat, Package, Trash2, BellOff,
 } from 'lucide-react';
 
 // ─── Generate notifications from dummy food data ──────────────────────────────
-function generateNotifications(foods) {
+function generateNotifications(foods, includeStaticTips = true) {
   const notifs = [];
   const today  = new Date();
 
@@ -81,6 +82,8 @@ function generateNotifications(foods) {
     }
   });
 
+  if (!includeStaticTips) return notifs;
+
   // Add static tips
   notifs.push({
     id:       'tip-1',
@@ -135,8 +138,13 @@ const ACTION_STYLES = {
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState(() => generateNotifications(DUMMY_FOODS));
+  const { isDemoMode } = useAuth();
+  const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState('all'); // all | unread | expiry | tips
+
+  useEffect(() => {
+    setNotifications(isDemoMode ? generateNotifications(DUMMY_FOODS, true) : []);
+  }, [isDemoMode]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

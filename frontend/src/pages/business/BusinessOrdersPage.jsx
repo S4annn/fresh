@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DUMMY_ORDERS } from '../../data/businessDummyData';
+import { useAuth } from '../../context/AuthContext';
 import { ClipboardList, CheckCircle2, Clock, XCircle, Package, User, MapPin, DollarSign, ChevronDown } from 'lucide-react';
 
 const statusConfig = {
@@ -10,8 +11,13 @@ const statusConfig = {
 };
 
 export default function BusinessOrdersPage() {
-  const [orders, setOrders] = useState(DUMMY_ORDERS);
+  const { isDemoMode } = useAuth();
+  const [orders, setOrders] = useState(() => isDemoMode ? DUMMY_ORDERS : []);
   const [filterStatus, setFilterStatus] = useState('All');
+
+  useEffect(() => {
+    setOrders(isDemoMode ? DUMMY_ORDERS : []);
+  }, [isDemoMode]);
 
   function updateStatus(id, newStatus) {
     setOrders(orders.map((o) => o.id === id ? { ...o, status: newStatus } : o));

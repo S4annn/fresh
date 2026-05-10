@@ -21,7 +21,7 @@ const sidebarItems = [
 ];
 
 export default function DashboardLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, isDemoMode } = useAuth();
   const { setRole } = useRole();
   const navigate = useNavigate();
   const location = useLocation();
@@ -152,7 +152,9 @@ export default function DashboardLayout() {
               className="btn-icon bg-gray-50 hover:bg-emerald-50 relative border border-gray-100"
             >
               <Bell className="w-5 h-5 text-gray-500" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center font-bold">3</span>
+              {isDemoMode && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center font-bold">3</span>
+              )}
             </button>
 
             {/* Profile Dropdown */}

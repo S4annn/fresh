@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DUMMY_MARKETPLACE_NEARBY, FOOD_CATEGORIES, UNITS } from '../data/dummyData';
+import { useAuth } from '../context/AuthContext';
 import {
   DEFAULT_LOCATION,
   calculateDistanceKm,
@@ -193,6 +194,7 @@ function MapView({
 }
 
 export default function MarketplacePage() {
+  const { isDemoMode } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -247,6 +249,11 @@ export default function MarketplacePage() {
 
   const loadItems = useCallback(async () => {
     setLoading(true);
+    if (!isDemoMode) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       const data = await api.getMarketplaceItems();
@@ -257,7 +264,7 @@ export default function MarketplacePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isDemoMode]);
 
   useEffect(() => {
     loadItems();

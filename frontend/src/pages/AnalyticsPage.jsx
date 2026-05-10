@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DUMMY_ANALYTICS } from '../data/dummyData';
+import { useAuth } from '../context/AuthContext';
 import * as apiModule from '../api';
 import {
   BarChart3, TrendingDown, Heart, ShoppingBag, DollarSign, Leaf, Sparkles,
@@ -9,16 +10,36 @@ import {
   CartesianGrid, Legend, AreaChart, Area, LineChart, Line,
 } from 'recharts';
 
+const EMPTY_ANALYTICS = {
+  total_items: 0,
+  total_waste_prevented: 0,
+  total_donations: 0,
+  total_marketplace: 0,
+  money_saved: 0,
+  co2_reduced: 0,
+  risk_distribution: [],
+  category_distribution: [],
+  weekly_waste: [],
+  monthly_savings: [],
+};
+
 export default function AnalyticsPage() {
+  const { isDemoMode } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAnalytics();
-  }, []);
+  }, [isDemoMode]);
 
   async function loadAnalytics() {
     setLoading(true);
+    if (!isDemoMode) {
+      setData(EMPTY_ANALYTICS);
+      setLoading(false);
+      return;
+    }
+
     try {
       const result = await apiModule.getAnalytics();
       setData(result);

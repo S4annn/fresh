@@ -1,30 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import {
-  getRedirectResult,
-  onAuthStateChanged,
-  signInWithPopup,
-  signInWithRedirect,
-  signOut,
-} from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, isConfigured } from '../firebase';
 
 const AuthContext = createContext(null);
-const POPUP_FALLBACK_CODES = new Set([
-  'auth/popup-blocked',
-  'auth/popup-closed-by-user',
-  'auth/cancelled-popup-request',
-]);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isDemoMode = user?.provider === 'demo';
 
   useEffect(() => {
     if (isConfigured && auth) {
-      getRedirectResult(auth).catch((error) => {
-        console.warn('Firebase redirect sign-in failed:', error.message);
-      });
-
       const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         if (firebaseUser) {
           setUser({
@@ -61,16 +47,8 @@ export function AuthProvider({ children }) {
       throw new Error('Firebase belum dikonfigurasi. Silakan isi Firebase environment variables di file .env');
     }
 
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      return result.user;
-    } catch (error) {
-      if (POPUP_FALLBACK_CODES.has(error.code)) {
-        await signInWithRedirect(auth, googleProvider);
-        return null;
-      }
-      throw error;
-    }
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
   };
 
   const signInDemo = (email = 'demo@fresh.app', name = 'Demo User') => {
@@ -113,6 +91,7 @@ export function AuthProvider({ children }) {
         user,
         loading,
         isAuthenticated: !!user,
+        isDemoMode,
         isFirebaseConfigured: isConfigured,
         signInWithGoogle,
         signInDemo,

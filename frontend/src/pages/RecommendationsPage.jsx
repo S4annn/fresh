@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { DUMMY_RECOMMENDATIONS, WASTE_TIPS, DUMMY_FOODS } from '../data/dummyData';
+import { useAuth } from '../context/AuthContext';
 import * as api from '../api';
 import {
   Lightbulb, Clock, ShoppingBag, Heart, Utensils, ChefHat,
@@ -15,19 +16,26 @@ const actionConfig = {
 };
 
 export default function RecommendationsPage() {
+  const { isDemoMode } = useAuth();
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
     loadRecommendations();
-  }, []);
+  }, [isDemoMode]);
 
   async function loadRecommendations() {
     setLoading(true);
+    if (!isDemoMode) {
+      setRecommendations([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const data = await api.getRecommendations();
-      setRecommendations(data);
+      setRecommendations(Array.isArray(data) && data.length > 0 ? data : DUMMY_RECOMMENDATIONS);
     } catch {
       setRecommendations(DUMMY_RECOMMENDATIONS);
     } finally {
@@ -37,10 +45,13 @@ export default function RecommendationsPage() {
 
   const filtered = activeFilter === 'all' ? recommendations : recommendations.filter((r) => r.urgency === activeFilter || r.action === activeFilter);
 
-  const priorityFoods = DUMMY_FOODS
-    .filter((f) => f.risk_level !== 'Safe')
-    .sort((a, b) => a.risk_score > b.risk_score ? -1 : 1)
-    .slice(0, 5);
+  const priorityFoods = isDemoMode
+    ? DUMMY_FOODS
+      .filter((f) => f.risk_level !== 'Safe')
+      .sort((a, b) => a.risk_score > b.risk_score ? -1 : 1)
+      .slice(0, 5)
+    : [];
+  const tips = isDemoMode ? WASTE_TIPS : [];
 
   if (loading) {
     return (
@@ -70,8 +81,9 @@ export default function RecommendationsPage() {
           <AlertTriangle className="w-5 h-5 text-amber-500" />
           Use These First
         </h2>
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {priorityFoods.map((food) => (
+        {priorityFoods.length > 0 ? (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {priorityFoods.map((food) => (
             <div key={food.id} className="flex-shrink-0 bg-white rounded-xl p-4 border border-amber-100 min-w-[160px]">
               <span className={`badge ${food.risk_level === 'High Risk' ? 'badge-danger' : 'badge-warning'} mb-2`}>
                 {food.risk_level}
@@ -82,8 +94,11 @@ export default function RecommendationsPage() {
                 Expires: {food.expiry_date}
               </p>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">No priority foods yet.</p>
+        )}
       </div>
 
       {/* Filters */}
@@ -155,6 +170,13 @@ export default function RecommendationsPage() {
             </div>
           );
         })}
+        {filtered.length === 0 && (
+          <div className="sm:col-span-2 lg:col-span-3 text-center py-12 card">
+            <Lightbulb className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 font-medium">No recommendations yet</p>
+            <p className="text-gray-400 text-sm mt-1">Add inventory items to generate suggestions.</p>
+          </div>
+        )}
       </div>
 
       {/* Waste Reduction Tips */}
@@ -164,7 +186,7 @@ export default function RecommendationsPage() {
           Food Waste Reduction Tips
         </h2>
         <div className="grid sm:grid-cols-2 gap-3">
-          {WASTE_TIPS.map((tip, i) => (
+          {tips.map((tip, i) => (
             <div key={i} className="flex items-start gap-3 p-3 bg-emerald-50/50 rounded-xl">
               <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-xs font-bold text-emerald-600">{i + 1}</span>
@@ -172,6 +194,9 @@ export default function RecommendationsPage() {
               <p className="text-sm text-gray-700">{tip}</p>
             </div>
           ))}
+          {tips.length === 0 && (
+            <p className="text-sm text-gray-500">No tips available yet.</p>
+          )}
         </div>
       </div>
     </div>

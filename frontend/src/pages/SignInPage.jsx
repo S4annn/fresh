@@ -57,7 +57,9 @@ export default function SignInPage() {
       if (err.code === 'auth/unauthorized-domain') {
         setError('Domain aplikasi belum ditambahkan di Firebase Authentication > Settings > Authorized domains.');
       } else if (err.code === 'auth/popup-blocked') {
-        setError('Popup login diblokir browser. Izinkan popup untuk situs ini atau coba lagi dengan mode redirect.');
+        setError('Popup login diblokir browser. Izinkan popup untuk situs ini, matikan popup blocker/ad blocker sementara, lalu klik Sign In with Google lagi.');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError('Popup Google ditutup sebelum login selesai. Klik Sign In with Google lagi untuk mencoba ulang.');
       } else {
         setError(err.message || 'Google sign in failed.');
       }

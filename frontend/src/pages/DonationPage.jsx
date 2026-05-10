@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { DUMMY_DONATIONS } from '../data/dummyData';
+import { useAuth } from '../context/AuthContext';
 import { calculateDistanceKm, formatDistance, getUserLocation, saveUserLocation, loadUserLocation } from '../utils/geo';
 import FreshMap from '../components/FreshMap';
 import * as api from '../api';
@@ -82,6 +83,7 @@ const statusConfig = {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DonationPage() {
+  const { isDemoMode } = useAuth();
   const [donations, setDonations]       = useState([]);
   const [loading, setLoading]           = useState(true);
   const [showForm, setShowForm]         = useState(false);
@@ -97,13 +99,19 @@ export default function DonationPage() {
     donor_name: '', notes: '',
   });
 
-  useEffect(() => { loadDonations(); }, []);
+  useEffect(() => { loadDonations(); }, [isDemoMode]);
 
   async function loadDonations() {
     setLoading(true);
+    if (!isDemoMode) {
+      setDonations([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const data = await api.getDonationItems();
-      setDonations(Array.isArray(data) ? data : DUMMY_DONATIONS);
+      setDonations(Array.isArray(data) && data.length > 0 ? data : DUMMY_DONATIONS);
     } catch {
       setDonations(DUMMY_DONATIONS);
     } finally {
@@ -135,6 +143,14 @@ export default function DonationPage() {
       latitude: userLocation?.lat ?? DEFAULT_LOC.lat,
       longitude: userLocation?.lng ?? DEFAULT_LOC.lng,
     };
+
+    if (!isDemoMode) {
+      setDonations((prev) => [...prev, { ...newDonation, id: 'd' + Date.now() }]);
+      setShowForm(false);
+      setForm({ food_name: '', quantity: 1, unit: 'porsi', pickup_location: '', expiry_date: new Date().toISOString().slice(0, 10), donor_name: '', notes: '' });
+      return;
+    }
+
     try {
       await api.createDonationItem(newDonation);
       await loadDonations();

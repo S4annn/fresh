@@ -1,10 +1,26 @@
 import React from 'react';
 import { DUMMY_BUSINESS_ANALYTICS } from '../../data/businessDummyData';
+import { useAuth } from '../../context/AuthContext';
 import { BarChart3, TrendingDown, DollarSign, Leaf, GitBranch, ShoppingBag, Heart, Sparkles } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line } from 'recharts';
 
+const EMPTY_BUSINESS_ANALYTICS = {
+  total_stock_items: 0,
+  high_risk_items: 0,
+  estimated_loss_prevented: 0,
+  surplus_listings: 0,
+  total_branches: 0,
+  sustainability_score: 0,
+  monthly_waste_reduction: 0,
+  risk_distribution: [],
+  branch_performance: [],
+  monthly_loss_prevention: [],
+  category_waste: [],
+};
+
 export default function BusinessAnalyticsPage() {
-  const data = DUMMY_BUSINESS_ANALYTICS;
+  const { isDemoMode } = useAuth();
+  const data = isDemoMode ? DUMMY_BUSINESS_ANALYTICS : EMPTY_BUSINESS_ANALYTICS;
 
   const kpis = [
     { title: 'Total Stock Items', value: data.total_stock_items, icon: BarChart3, bg: 'bg-blue-50', text: 'text-blue-600' },
