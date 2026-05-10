@@ -49,13 +49,35 @@ export async function getDashboard() { return apiFetch('/dashboard'); }
 
 // ─── AI Scanner ──────────────────────────────────────────────────────────────
 export async function analyzeFoodImage(file) {
-  // Try real API first
+  // Always try the real backend first.
+  // Only fall back to local classifier if the network request fails entirely
+  // (backend offline, CORS error, network error).
   const formData = new FormData();
   formData.append('image', file);
+
   try {
-    return await apiFetchMultipart('/scan-food', formData);
-  } catch {
-    // Fallback: local classifier based on filename
+    const res = await fetch(`${API_BASE_URL}/scan-food`, {
+      method: 'POST',
+      body: formData,
+      // Do NOT set Content-Type header — browser sets it automatically with boundary for multipart
+    });
+
+    if (!res.ok) {
+      // Backend is up but returned an error (4xx/5xx) — still use fallback
+      const errText = await res.text().catch(() => 'Unknown error');
+      console.warn(`[Scanner] Backend /scan-food returned ${res.status}: ${errText}`);
+      throw new Error(`Backend error ${res.status}`);
+    }
+
+    const data = await res.json();
+    // Ensure source field is set so UI can show the correct badge
+    if (!data.source) {
+      data.source = 'tensorflow_vision_model';
+    }
+    return data;
+  } catch (err) {
+    console.warn('[Scanner] Backend unavailable, using local fallback:', err.message);
+    // Fallback: local classifier based on filename only
     return localFoodClassifier(file.name);
   }
 }
@@ -85,6 +107,7 @@ function localFoodClassifier(filename) {
     confidence: item.confidence,
     estimated_shelf_life_days: item.shelf,
     risk_label: item.risk,
+    source: 'local_fallback',           // clearly marks this as frontend fallback
     classifier: 'frontend_filename_fallback',
     storage_advice: `Store in ${item.storage}. ${item.shelf <= 2 ? 'Use immediately.' : item.shelf <= 5 ? 'Use within a few days.' : 'Monitor regularly.'}`,
     recommendations: item.recs,

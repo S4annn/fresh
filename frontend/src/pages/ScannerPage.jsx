@@ -6,13 +6,66 @@ import {
   Camera, Upload, X, Scan, Loader2, CheckCircle2, AlertTriangle,
   Flame, Package, Thermometer, Lightbulb, ShoppingBag,
   Heart, RefreshCw, Info, Leaf, Brain, Video, VideoOff,
+  Cpu, WifiOff, Zap,
 } from 'lucide-react';
 
 const riskConfig = {
-  Safe:      { color: 'badge-safe',    bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', icon: CheckCircle2 },
-  Warning:   { color: 'badge-warning', bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   icon: AlertTriangle },
-  'High Risk': { color: 'badge-danger', bg: 'bg-red-50',    border: 'border-red-200',     text: 'text-red-700',     icon: Flame },
+  Safe:        { color: 'badge-safe',    bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', icon: CheckCircle2 },
+  Warning:     { color: 'badge-warning', bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   icon: AlertTriangle },
+  'High Risk': { color: 'badge-danger',  bg: 'bg-red-50',     border: 'border-red-200',     text: 'text-red-700',     icon: Flame },
 };
+
+// Map source field from backend/fallback to a human-readable badge
+function SourceBadge({ source }) {
+  if (!source) return null;
+
+  const configs = {
+    tensorflow_vision_model: {
+      icon: Cpu,
+      label: 'AI Vision Model',
+      className: 'bg-violet-100 text-violet-700 border border-violet-200',
+    },
+    vision_model: {
+      icon: Cpu,
+      label: 'AI Vision Model',
+      className: 'bg-violet-100 text-violet-700 border border-violet-200',
+    },
+    fallback_filename: {
+      icon: WifiOff,
+      label: 'Backend Fallback',
+      className: 'bg-amber-100 text-amber-700 border border-amber-200',
+    },
+    fallback_no_model: {
+      icon: WifiOff,
+      label: 'Backend Fallback',
+      className: 'bg-amber-100 text-amber-700 border border-amber-200',
+    },
+    local_fallback: {
+      icon: WifiOff,
+      label: 'Local Demo Fallback',
+      className: 'bg-gray-100 text-gray-600 border border-gray-200',
+    },
+    frontend_filename_fallback: {
+      icon: WifiOff,
+      label: 'Local Demo Fallback',
+      className: 'bg-gray-100 text-gray-600 border border-gray-200',
+    },
+  };
+
+  const cfg = configs[source] || {
+    icon: Zap,
+    label: source,
+    className: 'bg-blue-100 text-blue-700 border border-blue-200',
+  };
+  const Icon = cfg.icon;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${cfg.className}`}>
+      <Icon className="w-3.5 h-3.5" />
+      {cfg.label}
+    </span>
+  );
+}
 
 export default function ScannerPage() {
   const navigate = useNavigate();
@@ -426,15 +479,29 @@ export default function ScannerPage() {
 
           {result && (
             <div className="space-y-4 animate-fade-in">
+              {/* Fallback warning — only shown when backend was unavailable */}
+              {(result.source === 'local_fallback' || result.source === 'frontend_filename_fallback' || result.classifier === 'frontend_filename_fallback') && (
+                <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <WifiOff className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-amber-700">
+                    <p className="font-semibold mb-0.5">Backend AI model unavailable</p>
+                    <p>Using local demo fallback. Results are based on filename only, not image content. Start the backend server (<code>uvicorn app.main:app --reload</code>) to use the real AI model.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Main Result */}
               <div className={`rounded-2xl border-2 p-5 ${risk.bg} ${risk.border}`}>
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-3">
                   <div>
                     <h2 className="text-2xl font-extrabold text-gray-800">{result.detected_food}</h2>
                     <p className="text-gray-500 text-sm mt-0.5">{result.category}</p>
-                    {scannerSourceLabel && <p className="text-gray-400 text-xs mt-1">{scannerSourceLabel}</p>}
                   </div>
                   <span className={`badge ${risk.color} text-sm px-3 py-1.5`}>{result.risk_label}</span>
+                </div>
+                {/* Source badge */}
+                <div className="mb-4">
+                  <SourceBadge source={result.source || result.classifier} />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white/70 rounded-xl p-3 text-center">
