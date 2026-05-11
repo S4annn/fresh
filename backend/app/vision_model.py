@@ -6,7 +6,7 @@ Loads food_vision_model.keras and runs inference for the /scan-food endpoint.
 Model spec (current):
   - Architecture : MobileNetV2 transfer learning
   - Input size   : 160 x 160 x 3
-  - Preprocessing: tf.keras.applications.mobilenet_v2.preprocess_input  (range -1..1)
+  - Preprocessing: internal model preprocessing layer
   - Labels file  : artifacts/food_labels.json
   - Metadata file: artifacts/food_metadata.json
 
@@ -264,6 +264,7 @@ def _build_response(
     source: str,
     top_predictions: list[dict[str, Any]],
     load_error: Optional[str] = None,
+    debug_fields: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     record = _metadata_for(label)
     detected_food = (
@@ -322,6 +323,8 @@ def _build_response(
     }
     if load_error:
         response["error"] = load_error
+    if debug_fields:
+        response.update(debug_fields)
     return response
 
 
@@ -421,35 +424,47 @@ def predict_food_from_image(
         from PIL import Image
 
         # ── Preprocess ────────────────────────────────────────────────────────
-        # IMPORTANT: use MobileNetV2 preprocess_input (scales to -1..1),
-        # NOT simple /255.0 normalisation.
+        input_shape = getattr(model, "input_shape", None)
+        height = input_shape[1] if input_shape and len(input_shape) >= 3 and isinstance(input_shape[1], int) else IMAGE_SIZE[0]
+        width = input_shape[2] if input_shape and len(input_shape) >= 3 and isinstance(input_shape[2], int) else IMAGE_SIZE[1]
+
+        # Match the Colab notebook inference path. The exported model already
+        # includes MobileNetV2 preprocessing internally, so pass raw RGB
+        # float32 pixels in the 0..255 range.
         image = Image.open(BytesIO(image_bytes)).convert("RGB")
-        image = image.resize(IMAGE_SIZE)
-        array = np.array(image, dtype="float32")
-        batch = np.expand_dims(array, axis=0)
-        batch = tf.keras.applications.mobilenet_v2.preprocess_input(batch)
+        image = image.resize((width, height))
+        img_array = np.array(image).astype("float32")
+        input_array = np.expand_dims(img_array, axis=0)
 
         # ── Predict ───────────────────────────────────────────────────────────
-        raw_preds   = model.predict(batch, verbose=0)
-        probs       = np.asarray(raw_preds).reshape(-1).astype("float32")
+        raw_preds = model.predict(input_array, verbose=0)[0]
+        predictions = np.asarray(raw_preds).reshape(-1).astype("float32")
 
-        if probs.size == 0:
+        if predictions.size == 0:
             return _filename_fallback(filename, "Model returned empty predictions")
 
         # ── Top-5 predictions ─────────────────────────────────────────────────
-        top_n    = min(5, len(probs))
-        top_idxs = np.argsort(probs)[::-1][:top_n]
+        raw_scores_sum = float(np.sum(predictions))
+        if abs(raw_scores_sum - 1.0) < 0.01:
+            scores = predictions
+        else:
+            scores = tf.nn.softmax(predictions).numpy()
+        scores = np.asarray(scores).reshape(-1).astype("float32")
+        scores_sum = float(np.sum(scores))
+
+        top_n    = min(5, len(scores))
+        top_idxs = np.argsort(scores)[::-1][:top_n]
         top_predictions = [
             {
                 "label":      _label_option(labels[i])["display"] if i < len(labels) else f"Class {i}",
-                "confidence": round(float(probs[i]), 4),
+                "confidence": float(scores[i]),
             }
             for i in top_idxs
         ]
 
         # ── Best prediction ───────────────────────────────────────────────────
         best_idx    = int(top_idxs[0])
-        best_conf   = float(probs[best_idx])
+        best_conf   = float(scores[best_idx])
         best_label  = labels[best_idx] if best_idx < len(labels) else f"class_{best_idx}"
 
         print(
@@ -463,6 +478,13 @@ def predict_food_from_image(
             confidence=best_conf,
             source="tensorflow_vision_model",
             top_predictions=top_predictions,
+            debug_fields={
+                "model_input_shape": str(getattr(model, "input_shape", None)),
+                "model_output_shape": str(getattr(model, "output_shape", None)),
+                "labels_count": len(labels),
+                "scores_sum": scores_sum,
+                "preprocessing_mode": "model_internal_preprocessing",
+            },
         )
 
     except Exception as exc:
@@ -563,7 +585,7 @@ def debug_model_info() -> dict[str, Any]:
             or output_units == len(labels)
         ),
         "image_size_used":       list(IMAGE_SIZE),
-        "preprocessing":         "mobilenet_v2.preprocess_input (range -1 to 1)",
+        "preprocessing":         "model_internal_preprocessing",
         "error":                 assets.get("error"),
     }
 

@@ -519,7 +519,9 @@ def _prepare_image(image_bytes: bytes, target_size: tuple[int, int]) -> Any:
 
     image = Image.open(BytesIO(image_bytes)).convert("RGB")
     image = image.resize(target_size)
-    array = np.asarray(image, dtype="float32") / 255.0
+    # The exported vision model includes its own preprocessing layer, so keep
+    # this path aligned with the Colab notebook: raw RGB float32 pixels.
+    array = np.asarray(image, dtype="float32")
     return np.expand_dims(array, axis=0)
 
 
