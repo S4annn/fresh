@@ -53,7 +53,7 @@ export default function SignUpPage() {
     setLoading(true);
     try {
       setRole(selectedRole);
-      signUpLocal({
+      await signUpLocal({
         name:             selectedRole === 'business' ? form.business_name.trim() : form.full_name.trim(),
         email:            form.email.trim(),
         password:         form.password,
@@ -63,7 +63,10 @@ export default function SignUpPage() {
         businessLocation: form.business_location || null,
         contactNumber:    form.contact_number || null,
       });
-      navigate(getRedirectPath(selectedRole));
+      setSuccess('Pendaftaran berhasil! Anda akan dialihkan ke dashboard.');
+      setTimeout(() => {
+        navigate(getRedirectPath(selectedRole));
+      }, 1500);
     } catch (err) {
       setError(err.message || 'Pendaftaran gagal. Silakan coba lagi.');
     } finally {
@@ -171,6 +174,13 @@ export default function SignUpPage() {
             <div className="flex items-start gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl mb-4 animate-fade-in">
               <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {success && (
+            <div className="flex items-start gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl mb-4 animate-fade-in">
+              <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-green-700">{success}</p>
             </div>
           )}
 

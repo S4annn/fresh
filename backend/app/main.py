@@ -155,6 +155,38 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         )
 
 
+@app.get("/users")
+def get_all_users(db: Session = Depends(get_db)):
+    """Get all users (for debugging purposes)."""
+    try:
+        users = db.query(User).all()
+        return [
+            {
+                "id": user.id,
+                "uid": user.uid,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "provider": user.provider,
+                "business_name": user.business_name,
+                "business_type": user.business_type,
+                "business_location": user.business_location,
+                "contact_number": user.contact_number,
+                "is_active": user.is_active,
+                "email_verified": user.email_verified,
+                "last_login": user.last_login.isoformat() if user.last_login else None,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+            }
+            for user in users
+        ]
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch users: {str(e)}"
+        )
+
+
 @app.post("/auth/login", response_model=Token)
 def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     """Authenticate user and return JWT token."""

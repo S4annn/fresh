@@ -11,6 +11,8 @@ const ACCOUNTS_KEY = 'fresh_accounts';
 const SESSION_KEY  = 'fresh_session_user';
 
 function getAccounts() {
+  // Legacy function - no longer used for signup
+  // Kept for backward compatibility with existing sessions
   try {
     return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '{}');
   } catch {
@@ -19,7 +21,9 @@ function getAccounts() {
 }
 
 function saveAccounts(accounts) {
-  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+  // Legacy function - no longer saves new accounts
+  // Only used for migration purposes
+  console.warn('saveAccounts is deprecated - using database for new users');
 }
 
 function saveSession(user) {
@@ -87,39 +91,70 @@ export function AuthProvider({ children }) {
   };
 
   // ── Local Sign Up (register new account) ───────────────────────────────────
-  const signUpLocal = ({ name, email, password, role = 'personal', businessName, businessType, businessLocation, contactNumber }) => {
+  const signUpLocal = async ({ name, email, password, role = 'personal', businessName, businessType, businessLocation, contactNumber }) => {
     if (!email || !password || !name) {
       throw new Error('Nama, email, dan password wajib diisi.');
     }
-    const accounts = getAccounts();
-    const key = email.toLowerCase().trim();
-    if (accounts[key]) {
-      throw new Error('Email sudah terdaftar. Silakan sign in atau gunakan email lain.');
+
+    try {
+      // Call backend API to register user
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          password: password,
+          role: role,
+          business_name: businessName || null,
+          business_type: businessType || null,
+          business_location: businessLocation || null,
+          contact_number: contactNumber || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle backend error messages
+        if (response.status === 400 && data.detail && data.detail.includes('Email already registered')) {
+          throw new Error('Email sudah terdaftar. Silakan sign in atau gunakan email lain.');
+        }
+        throw new Error(data.detail || 'Registrasi gagal. Silakan coba lagi.');
+      }
+
+      // Auto sign-in after successful registration
+      const sessionUser = {
+        uid: data.uid,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        provider: 'local',
+        business_name: data.business_name,
+        business_type: data.business_type,
+        business_location: data.business_location,
+        contact_number: data.contact_number,
+        createdAt: new Date().toISOString(),
+      };
+
+      saveSession(sessionUser);
+      setUser(sessionUser);
+      return sessionUser;
+
+    } catch (error) {
+      // If it's already our error message, just rethrow it
+      if (error.message.includes('Email sudah terdaftar')) {
+        throw error;
+      }
+      
+      // For network errors or other issues
+      console.error('Signup error:', error);
+      throw new Error('Registrasi gagal. Periksa koneksi internet dan coba lagi.');
     }
-
-    const uid = 'local-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-    const newAccount = {
-      uid,
-      name:             name.trim(),
-      email:            key,
-      password,                    // stored as-is (MVP — no backend hashing)
-      role,
-      provider:         'local',
-      businessName:     businessName || null,
-      businessType:     businessType || null,
-      businessLocation: businessLocation || null,
-      contactNumber:    contactNumber || null,
-      createdAt:        new Date().toISOString(),
-    };
-
-    accounts[key] = newAccount;
-    saveAccounts(accounts);
-
-    // Auto sign-in after registration
-    const sessionUser = _buildSessionUser(newAccount);
-    saveSession(sessionUser);
-    setUser(sessionUser);
-    return sessionUser;
   };
 
   // ── Local Sign In (validate credentials) ───────────────────────────────────
