@@ -994,6 +994,40 @@ def health():
     return {"status": "ok", "service": "fresh-backend"}
 
 
+@app.get("/debug-db")
+def debug_db():
+    """Debug database connection for Railway deployment"""
+    from .database import engine, DATABASE_URL
+    from sqlalchemy import text
+    
+    # Safe URL preview (hide password)
+    safe_url = DATABASE_URL
+    if "@" in safe_url:
+        safe_url = safe_url.split("@")[-1]
+    
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1")).scalar()
+        
+        return {
+            "database_connected": True,
+            "database_type": "postgresql" if DATABASE_URL.startswith("postgresql") else "sqlite",
+            "database_url_preview": safe_url,
+            "test_query": result,
+            "environment": os.getenv("ENVIRONMENT", "development"),
+            "psycopg2_available": True
+        }
+    except Exception as e:
+        return {
+            "database_connected": False,
+            "database_type": "postgresql" if DATABASE_URL.startswith("postgresql") else "sqlite",
+            "database_url_preview": safe_url,
+            "error": str(e),
+            "environment": os.getenv("ENVIRONMENT", "development"),
+            "psycopg2_available": True
+        }
+
+
 @app.get("/model/metadata")
 def get_metadata():
     return model_metadata()

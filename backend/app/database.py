@@ -45,7 +45,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-def get_db() -> Generator[sessionmaker.Session, None, None]:
+def get_db():
     """Dependency to get DB session"""
     db = SessionLocal()
     try:
