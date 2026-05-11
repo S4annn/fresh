@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
+import ThemeToggle from '../components/ThemeToggle';
 import {
   Leaf, Brain, Package, Bell, Lightbulb, ShoppingBag, Heart, BarChart3,
   ArrowRight, ChevronRight, Sparkles, Shield, TrendingDown, Users,
@@ -148,7 +149,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="landing-page min-h-screen bg-white">
       {/* Navbar */}
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
@@ -173,6 +174,7 @@ export default function LandingPage() {
               <a href="#impact" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Impact</a>
               <Link to="/pricing" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Pricing</Link>
               <Link to="/marketplace" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Marketplace</Link>
+              <ThemeToggle compact />
             </div>
 
             {/* Auth Buttons */}
@@ -201,6 +203,7 @@ export default function LandingPage() {
               <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 font-medium hover:bg-emerald-50 rounded-xl no-underline">Features</a>
               <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 font-medium hover:bg-emerald-50 rounded-xl no-underline">How It Works</a>
               <a href="#impact" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 font-medium hover:bg-emerald-50 rounded-xl no-underline">Impact</a>
+              <ThemeToggle className="w-full" />
               <div className="pt-2 border-t border-gray-100 flex gap-3">
                 <Link to="/signin" onClick={() => setMobileMenuOpen(false)} className="flex-1 btn-secondary text-sm text-center no-underline">Sign In</Link>
                 <Link to="/signup" onClick={() => setMobileMenuOpen(false)} className="flex-1 btn-primary text-sm text-center no-underline">Get Started</Link>
@@ -211,12 +214,12 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
+      <section className="landing-hero relative min-h-screen flex items-center overflow-hidden">
         {/* Background decorations */}
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/50" />
-        <div className="absolute top-20 right-10 w-96 h-96 bg-emerald-200/20 rounded-full blur-3xl animate-pulse-slow" />
-        <div className="absolute bottom-20 left-10 w-80 h-80 bg-teal-200/20 rounded-full blur-3xl animate-pulse-slow animate-delay-300" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-emerald-100/10 to-teal-100/10 rounded-full blur-3xl" />
+        <div className="landing-hero-bg absolute inset-0 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/50" />
+        <div className="landing-hero-orb absolute top-20 right-10 w-96 h-96 bg-emerald-200/20 rounded-full blur-3xl animate-pulse-slow" />
+        <div className="landing-hero-orb absolute bottom-20 left-10 w-80 h-80 bg-teal-200/20 rounded-full blur-3xl animate-pulse-slow animate-delay-300" />
+        <div className="landing-hero-orb absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-emerald-100/10 to-teal-100/10 rounded-full blur-3xl" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 lg:pt-32 lg:pb-24">
           <div className="text-center max-w-4xl mx-auto">

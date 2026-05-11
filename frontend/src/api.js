@@ -1,5 +1,6 @@
 import {
   getCurrentSubscription as getLocalSubscription,
+  saveSubscription,
   upgradePlan as upgradeLocalPlan,
   downgradePlan,
   incrementUsage as incrementLocalUsage,
@@ -11,24 +12,45 @@ export function getUserRole() {
   return localStorage.getItem('fresh_user_role') || 'personal';
 }
 
+function getFreshHeaders() {
+  const subscription = getLocalSubscription();
+  const demoUser = JSON.parse(localStorage.getItem('fresh_demo_user') || 'null');
+  return {
+    'X-Fresh-User-Id': demoUser?.uid || demoUser?.id || localStorage.getItem('fresh_user_id') || 'demo-user',
+    'X-Fresh-Role': localStorage.getItem('fresh_user_role') || subscription.role || 'personal',
+    'X-Fresh-Plan-Id': subscription.plan_id || 'free',
+    'X-Fresh-Demo': demoUser?.provider === 'demo' ? 'true' : 'false',
+  };
+}
+
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
+    headers: { 'Content-Type': 'application/json', ...getFreshHeaders(), ...(options.headers || {}) },
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || 'API error');
+    const error = new Error(text || 'API error');
+    error.isBackendError = true;
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }
 
 // Multipart fetch for file uploads
 async function apiFetchMultipart(path, formData) {
-  const res = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', body: formData });
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: getFreshHeaders(),
+    body: formData,
+  });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || 'API error');
+    const error = new Error(text || 'API error');
+    error.isBackendError = true;
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }
@@ -57,7 +79,7 @@ export async function getDashboard() { return apiFetch('/dashboard'); }
 // Subscription API with localStorage fallback for MVP.
 export async function getSubscription() {
   try {
-    return await apiFetch('/subscription');
+    return saveSubscription(await apiFetch('/subscription'));
   } catch {
     return getLocalSubscription();
   }
@@ -65,10 +87,10 @@ export async function getSubscription() {
 
 export async function upgradeSubscription(planId, role, billingCycle = 'monthly') {
   try {
-    return await apiFetch('/subscription/upgrade', {
+    return saveSubscription(await apiFetch('/subscription/upgrade', {
       method: 'POST',
       body: JSON.stringify({ plan_id: planId, role, billing_cycle: billingCycle }),
-    });
+    }));
   } catch {
     return upgradeLocalPlan(planId, role, billingCycle);
   }
@@ -76,7 +98,7 @@ export async function upgradeSubscription(planId, role, billingCycle = 'monthly'
 
 export async function cancelSubscription() {
   try {
-    return await apiFetch('/subscription/cancel', { method: 'POST', body: JSON.stringify({}) });
+    return saveSubscription(await apiFetch('/subscription/cancel', { method: 'POST', body: JSON.stringify({}) }));
   } catch {
     return downgradePlan('free');
   }
@@ -92,10 +114,10 @@ export async function getSubscriptionUsage() {
 
 export async function incrementSubscriptionUsage(type) {
   try {
-    return await apiFetch('/subscription/usage/increment', {
+    return saveSubscription(await apiFetch('/subscription/usage/increment', {
       method: 'POST',
       body: JSON.stringify({ type }),
-    });
+    }));
   } catch {
     return incrementLocalUsage(type);
   }
@@ -110,26 +132,17 @@ export async function analyzeFoodImage(file) {
   formData.append('image', file);
 
   try {
-    const res = await fetch(`${API_BASE_URL}/scan-food`, {
-      method: 'POST',
-      body: formData,
-      // Do NOT set Content-Type header — browser sets it automatically with boundary for multipart
-    });
-
-    if (!res.ok) {
-      // Backend is reachable, so surface its error instead of using local fallback.
-      const errText = await res.text().catch(() => 'Unknown error');
-      console.warn(`[Scanner] Backend /scan-food returned ${res.status}: ${errText}`);
-      return backendErrorFallback(`Backend /scan-food returned ${res.status}: ${errText}`);
-    }
-
-    const data = await res.json();
+    const data = await apiFetchMultipart('/scan-food', formData);
     // Ensure source field is set so UI can show the correct badge
     if (!data.source) {
       data.source = 'tensorflow_vision_model';
     }
     return data;
   } catch (err) {
+    if (err.isBackendError) {
+      console.warn(`[Scanner] Backend /scan-food returned ${err.status}: ${err.message}`);
+      return backendErrorFallback(`Backend /scan-food returned ${err.status}: ${err.message}`);
+    }
     console.warn('[Scanner] Backend unavailable, using local fallback:', err.message);
     // Fallback: local classifier based on filename only
     return localFoodClassifier(file.name);

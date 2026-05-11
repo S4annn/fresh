@@ -2,19 +2,18 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
 import { useLanguage } from '../context/LanguageContext';
-import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
-import { downgradePlan, getUsageLabel, setCurrentSubscription, useSubscription } from '../services/subscription';
+import { getUsageLabel, useSubscription } from '../services/subscription';
+import { cancelSubscription } from '../api';
 import {
-  Settings, User, Bell, Shield, LogOut, Save, Moon, Sun,
-  Globe, Smartphone, Mail, Check, ArrowLeftRight, Building2, CreditCard, Crown,
+  Settings, User, Bell, Shield, LogOut, Save,
+  Globe, Smartphone, Mail, Check, CreditCard, Crown,
 } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, logout, isFirebaseConfigured } = useAuth();
-  const { role, setRole, isPersonal, isBusiness } = useRole();
+  const { setRole } = useRole();
   const { language, setLanguage, t } = useLanguage();
-  const { theme, setTheme } = useTheme();
   const { subscription, plan, refreshSubscription } = useSubscription();
   const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
@@ -23,7 +22,6 @@ export default function SettingsPage() {
     name: user?.name || '',
     email: user?.email || '',
     language,
-    theme,
     expiryNotification: true,
     riskAlerts: true,
     weeklyReport: false,
@@ -42,28 +40,14 @@ export default function SettingsPage() {
     setLanguage(nextLanguage);
   }
 
-  function handleThemeChange(e) {
-    const nextTheme = e.target.value;
-    setPrefs({ ...prefs, theme: nextTheme });
-    setTheme(nextTheme);
-  }
-
   async function handleLogout() {
     await logout();
     navigate('/');
   }
 
-  function switchDemoPlan(planId, nextRole = planId === 'business_pro' ? 'business' : 'personal') {
-    setRole(nextRole);
-    setCurrentSubscription(planId, nextRole);
-    refreshSubscription();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
-
-  function handleCancelSubscription() {
+  async function handleCancelSubscription() {
     setRole('personal');
-    downgradePlan('free');
+    await cancelSubscription();
     refreshSubscription();
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -136,19 +120,6 @@ export default function SettingsPage() {
             </select>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-            <div className="flex items-center gap-3">
-              {prefs.theme === 'light' ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-violet-500" />}
-              <div>
-                <p className="font-medium text-gray-800">{t('theme', 'Theme')}</p>
-                <p className="text-xs text-gray-500">{t('themeDesc', 'Choose light or dark mode')}</p>
-              </div>
-            </div>
-            <select value={prefs.theme} onChange={handleThemeChange} className="input-field w-auto min-w-[100px]">
-              <option value="light">{t('light', 'Light')}</option>
-              <option value="dark">{t('dark', 'Dark')}</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -229,37 +200,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Role Switching */}
-      <div className="card">
-        <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
-          <ArrowLeftRight className="w-5 h-5 text-blue-500" />
-          {t('accountType', 'Account Type')}
-        </h2>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <button
-            onClick={() => { setRole('personal'); navigate('/dashboard'); }}
-            className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${isPersonal() ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300'}`}
-          >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isPersonal() ? 'bg-emerald-500' : 'bg-gray-100'}`}>
-              <User className={`w-5 h-5 ${isPersonal() ? 'text-white' : 'text-gray-500'}`} />
-            </div>
-            <p className={`font-bold text-sm ${isPersonal() ? 'text-emerald-700' : 'text-gray-600'}`}>{t('personal', 'Personal')}</p>
-            {isPersonal() && <span className="text-xs text-emerald-600 font-medium">{t('active', 'Active')}</span>}
-          </button>
-          <button
-            onClick={() => { setRole('business'); navigate('/business/dashboard'); }}
-            className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${isBusiness() ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}
-          >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isBusiness() ? 'bg-blue-500' : 'bg-gray-100'}`}>
-              <Building2 className={`w-5 h-5 ${isBusiness() ? 'text-white' : 'text-gray-500'}`} />
-            </div>
-            <p className={`font-bold text-sm ${isBusiness() ? 'text-blue-700' : 'text-gray-600'}`}>{t('business', 'Business')}</p>
-            {isBusiness() && <span className="text-xs text-blue-600 font-medium">{t('active', 'Active')}</span>}
-          </button>
-        </div>
-        <p className="text-xs text-gray-400 text-center">{t('switchModesDesc', 'Switch between Personal and Business mode anytime')}</p>
-      </div>
-
       {/* Billing */}
       <div className="card">
         <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
@@ -306,20 +246,11 @@ export default function SettingsPage() {
           <button onClick={() => navigate('/pricing')} className="btn-secondary">
             Upgrade
           </button>
-          <button onClick={() => switchDemoPlan('free', 'personal')} className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50">
-            Switch to Free
-          </button>
-          <button onClick={() => switchDemoPlan('personal_plus', 'personal')} className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-100">
-            Switch to Personal Plus
-          </button>
-          <button onClick={() => switchDemoPlan('business_pro', 'business')} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100">
-            Switch to Business Pro
-          </button>
-          <button onClick={handleCancelSubscription} className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-100">
+          <button onClick={handleCancelSubscription} className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-100 sm:col-span-2">
             Cancel Subscription
           </button>
         </div>
-        <p className="mt-3 text-xs text-gray-400">Demo controls are only for capstone presentation. Cancel subscription downgrades to Free for MVP.</p>
+
       </div>
 
       {/* Actions */}

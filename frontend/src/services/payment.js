@@ -1,4 +1,5 @@
 import { PLANS, upgradePlan } from './subscription';
+import { upgradeSubscription } from '../api';
 
 export function createDummyCheckout(planId, billingCycle = 'monthly') {
   const plan = PLANS[planId];
@@ -18,8 +19,12 @@ export function createDummyCheckout(planId, billingCycle = 'monthly') {
   };
 }
 
-export function simulatePaymentSuccess(planId, role, billingCycle = 'monthly') {
-  return upgradePlan(planId, role || PLANS[planId]?.role, billingCycle);
+export async function simulatePaymentSuccess(planId, role, billingCycle = 'monthly') {
+  try {
+    return await upgradeSubscription(planId, role || PLANS[planId]?.role, billingCycle);
+  } catch {
+    return upgradePlan(planId, role || PLANS[planId]?.role, billingCycle);
+  }
 }
 
 export async function createPaymentSession(planId, billingCycle = 'monthly') {

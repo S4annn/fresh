@@ -188,6 +188,28 @@ export function getCurrentSubscription() {
   }
 }
 
+export function saveSubscription(subscription) {
+  if (!subscription || !subscription.plan_id) {
+    return getCurrentSubscription();
+  }
+
+  const plan = PLANS[subscription.plan_id] || PLANS.free;
+  const next = {
+    ...buildSubscription(plan.plan_id, subscription.role || plan.role, subscription.billing_cycle || 'monthly'),
+    ...subscription,
+    plan_name: plan.plan_name,
+    usage: {
+      ...(DEMO_USAGE[plan.plan_id] || DEMO_USAGE.free),
+      ...(subscription.usage || {}),
+    },
+  };
+
+  localStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(next));
+  localStorage.setItem('fresh_user_role', next.role);
+  emitSubscriptionUpdated(next);
+  return next;
+}
+
 export function setCurrentSubscription(planId, role, billingCycle = 'monthly') {
   const plan = PLANS[planId] || PLANS.free;
   const previous = getCurrentSubscription();

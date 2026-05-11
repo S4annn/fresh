@@ -35,8 +35,8 @@ export default function CheckoutModal({
 
   async function handleSuccess() {
     setProcessing(true);
-    window.setTimeout(() => {
-      const subscription = simulatePaymentSuccess(planId, role || plan.role, billingCycle);
+    window.setTimeout(async () => {
+      const subscription = await simulatePaymentSuccess(planId, role || plan.role, billingCycle);
       setProcessing(false);
       onSuccess?.(subscription);
     }, 500);

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useRole } from '../context/RoleContext';
 import { useLanguage } from '../context/LanguageContext';
+import ThemeToggle from '../components/ThemeToggle';
 import {
   LayoutDashboard, Package, Scan, Brain, Lightbulb, ShoppingBag,
   Heart, BarChart3, Settings, Menu, X, Bell, Search, LogOut,
-  ChevronDown, Leaf, User, ClipboardList, GitBranch, Building2,
-  ArrowLeftRight, Lock, CreditCard, FileText,
+  ChevronDown, User, ClipboardList, GitBranch, Building2,
+  Lock, FileText,
 } from 'lucide-react';
 import { hasFeature, useSubscription } from '../services/subscription';
 
@@ -23,15 +23,13 @@ const baseBusinessNavItems = [
   { path: '/business/branches', labelKey: 'branches', fallback: 'Branches', icon: GitBranch, feature: 'business_branches' },
   { path: '/business/analytics', labelKey: 'analytics', fallback: 'Business Analytics', icon: BarChart3, feature: 'business_analytics' },
   { path: '/business/report', labelKey: 'sustainabilityReport', fallback: 'Sustainability Report', icon: FileText, feature: 'sustainability_report' },
-  { path: '/pricing', labelKey: 'pricing', fallback: 'Pricing', icon: CreditCard },
   { path: '/business/settings', labelKey: 'settings', fallback: 'Settings', icon: Settings },
 ];
 
 export default function BusinessLayout() {
   const { user, logout, isDemoMode } = useAuth();
-  const { setRole } = useRole();
   const { t } = useLanguage();
-  useSubscription();
+  const { plan } = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -42,16 +40,16 @@ export default function BusinessLayout() {
     navigate('/');
   };
 
-  const handleSwitchToPersonal = () => {
-    setRole('personal');
-    navigate('/dashboard');
-  };
-
   const businessNavItems = baseBusinessNavItems.map((item) => ({
     ...item,
     locked: item.feature ? !hasFeature(item.feature) : false,
   }));
   const currentPage = businessNavItems.find((item) => location.pathname.startsWith(item.path));
+  const editionLabel = plan.plan_id === 'business_pro'
+    ? 'BUSINESS'
+    : plan.plan_id === 'personal_plus'
+      ? 'PERSONAL PLUS'
+      : 'FREE EDITION';
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/30 overflow-hidden">
@@ -69,7 +67,7 @@ export default function BusinessLayout() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-800 leading-none">F.R.E.S.H</h1>
-              <p className="text-[10px] text-blue-600 font-medium tracking-wider">{t('businessEdition', 'BUSINESS EDITION')}</p>
+              <p className="text-[10px] text-blue-600 font-medium tracking-wider">{editionLabel}</p>
             </div>
           </NavLink>
           <button className="lg:hidden btn-icon hover:bg-gray-100" onClick={() => setSidebarOpen(false)}>
@@ -100,17 +98,6 @@ export default function BusinessLayout() {
             );
           })}
         </nav>
-
-        {/* Switch Role */}
-        <div className="px-4 pb-2">
-          <button
-            onClick={handleSwitchToPersonal}
-            className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-          >
-            <ArrowLeftRight className="w-4 h-4" />
-            {t('switchToPersonal', 'Switch to Personal')}
-          </button>
-        </div>
 
         {/* User Card */}
         <div className="p-4 border-t border-blue-100/50">
@@ -146,6 +133,8 @@ export default function BusinessLayout() {
               <input type="text" placeholder={t('search', 'Search...')} className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder:text-gray-400 w-full" />
             </div>
 
+            <ThemeToggle compact />
+
             <button
               onClick={() => navigate('/business/notifications')}
               className="btn-icon bg-gray-50 hover:bg-blue-50 relative border border-gray-100"
@@ -175,9 +164,6 @@ export default function BusinessLayout() {
                     <NavLink to="/business/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors no-underline">
                       <User className="w-4 h-4" /> {t('settings', 'Settings')}
                     </NavLink>
-                    <button onClick={handleSwitchToPersonal} className="flex items-center gap-3 px-4 py-2.5 text-sm text-emerald-600 hover:bg-emerald-50 w-full transition-colors">
-                      <ArrowLeftRight className="w-4 h-4" /> {t('switchToPersonal', 'Switch to Personal')}
-                    </button>
                     <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 w-full transition-colors">
                       <LogOut className="w-4 h-4" /> {t('signOut', 'Sign Out')}
                     </button>

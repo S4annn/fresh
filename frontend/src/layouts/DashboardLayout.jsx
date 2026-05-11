@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useRole } from '../context/RoleContext';
 import { useLanguage } from '../context/LanguageContext';
+import ThemeToggle from '../components/ThemeToggle';
 import {
   LayoutDashboard, Package, Brain, Lightbulb, ShoppingBag, Heart,
   BarChart3, Settings, Menu, X, Bell, Search, LogOut, ChevronDown,
-  Leaf, User, Scan, ArrowLeftRight, Lock, CreditCard, FileText,
+  Leaf, User, Scan, Lock, FileText,
 } from 'lucide-react';
 import { hasFeature, useSubscription } from '../services/subscription';
 
@@ -20,13 +20,11 @@ const baseSidebarItems = [
   { path: '/donation', labelKey: 'donation', fallback: 'Donation', icon: Heart },
   { path: '/analytics', labelKey: 'analytics', fallback: 'Analytics', icon: BarChart3 },
   { path: '/report', labelKey: 'personalReport', fallback: 'Personal Report', icon: FileText, feature: 'personal_report', requiredPlan: 'personal_plus' },
-  { path: '/pricing', labelKey: 'pricing', fallback: 'Pricing', icon: CreditCard },
   { path: '/settings', labelKey: 'settings', fallback: 'Settings', icon: Settings },
 ];
 
 export default function DashboardLayout() {
   const { user, logout, isDemoMode } = useAuth();
-  const { setRole } = useRole();
   const { t } = useLanguage();
   const { plan } = useSubscription();
   const navigate = useNavigate();
@@ -40,11 +38,6 @@ export default function DashboardLayout() {
     navigate('/');
   };
 
-  const handleSwitchToBusiness = () => {
-    setRole('business');
-    navigate('/business/dashboard');
-  };
-
   const sidebarItems = baseSidebarItems.map((item) => ({
     ...item,
     locked: item.feature ? !hasFeature(item.feature) : false,
@@ -53,6 +46,11 @@ export default function DashboardLayout() {
       : item.fallback,
   }));
   const currentPage = sidebarItems.find((item) => location.pathname.startsWith(item.path));
+  const editionLabel = plan.plan_id === 'business_pro'
+    ? 'BUSINESS'
+    : plan.plan_id === 'personal_plus'
+      ? 'PERSONAL PLUS'
+      : 'FREE EDITION';
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/30 overflow-hidden">
@@ -75,7 +73,7 @@ export default function DashboardLayout() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-800 leading-none">F.R.E.S.H</h1>
-              <p className="text-[10px] text-emerald-600 font-medium tracking-wider">{t('personalEdition', 'PERSONAL EDITION')}</p>
+              <p className="text-[10px] text-emerald-600 font-medium tracking-wider">{editionLabel}</p>
             </div>
           </NavLink>
           <button className="lg:hidden btn-icon hover:bg-gray-100" onClick={() => setSidebarOpen(false)}>
@@ -149,6 +147,8 @@ export default function DashboardLayout() {
               />
             </div>
 
+            <ThemeToggle compact />
+
             {/* Notifications */}
             <button
               onClick={() => navigate('/notifications')}
@@ -192,13 +192,6 @@ export default function DashboardLayout() {
                       <User className="w-4 h-4" />
                       {t('profileSettings', 'Profile & Settings')}
                     </NavLink>
-                    <button
-                      onClick={handleSwitchToBusiness}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 w-full transition-colors"
-                    >
-                      <ArrowLeftRight className="w-4 h-4" />
-                      {t('switchToBusiness', 'Switch to Business')}
-                    </button>
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 w-full transition-colors"
