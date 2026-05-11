@@ -1,0 +1,36 @@
+import { PLANS, upgradePlan } from './subscription';
+
+export function createDummyCheckout(planId, billingCycle = 'monthly') {
+  const plan = PLANS[planId];
+  if (!plan) throw new Error('Unknown plan');
+
+  const amount = billingCycle === 'yearly' ? plan.yearly_price : plan.monthly_price;
+  return {
+    id: `dummy_checkout_${Date.now()}`,
+    plan_id: planId,
+    plan_name: plan.plan_name,
+    billing_cycle: billingCycle,
+    amount,
+    currency: 'IDR',
+    status: 'pending',
+    payment_methods: ['QRIS', 'Virtual Account', 'E-Wallet', 'Credit Card'],
+    sandbox: true,
+  };
+}
+
+export function simulatePaymentSuccess(planId, role, billingCycle = 'monthly') {
+  return upgradePlan(planId, role || PLANS[planId]?.role, billingCycle);
+}
+
+export async function createPaymentSession(planId, billingCycle = 'monthly') {
+  // Replace dummy checkout with Midtrans/Xendit transaction API later.
+  return createDummyCheckout(planId, billingCycle);
+}
+
+export async function handlePaymentCallback(payload) {
+  // Placeholder for Midtrans/Xendit webhook/callback reconciliation later.
+  return {
+    ok: true,
+    received: payload,
+  };
+}

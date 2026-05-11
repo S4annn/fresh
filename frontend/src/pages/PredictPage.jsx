@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FOOD_CATEGORIES, STORAGE_TYPES, localPredictRisk } from '../data/dummyData';
+import { useLanguage } from '../context/LanguageContext';
 import * as api from '../api';
 import {
   Brain, Sparkles, AlertTriangle, CheckCircle2, Shield, TrendingUp,
@@ -7,6 +8,7 @@ import {
 } from 'lucide-react';
 
 export default function PredictPage() {
+  const { t, tv } = useLanguage();
   const [form, setForm] = useState({
     food_name: '',
     category: 'Dairy',
@@ -55,9 +57,9 @@ export default function PredictPage() {
       <div>
         <h1 className="text-2xl font-extrabold text-gray-800 flex items-center gap-2">
           <Brain className="w-6 h-6 text-violet-600" />
-          AI Food Waste Prediction
+          {t('aiFoodWastePrediction', 'AI Food Waste Prediction')}
         </h1>
-        <p className="text-gray-500 mt-1">Predict the risk of food waste using our AI model.</p>
+        <p className="text-gray-500 mt-1">{t('predictSubtitle', 'Predict the risk of food waste using our AI model.')}</p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -65,12 +67,12 @@ export default function PredictPage() {
         <div className="card">
           <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-violet-500" />
-            Prediction Input
+            {t('predictionInput', 'Prediction Input')}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="input-label">Food Name</label>
+              <label className="input-label">{t('foodName', 'Food Name')}</label>
               <input
                 type="text"
                 value={form.food_name}
@@ -83,30 +85,30 @@ export default function PredictPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="input-label">Category</label>
+                <label className="input-label">{t('category', 'Category')}</label>
                 <div className="relative">
                   <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field appearance-none pr-10">
-                    {FOOD_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {FOOD_CATEGORIES.map((c) => <option key={c} value={c}>{tv(c)}</option>)}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
               <div>
-                <label className="input-label">Quantity</label>
+                <label className="input-label">{t('quantity', 'Quantity')}</label>
                 <input type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="input-field" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="input-label">Days to Expiry</label>
+                <label className="input-label">{t('daysToExpiry', 'Days to Expiry')}</label>
                 <input type="number" min="0" value={form.days_to_expiry} onChange={(e) => setForm({ ...form, days_to_expiry: e.target.value })} className="input-field" required />
               </div>
               <div>
-                <label className="input-label">Storage Type</label>
+                <label className="input-label">{t('storageType', 'Storage Type')}</label>
                 <div className="relative">
                   <select value={form.storage_type} onChange={(e) => setForm({ ...form, storage_type: e.target.value })} className="input-field appearance-none pr-10">
-                    {STORAGE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {STORAGE_TYPES.map((s) => <option key={s} value={s}>{tv(s)}</option>)}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
@@ -115,18 +117,18 @@ export default function PredictPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="input-label">Usage Frequency</label>
+                <label className="input-label">{t('usageFrequency', 'Usage Frequency')}</label>
                 <div className="relative">
                   <select value={form.usage_frequency} onChange={(e) => setForm({ ...form, usage_frequency: e.target.value })} className="input-field appearance-none pr-10">
-                    <option value="rarely">Rarely</option>
-                    <option value="normal">Normal</option>
-                    <option value="often">Often</option>
+                    <option value="rarely">{t('rarely', 'Rarely')}</option>
+                    <option value="normal">{t('normal', 'Normal')}</option>
+                    <option value="often">{t('often', 'Often')}</option>
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
               <div>
-                <label className="input-label">Temperature (optional)</label>
+                <label className="input-label">{t('temperatureOptional', 'Temperature (optional)')}</label>
                 <input type="text" value={form.temperature} onChange={(e) => setForm({ ...form, temperature: e.target.value })} className="input-field" placeholder="e.g. 4°C" />
               </div>
             </div>
@@ -135,12 +137,12 @@ export default function PredictPage() {
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Analyzing...
+                  {t('analyzing', 'Analyzing...')}
                 </>
               ) : (
                 <>
                   <Zap className="w-5 h-5" />
-                  Predict Risk
+                  {t('predictRisk', 'Predict Risk')}
                 </>
               )}
             </button>
@@ -162,10 +164,10 @@ export default function PredictPage() {
                   }`}>
                     {result.risk_label === 'High Risk' ? <AlertTriangle className="w-4 h-4" /> :
                      result.risk_label === 'Warning' ? <Shield className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                    {result.risk_label}
+                    {tv(result.risk_label)}
                   </div>
 
-                  <p className="text-sm text-gray-500 mb-2">Risk Score</p>
+                  <p className="text-sm text-gray-500 mb-2">{t('riskScore', 'Risk Score')}</p>
                   <div className="relative inline-flex items-center justify-center w-40 h-40">
                     <svg className="w-40 h-40 transform -rotate-90" viewBox="0 0 120 120">
                       <circle cx="60" cy="60" r="52" stroke="#e5e7eb" strokeWidth="10" fill="none" />
@@ -187,8 +189,8 @@ export default function PredictPage() {
                 {/* Progress Bar */}
                 <div className="mb-4">
                   <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Low Risk</span>
-                    <span>High Risk</span>
+                    <span>{t('lowRisk', 'Low Risk')}</span>
+                    <span>{t('highRisk', 'High Risk')}</span>
                   </div>
                   <div className="h-3 bg-white/80 rounded-full overflow-hidden">
                     <div
@@ -203,13 +205,13 @@ export default function PredictPage() {
               <div className="card">
                 <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-blue-500" />
-                  Analysis
+                  {t('analysis', 'Analysis')}
                 </h3>
                 <p className="text-gray-600 leading-relaxed mb-4">{result.explanation}</p>
 
                 <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-violet-500" />
-                  Suggested Action
+                  {t('suggestedAction', 'Suggested Action')}
                 </h3>
                 <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl p-4 border border-violet-100">
                   <p className="text-violet-700 font-medium">{result.suggested_action}</p>
@@ -218,23 +220,23 @@ export default function PredictPage() {
 
               {/* Details */}
               <div className="card">
-                <h3 className="font-bold text-gray-800 mb-3">Prediction Details</h3>
+                <h3 className="font-bold text-gray-800 mb-3">{t('predictionDetails', 'Prediction Details')}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-xs text-gray-500">Food Name</p>
+                    <p className="text-xs text-gray-500">{t('foodName', 'Food Name')}</p>
                     <p className="font-semibold text-gray-800">{result.food_name || form.food_name}</p>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-xs text-gray-500">Days to Expiry</p>
-                    <p className="font-semibold text-gray-800">{result.days_to_expiry || form.days_to_expiry} days</p>
+                    <p className="text-xs text-gray-500">{t('daysToExpiry', 'Days to Expiry')}</p>
+                    <p className="font-semibold text-gray-800">{result.days_to_expiry || form.days_to_expiry} {t('days', 'days')}</p>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-xs text-gray-500">Storage</p>
-                    <p className="font-semibold text-gray-800">{form.storage_type}</p>
+                    <p className="text-xs text-gray-500">{t('storage', 'Storage')}</p>
+                    <p className="font-semibold text-gray-800">{tv(form.storage_type)}</p>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-xs text-gray-500">Usage</p>
-                    <p className="font-semibold text-gray-800 capitalize">{form.usage_frequency}</p>
+                    <p className="text-xs text-gray-500">{t('usage', 'Usage')}</p>
+                    <p className="font-semibold text-gray-800 capitalize">{t(form.usage_frequency, form.usage_frequency)}</p>
                   </div>
                 </div>
               </div>
@@ -245,8 +247,8 @@ export default function PredictPage() {
                 <div className="w-20 h-20 bg-gradient-to-br from-violet-100 to-purple-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
                   <Brain className="w-10 h-10 text-violet-500" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Ready to Predict</h3>
-                <p className="text-gray-500 max-w-xs mx-auto">Fill in the food details and click "Predict Risk" to get AI-powered waste analysis.</p>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">{t('readyToPredict', 'Ready to Predict')}</h3>
+                <p className="text-gray-500 max-w-xs mx-auto">{t('readyToPredictDesc', 'Fill in the food details and click "Predict Risk" to get AI-powered waste analysis.')}</p>
               </div>
             </div>
           )}

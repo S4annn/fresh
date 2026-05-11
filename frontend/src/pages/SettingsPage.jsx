@@ -1,23 +1,29 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
+import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import { downgradePlan, getUsageLabel, setCurrentSubscription, useSubscription } from '../services/subscription';
 import {
   Settings, User, Bell, Shield, LogOut, Save, Moon, Sun,
-  Globe, Smartphone, Mail, Check, ArrowLeftRight, Building2,
+  Globe, Smartphone, Mail, Check, ArrowLeftRight, Building2, CreditCard, Crown,
 } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, logout, isFirebaseConfigured } = useAuth();
   const { role, setRole, isPersonal, isBusiness } = useRole();
+  const { language, setLanguage, t } = useLanguage();
+  const { theme, setTheme } = useTheme();
+  const { subscription, plan, refreshSubscription } = useSubscription();
   const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
 
   const [prefs, setPrefs] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    language: 'id',
-    theme: 'light',
+    language,
+    theme,
     expiryNotification: true,
     riskAlerts: true,
     weeklyReport: false,
@@ -25,13 +31,42 @@ export default function SettingsPage() {
   });
 
   function handleSave() {
+    setLanguage(prefs.language);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  function handleLanguageChange(e) {
+    const nextLanguage = e.target.value;
+    setPrefs({ ...prefs, language: nextLanguage });
+    setLanguage(nextLanguage);
+  }
+
+  function handleThemeChange(e) {
+    const nextTheme = e.target.value;
+    setPrefs({ ...prefs, theme: nextTheme });
+    setTheme(nextTheme);
   }
 
   async function handleLogout() {
     await logout();
     navigate('/');
+  }
+
+  function switchDemoPlan(planId, nextRole = planId === 'business_pro' ? 'business' : 'personal') {
+    setRole(nextRole);
+    setCurrentSubscription(planId, nextRole);
+    refreshSubscription();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  function handleCancelSubscription() {
+    setRole('personal');
+    downgradePlan('free');
+    refreshSubscription();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   }
 
   return (
@@ -40,16 +75,16 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-extrabold text-gray-800 flex items-center gap-2">
           <Settings className="w-6 h-6 text-gray-600" />
-          Profile & Settings
+          {t('profileSettings', 'Profile & Settings')}
         </h1>
-        <p className="text-gray-500 mt-1">Manage your account and app preferences.</p>
+        <p className="text-gray-500 mt-1">{t('settingsSubtitle', 'Manage your account and app preferences.')}</p>
       </div>
 
       {/* User Info */}
       <div className="card">
         <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
           <User className="w-5 h-5 text-emerald-600" />
-          User Information
+          {t('userInformation', 'User Information')}
         </h2>
         <div className="flex items-center gap-5 mb-6">
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-emerald-500/25">
@@ -60,21 +95,21 @@ export default function SettingsPage() {
             )}
           </div>
           <div>
-            <h3 className="text-xl font-bold text-gray-800">{user?.name || 'User'}</h3>
-            <p className="text-gray-500">{user?.email || 'No email'}</p>
+            <h3 className="text-xl font-bold text-gray-800">{user?.name || t('user', 'User')}</h3>
+            <p className="text-gray-500">{user?.email || t('noEmail', 'No email')}</p>
             <span className={`badge mt-2 ${user?.provider === 'google' ? 'badge-info' : 'badge-safe'}`}>
-              {user?.provider === 'google' ? 'Google Account' : 'Demo Account'}
+              {user?.provider === 'google' ? t('googleAccount', 'Google Account') : t('demoAccount', 'Demo Account')}
             </span>
           </div>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="input-label">Display Name</label>
+            <label className="input-label">{t('displayName', 'Display Name')}</label>
             <input value={prefs.name} onChange={(e) => setPrefs({ ...prefs, name: e.target.value })} className="input-field" />
           </div>
           <div>
-            <label className="input-label">Email</label>
+            <label className="input-label">{t('email', 'Email')}</label>
             <input value={prefs.email} onChange={(e) => setPrefs({ ...prefs, email: e.target.value })} className="input-field" disabled={user?.provider === 'google'} />
           </div>
         </div>
@@ -84,18 +119,18 @@ export default function SettingsPage() {
       <div className="card">
         <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
           <Settings className="w-5 h-5 text-violet-600" />
-          App Preferences
+          {t('appPreferences', 'App Preferences')}
         </h2>
         <div className="space-y-4">
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
             <div className="flex items-center gap-3">
               <Globe className="w-5 h-5 text-gray-500" />
               <div>
-                <p className="font-medium text-gray-800">Language</p>
-                <p className="text-xs text-gray-500">Select your preferred language</p>
+                <p className="font-medium text-gray-800">{t('language', 'Language')}</p>
+                <p className="text-xs text-gray-500">{t('languageDesc', 'Select your preferred language')}</p>
               </div>
             </div>
-            <select value={prefs.language} onChange={(e) => setPrefs({ ...prefs, language: e.target.value })} className="input-field w-auto min-w-[120px]">
+            <select value={prefs.language} onChange={handleLanguageChange} className="input-field w-auto min-w-[120px]">
               <option value="id">Bahasa Indonesia</option>
               <option value="en">English</option>
             </select>
@@ -105,13 +140,13 @@ export default function SettingsPage() {
             <div className="flex items-center gap-3">
               {prefs.theme === 'light' ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-violet-500" />}
               <div>
-                <p className="font-medium text-gray-800">Theme</p>
-                <p className="text-xs text-gray-500">Choose light or dark mode</p>
+                <p className="font-medium text-gray-800">{t('theme', 'Theme')}</p>
+                <p className="text-xs text-gray-500">{t('themeDesc', 'Choose light or dark mode')}</p>
               </div>
             </div>
-            <select value={prefs.theme} onChange={(e) => setPrefs({ ...prefs, theme: e.target.value })} className="input-field w-auto min-w-[100px]">
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
+            <select value={prefs.theme} onChange={handleThemeChange} className="input-field w-auto min-w-[100px]">
+              <option value="light">{t('light', 'Light')}</option>
+              <option value="dark">{t('dark', 'Dark')}</option>
             </select>
           </div>
         </div>
@@ -121,14 +156,14 @@ export default function SettingsPage() {
       <div className="card">
         <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
           <Bell className="w-5 h-5 text-amber-500" />
-          Notification Settings
+          {t('notificationSettings', 'Notification Settings')}
         </h2>
         <div className="space-y-3">
           {[
-            { key: 'expiryNotification', label: 'Expiry Notifications', desc: 'Get notified when food is about to expire' },
-            { key: 'riskAlerts', label: 'Risk Alerts', desc: 'Receive alerts for high-risk food items' },
-            { key: 'weeklyReport', label: 'Weekly Reports', desc: 'Get weekly food waste reports via email' },
-            { key: 'marketplaceUpdates', label: 'Marketplace Updates', desc: 'Notifications for marketplace activity' },
+            { key: 'expiryNotification', label: t('expiryNotifications', 'Expiry Notifications'), desc: t('expiryNotificationsDesc', 'Get notified when food is about to expire') },
+            { key: 'riskAlerts', label: t('riskAlerts', 'Risk Alerts'), desc: t('riskAlertsDesc', 'Receive alerts for high-risk food items') },
+            { key: 'weeklyReport', label: t('weeklyReports', 'Weekly Reports'), desc: t('weeklyReportsDesc', 'Get weekly food waste reports via email') },
+            { key: 'marketplaceUpdates', label: t('marketplaceUpdates', 'Marketplace Updates'), desc: t('marketplaceUpdatesDesc', 'Notifications for marketplace activity') },
           ].map((item) => (
             <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
               <div>
@@ -156,7 +191,7 @@ export default function SettingsPage() {
       <div className="card">
         <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
           <Shield className="w-5 h-5 text-blue-500" />
-          Connected Accounts
+          {t('connectedAccounts', 'Connected Accounts')}
         </h2>
         <div className="space-y-3">
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
@@ -170,14 +205,14 @@ export default function SettingsPage() {
               <div>
                 <p className="font-medium text-gray-800">Google</p>
                 <p className="text-xs text-gray-500">
-                  {user?.provider === 'google' ? 'Connected' : isFirebaseConfigured ? 'Not connected' : 'Firebase not configured'}
+                  {user?.provider === 'google' ? t('connected', 'Connected') : isFirebaseConfigured ? t('notConnected', 'Not connected') : t('firebaseNotConfigured', 'Firebase not configured')}
                 </p>
               </div>
             </div>
             {user?.provider === 'google' ? (
-              <span className="badge badge-safe"><Check className="w-3 h-3 mr-1" /> Connected</span>
+              <span className="badge badge-safe"><Check className="w-3 h-3 mr-1" /> {t('connected', 'Connected')}</span>
             ) : (
-              <span className="badge bg-gray-100 text-gray-500">Not Connected</span>
+              <span className="badge bg-gray-100 text-gray-500">{t('notConnected', 'Not Connected')}</span>
             )}
           </div>
 
@@ -186,7 +221,7 @@ export default function SettingsPage() {
               <Smartphone className="w-5 h-5 text-gray-500" />
               <div>
                 <p className="font-medium text-gray-800">FastAPI Backend</p>
-                <p className="text-xs text-gray-500">{import.meta.env.VITE_API_BASE_URL || 'Not configured'}</p>
+                <p className="text-xs text-gray-500">{import.meta.env.VITE_API_BASE_URL || t('notConfigured', 'Not configured')}</p>
               </div>
             </div>
             <span className="badge bg-gray-100 text-gray-500">API</span>
@@ -198,7 +233,7 @@ export default function SettingsPage() {
       <div className="card">
         <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
           <ArrowLeftRight className="w-5 h-5 text-blue-500" />
-          Account Type
+          {t('accountType', 'Account Type')}
         </h2>
         <div className="grid grid-cols-2 gap-3 mb-4">
           <button
@@ -208,8 +243,8 @@ export default function SettingsPage() {
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isPersonal() ? 'bg-emerald-500' : 'bg-gray-100'}`}>
               <User className={`w-5 h-5 ${isPersonal() ? 'text-white' : 'text-gray-500'}`} />
             </div>
-            <p className={`font-bold text-sm ${isPersonal() ? 'text-emerald-700' : 'text-gray-600'}`}>Personal</p>
-            {isPersonal() && <span className="text-xs text-emerald-600 font-medium">Active</span>}
+            <p className={`font-bold text-sm ${isPersonal() ? 'text-emerald-700' : 'text-gray-600'}`}>{t('personal', 'Personal')}</p>
+            {isPersonal() && <span className="text-xs text-emerald-600 font-medium">{t('active', 'Active')}</span>}
           </button>
           <button
             onClick={() => { setRole('business'); navigate('/business/dashboard'); }}
@@ -218,21 +253,83 @@ export default function SettingsPage() {
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isBusiness() ? 'bg-blue-500' : 'bg-gray-100'}`}>
               <Building2 className={`w-5 h-5 ${isBusiness() ? 'text-white' : 'text-gray-500'}`} />
             </div>
-            <p className={`font-bold text-sm ${isBusiness() ? 'text-blue-700' : 'text-gray-600'}`}>Business</p>
-            {isBusiness() && <span className="text-xs text-blue-600 font-medium">Active</span>}
+            <p className={`font-bold text-sm ${isBusiness() ? 'text-blue-700' : 'text-gray-600'}`}>{t('business', 'Business')}</p>
+            {isBusiness() && <span className="text-xs text-blue-600 font-medium">{t('active', 'Active')}</span>}
           </button>
         </div>
-        <p className="text-xs text-gray-400 text-center">Switch between Personal and Business mode anytime</p>
+        <p className="text-xs text-gray-400 text-center">{t('switchModesDesc', 'Switch between Personal and Business mode anytime')}</p>
+      </div>
+
+      {/* Billing */}
+      <div className="card">
+        <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
+          <CreditCard className="w-5 h-5 text-emerald-600" />
+          Billing & Subscription
+        </h2>
+
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 mb-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Current plan</p>
+              <h3 className="text-2xl font-extrabold text-gray-900">{plan.plan_name}</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {subscription.status} · {subscription.billing_cycle} · Started {subscription.started_at}
+              </p>
+            </div>
+            <span className="badge badge-safe"><Crown className="w-3 h-3 mr-1" /> {plan.limits.analytics_level} analytics</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-5 text-sm">
+            <div className="rounded-xl bg-white/80 p-3">
+              <p className="text-xs text-gray-500">AI scans</p>
+              <p className="font-bold text-gray-800">{getUsageLabel('ai_scans_this_month')}</p>
+            </div>
+            <div className="rounded-xl bg-white/80 p-3">
+              <p className="text-xs text-gray-500">Inventory</p>
+              <p className="font-bold text-gray-800">{getUsageLabel('inventory_items')}</p>
+            </div>
+            <div className="rounded-xl bg-white/80 p-3">
+              <p className="text-xs text-gray-500">Marketplace</p>
+              <p className="font-bold text-gray-800">{getUsageLabel('marketplace_listings')}</p>
+            </div>
+            <div className="rounded-xl bg-white/80 p-3">
+              <p className="text-xs text-gray-500">Donations</p>
+              <p className="font-bold text-gray-800">{getUsageLabel('donation_listings')}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button onClick={() => navigate('/pricing')} className="btn-primary">
+            Manage Plan
+          </button>
+          <button onClick={() => navigate('/pricing')} className="btn-secondary">
+            Upgrade
+          </button>
+          <button onClick={() => switchDemoPlan('free', 'personal')} className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50">
+            Switch to Free
+          </button>
+          <button onClick={() => switchDemoPlan('personal_plus', 'personal')} className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-100">
+            Switch to Personal Plus
+          </button>
+          <button onClick={() => switchDemoPlan('business_pro', 'business')} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100">
+            Switch to Business Pro
+          </button>
+          <button onClick={handleCancelSubscription} className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-100">
+            Cancel Subscription
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-gray-400">Demo controls are only for capstone presentation. Cancel subscription downgrades to Free for MVP.</p>
       </div>
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3">
         <button onClick={handleSave} className="btn-primary flex-1">
-          {saved ? <><Check className="w-4 h-4" /> Saved!</> : <><Save className="w-4 h-4" /> Save Changes</>}
+          {saved ? <><Check className="w-4 h-4" /> {t('saved', 'Saved!')}</> : <><Save className="w-4 h-4" /> {t('saveChanges', 'Save Changes')}</>}
         </button>
         <button onClick={handleLogout} className="btn-danger flex-1 py-3 rounded-xl font-semibold">
           <LogOut className="w-4 h-4" />
-          Sign Out
+          {t('signOut', 'Sign Out')}
         </button>
       </div>
     </div>

@@ -207,3 +207,185 @@
   @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 }
+
+/* Real app-wide dark mode.
+   Most pages were authored with light Tailwind utility classes, so this layer
+   intentionally overrides the shared surfaces and common color utilities when
+   html.dark is active. */
+html.dark body {
+  color: #e5e7eb;
+  background: linear-gradient(135deg, #06140f 0%, #0b1120 48%, #042f2e 100%);
+}
+
+html.dark main,
+html.dark .min-h-screen,
+html.dark .bg-gradient-to-br.from-emerald-50\/50,
+html.dark .bg-gradient-to-br.from-emerald-50,
+html.dark .bg-gradient-to-br.from-blue-50\/50 {
+  background: transparent !important;
+}
+
+html.dark aside,
+html.dark header,
+html.dark nav,
+html.dark .card,
+html.dark .card-flat,
+html.dark .glass,
+html.dark [class*="bg-white"] {
+  background-color: rgba(15, 23, 42, 0.88) !important;
+  border-color: rgba(45, 212, 191, 0.16) !important;
+  color: #e5e7eb !important;
+}
+
+html.dark .card,
+html.dark .card-flat,
+html.dark .glass {
+  box-shadow: 0 18px 45px -30px rgba(0, 0, 0, 0.9);
+}
+
+html.dark [class*="bg-gray-50"],
+html.dark [class*="bg-gray-100"],
+html.dark [class*="bg-emerald-50"],
+html.dark [class*="bg-teal-50"],
+html.dark [class*="bg-blue-50"],
+html.dark [class*="bg-indigo-50"],
+html.dark [class*="bg-violet-50"],
+html.dark [class*="bg-purple-50"],
+html.dark [class*="bg-pink-50"],
+html.dark [class*="bg-red-50"],
+html.dark [class*="bg-amber-50"] {
+  background-color: rgba(30, 41, 59, 0.82) !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-gray-700,
+html.dark .text-gray-600 {
+  color: #e5e7eb !important;
+}
+
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+html.dark .text-emerald-700,
+html.dark .text-emerald-600 {
+  color: #6ee7b7 !important;
+}
+
+html.dark .text-blue-700,
+html.dark .text-blue-600 {
+  color: #93c5fd !important;
+}
+
+html.dark .text-red-700,
+html.dark .text-red-600 {
+  color: #fca5a5 !important;
+}
+
+html.dark .text-amber-700,
+html.dark .text-amber-600 {
+  color: #fcd34d !important;
+}
+
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-emerald-100,
+html.dark .border-emerald-200,
+html.dark .border-blue-100,
+html.dark .border-blue-200 {
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+html.dark .input-field,
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: rgba(15, 23, 42, 0.9) !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #f8fafc !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.dark .input-label {
+  color: #cbd5e1 !important;
+}
+
+html.dark .sidebar-link {
+  color: #cbd5e1 !important;
+}
+
+html.dark .sidebar-link:hover {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+  color: #6ee7b7 !important;
+}
+
+html.dark .sidebar-link.active {
+  color: #ffffff !important;
+  background: linear-gradient(to right, #059669, #0d9488) !important;
+}
+
+html.dark .data-table th,
+html.dark thead {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  color: #94a3b8 !important;
+}
+
+html.dark .data-table td,
+html.dark tbody,
+html.dark tr {
+  border-color: rgba(148, 163, 184, 0.12) !important;
+  color: #d1d5db !important;
+}
+
+html.dark .data-table tbody tr:hover,
+html.dark tr:hover {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+}
+
+html.dark .btn-secondary {
+  background-color: rgba(15, 23, 42, 0.92) !important;
+  border-color: rgba(52, 211, 153, 0.45) !important;
+  color: #6ee7b7 !important;
+}
+
+html.dark .btn-ghost {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  color: #6ee7b7 !important;
+}
+
+html.dark .btn-danger {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  color: #fca5a5 !important;
+}
+
+html.dark .badge-safe {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+  color: #6ee7b7 !important;
+}
+
+html.dark .badge-warning {
+  background-color: rgba(245, 158, 11, 0.16) !important;
+  color: #fcd34d !important;
+}
+
+html.dark .badge-danger {
+  background-color: rgba(239, 68, 68, 0.16) !important;
+  color: #fca5a5 !important;
+}
+
+html.dark .badge-info {
+  background-color: rgba(59, 130, 246, 0.16) !important;
+  color: #93c5fd !important;
+}
+
+html.dark .leaflet-container {
+  filter: brightness(0.78) contrast(1.08) saturate(0.85);
+}

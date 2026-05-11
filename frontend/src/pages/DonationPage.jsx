@@ -3,7 +3,9 @@ import { DUMMY_DONATIONS } from '../data/dummyData';
 import { useAuth } from '../context/AuthContext';
 import { calculateDistanceKm, formatDistance, getUserLocation, saveUserLocation, loadUserLocation } from '../utils/geo';
 import FreshMap from '../components/FreshMap';
+import FeatureGate from '../components/FeatureGate';
 import * as api from '../api';
+import { canCreateDonationListing, getPlanLimit, incrementUsage, isUnlimited, useSubscription } from '../services/subscription';
 import {
   Heart, Plus, X, Save, MapPin, Clock, User, Package, Gift,
   CheckCircle2, TrendingUp, Users, Navigation, Loader2,
@@ -84,6 +86,7 @@ const statusConfig = {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DonationPage() {
   const { isDemoMode } = useAuth();
+  const { plan } = useSubscription();
   const [donations, setDonations]       = useState([]);
   const [loading, setLoading]           = useState(true);
   const [showForm, setShowForm]         = useState(false);
@@ -93,6 +96,7 @@ export default function DonationPage() {
   const [showFilters, setShowFilters]   = useState(false);
   const [userLocation, setUserLocation] = useState(getSafeLocation);
   const [locating, setLocating]         = useState(false);
+  const [limitMessage, setLimitMessage] = useState('');
   const [form, setForm] = useState({
     food_name: '', quantity: 1, unit: 'porsi',
     pickup_location: '', expiry_date: new Date().toISOString().slice(0, 10),
@@ -135,6 +139,11 @@ export default function DonationPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!canCreateDonationListing()) {
+      setLimitMessage('Donation listing limit reached. Upgrade your plan to create more donation listings.');
+      setShowForm(false);
+      return;
+    }
     const newDonation = {
       ...form,
       quantity: Number(form.quantity),
@@ -146,6 +155,7 @@ export default function DonationPage() {
 
     if (!isDemoMode) {
       setDonations((prev) => [...prev, { ...newDonation, id: 'd' + Date.now() }]);
+      incrementUsage('donation_listings');
       setShowForm(false);
       setForm({ food_name: '', quantity: 1, unit: 'porsi', pickup_location: '', expiry_date: new Date().toISOString().slice(0, 10), donor_name: '', notes: '' });
       return;
@@ -154,8 +164,10 @@ export default function DonationPage() {
     try {
       await api.createDonationItem(newDonation);
       await loadDonations();
+      incrementUsage('donation_listings');
     } catch {
       setDonations((prev) => [...prev, { ...newDonation, id: 'd' + Date.now() }]);
+      incrementUsage('donation_listings');
     }
     setShowForm(false);
     setForm({ food_name: '', quantity: 1, unit: 'porsi', pickup_location: '', expiry_date: new Date().toISOString().slice(0, 10), donor_name: '', notes: '' });
@@ -203,6 +215,7 @@ export default function DonationPage() {
   const availableCount = donations.filter((d) => d.status === 'Available').length;
   const completedCount = donations.filter((d) => d.status === 'Completed').length;
   const totalQuantity  = donations.reduce((sum, d) => sum + (d.quantity || 0), 0);
+  const donationLimit = getPlanLimit('max_donation_listings');
 
   if (loading) {
     return (
@@ -251,11 +264,48 @@ export default function DonationPage() {
               </button>
             ))}
           </div>
-          <button onClick={() => setShowForm(true)} className="btn-primary text-sm">
+          <button
+            onClick={() => {
+              setLimitMessage('');
+              if (!canCreateDonationListing()) {
+                setLimitMessage('Donation listing limit reached. Upgrade your plan to create more donation listings.');
+                return;
+              }
+              setShowForm(true);
+            }}
+            disabled={!canCreateDonationListing()}
+            className="btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-60"
+          >
             <Plus className="w-4 h-4" /> Create Donation
           </button>
         </div>
       </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="card border-red-100 bg-red-50/70">
+          <p className="text-sm font-bold text-gray-800">Donation access: {plan.plan_name}</p>
+          <p className="mt-1 text-xs text-gray-600">
+            Listing limit: {isUnlimited(donationLimit) ? 'Unlimited' : donationLimit}. Business Pro unlocks scheduling and impact reports.
+          </p>
+        </div>
+        <FeatureGate
+          feature="donation_scheduling"
+          requiredPlan="business_pro"
+          title="Donation scheduling locked"
+          description="Scheduled pickup, partner matching, and donation impact reports are available on Business Pro."
+        >
+          <div className="card border-emerald-100 bg-emerald-50">
+            <p className="text-sm font-bold text-gray-800">Business donation scheduling active</p>
+            <p className="mt-1 text-xs text-gray-600">Coordinate scheduled pickups and track donation impact.</p>
+          </div>
+        </FeatureGate>
+      </div>
+
+      {limitMessage && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-700">
+          {limitMessage} <a href="/pricing" className="ml-1 underline">View Pricing</a>
+        </div>
+      )}
 
       {/* Impact Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

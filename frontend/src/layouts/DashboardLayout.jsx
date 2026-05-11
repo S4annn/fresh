@@ -2,27 +2,33 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   LayoutDashboard, Package, Brain, Lightbulb, ShoppingBag, Heart,
   BarChart3, Settings, Menu, X, Bell, Search, LogOut, ChevronDown,
-  Leaf, User, Scan, ArrowLeftRight,
+  Leaf, User, Scan, ArrowLeftRight, Lock, CreditCard, FileText,
 } from 'lucide-react';
+import { hasFeature, useSubscription } from '../services/subscription';
 
-const sidebarItems = [
-  { path: '/dashboard',       label: 'Dashboard',       icon: LayoutDashboard },
-  { path: '/inventory',       label: 'Inventory',        icon: Package },
-  { path: '/scanner',         label: 'AI Scanner',       icon: Scan },
-  { path: '/predict',         label: 'AI Prediction',    icon: Brain },
-  { path: '/recommendations', label: 'Recommendations',  icon: Lightbulb },
-  { path: '/marketplace',     label: 'Marketplace',      icon: ShoppingBag },
-  { path: '/donation',        label: 'Donation',         icon: Heart },
-  { path: '/analytics',       label: 'Analytics',        icon: BarChart3 },
-  { path: '/settings',        label: 'Settings',         icon: Settings },
+const baseSidebarItems = [
+  { path: '/dashboard', labelKey: 'dashboard', fallback: 'Dashboard', icon: LayoutDashboard },
+  { path: '/inventory', labelKey: 'inventory', fallback: 'Inventory', icon: Package },
+  { path: '/scanner', labelKey: 'aiScanner', fallback: 'AI Scanner', icon: Scan },
+  { path: '/predict', labelKey: 'aiPrediction', fallback: 'AI Prediction', icon: Brain },
+  { path: '/recommendations', labelKey: 'recommendations', fallback: 'Recommendations', icon: Lightbulb },
+  { path: '/marketplace', labelKey: 'marketplace', fallback: 'Marketplace', icon: ShoppingBag },
+  { path: '/donation', labelKey: 'donation', fallback: 'Donation', icon: Heart },
+  { path: '/analytics', labelKey: 'analytics', fallback: 'Analytics', icon: BarChart3 },
+  { path: '/report', labelKey: 'personalReport', fallback: 'Personal Report', icon: FileText, feature: 'personal_report', requiredPlan: 'personal_plus' },
+  { path: '/pricing', labelKey: 'pricing', fallback: 'Pricing', icon: CreditCard },
+  { path: '/settings', labelKey: 'settings', fallback: 'Settings', icon: Settings },
 ];
 
 export default function DashboardLayout() {
   const { user, logout, isDemoMode } = useAuth();
   const { setRole } = useRole();
+  const { t } = useLanguage();
+  const { plan } = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,6 +45,13 @@ export default function DashboardLayout() {
     navigate('/business/dashboard');
   };
 
+  const sidebarItems = baseSidebarItems.map((item) => ({
+    ...item,
+    locked: item.feature ? !hasFeature(item.feature) : false,
+    fallback: item.path === '/analytics'
+      ? (plan.plan_id === 'free' ? 'Basic Analytics' : 'Advanced Analytics')
+      : item.fallback,
+  }));
   const currentPage = sidebarItems.find((item) => location.pathname.startsWith(item.path));
 
   return (
@@ -62,7 +75,7 @@ export default function DashboardLayout() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-800 leading-none">F.R.E.S.H</h1>
-              <p className="text-[10px] text-emerald-600 font-medium tracking-wider">PERSONAL EDITION</p>
+              <p className="text-[10px] text-emerald-600 font-medium tracking-wider">{t('personalEdition', 'PERSONAL EDITION')}</p>
             </div>
           </NavLink>
           <button className="lg:hidden btn-icon hover:bg-gray-100" onClick={() => setSidebarOpen(false)}>
@@ -77,29 +90,19 @@ export default function DashboardLayout() {
             return (
               <NavLink
                 key={item.path}
-                to={item.path}
+                to={item.locked ? '/pricing' : item.path}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
-                  `sidebar-link ${isActive ? 'active' : ''}`
+                  `sidebar-link ${isActive && !item.locked ? 'active' : ''}`
                 }
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
-                <span>{item.label}</span>
+                <span>{t(item.labelKey, item.fallback)}</span>
+                {item.locked && <Lock className="ml-auto h-3.5 w-3.5 text-gray-400" />}
               </NavLink>
             );
           })}
         </nav>
-
-        {/* Switch Role */}
-        <div className="px-4 pb-2">
-          <button
-            onClick={handleSwitchToBusiness}
-            className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-          >
-            <ArrowLeftRight className="w-4 h-4" />
-            Switch to Business
-          </button>
-        </div>
 
         {/* User Card */}
         <div className="p-4 border-t border-emerald-100/50">
@@ -112,7 +115,7 @@ export default function DashboardLayout() {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate">{user?.name || 'User'}</p>
+              <p className="text-sm font-semibold text-gray-800 truncate">{user?.name || t('user', 'User')}</p>
               <p className="text-xs text-gray-500 truncate">{user?.email || ''}</p>
             </div>
           </div>
@@ -128,8 +131,8 @@ export default function DashboardLayout() {
               <Menu className="w-5 h-5 text-gray-600" />
             </button>
             <div className="hidden sm:flex items-center gap-3">
-              <h2 className="text-lg font-bold text-gray-800">{currentPage?.label || 'Dashboard'}</h2>
-              <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">Personal</span>
+              <h2 className="text-lg font-bold text-gray-800">{currentPage ? t(currentPage.labelKey, currentPage.fallback) : t('dashboard', 'Dashboard')}</h2>
+              <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">{t('personal', 'Personal')}</span>
             </div>
           </div>
 
@@ -139,7 +142,7 @@ export default function DashboardLayout() {
               <Search className="w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={t('search', 'Search...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder:text-gray-400 w-full"
@@ -187,21 +190,21 @@ export default function DashboardLayout() {
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 transition-colors no-underline"
                     >
                       <User className="w-4 h-4" />
-                      Profile & Settings
+                      {t('profileSettings', 'Profile & Settings')}
                     </NavLink>
                     <button
                       onClick={handleSwitchToBusiness}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 w-full transition-colors"
                     >
                       <ArrowLeftRight className="w-4 h-4" />
-                      Switch to Business
+                      {t('switchToBusiness', 'Switch to Business')}
                     </button>
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 w-full transition-colors"
                     >
                       <LogOut className="w-4 h-4" />
-                      Sign Out
+                      {t('signOut', 'Sign Out')}
                     </button>
                   </div>
                 </>
@@ -225,12 +228,12 @@ export default function DashboardLayout() {
             return (
               <NavLink
                 key={item.path}
-                to={item.path}
+                to={item.locked ? '/pricing' : item.path}
                 className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-colors no-underline
                   ${isActive ? 'text-emerald-600' : 'text-gray-400'}`}
               >
                 <Icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{item.label.split(' ')[0]}</span>
+                <span className="text-[10px] font-medium">{t(item.labelKey, item.fallback).split(' ')[0]}</span>
               </NavLink>
             );
           })}

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { DUMMY_ANALYTICS } from '../data/dummyData';
 import { useAuth } from '../context/AuthContext';
 import * as apiModule from '../api';
+import { LockedPreview } from '../components/FeatureGate';
+import { canAccessAnalyticsLevel, useSubscription } from '../services/subscription';
 import {
   BarChart3, TrendingDown, Heart, ShoppingBag, DollarSign, Leaf, Sparkles,
 } from 'lucide-react';
@@ -25,6 +27,7 @@ const EMPTY_ANALYTICS = {
 
 export default function AnalyticsPage() {
   const { isDemoMode } = useAuth();
+  const { plan } = useSubscription();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,6 +72,7 @@ export default function AnalyticsPage() {
     { title: 'Money Saved', value: `Rp${data.money_saved?.toLocaleString()}`, icon: DollarSign, color: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-600' },
     { title: 'CO₂ Reduced', value: `${data.co2_reduced} kg`, icon: Leaf, color: 'from-teal-500 to-cyan-500', bg: 'bg-teal-50', text: 'text-teal-600' },
   ];
+  const hasAdvancedAnalytics = canAccessAnalyticsLevel('advanced');
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in">
@@ -81,12 +85,19 @@ export default function AnalyticsPage() {
         <p className="text-gray-500 mt-1">Track your food management impact and insights.</p>
       </div>
 
+      <div className="card border-emerald-100 bg-emerald-50/70">
+        <p className="text-sm font-bold text-gray-800">Analytics level: {plan.limits.analytics_level}</p>
+        <p className="mt-1 text-xs text-gray-600">
+          {hasAdvancedAnalytics ? 'Advanced analytics are unlocked for this plan.' : 'Free plan includes basic analytics. Upgrade to Personal Plus for money saved, trend, donation, and marketplace activity charts.'}
+        </p>
+      </div>
+
       {/* Insight Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {insightCards.map((card, i) => {
           const Icon = card.icon;
           return (
-            <div key={i} className="card group">
+            <div key={i} className={`card group ${!hasAdvancedAnalytics && i >= 2 ? 'opacity-60' : ''}`}>
               <div className="flex items-center gap-3 mb-3">
                 <div className={`w-10 h-10 ${card.bg} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
                   <Icon className={`w-5 h-5 ${card.text}`} />
@@ -139,6 +150,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Category Distribution */}
+        {hasAdvancedAnalytics ? (
         <div className="card">
           <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-blue-500" />
@@ -160,8 +172,18 @@ export default function AnalyticsPage() {
             </ResponsiveContainer>
           </div>
         </div>
+        ) : (
+          <LockedPreview
+            currentPlan={plan.plan_name}
+            requiredPlan="Personal Plus"
+            description="Category breakdown is available on Personal Plus."
+          >
+            <div className="card h-96" />
+          </LockedPreview>
+        )}
 
         {/* Weekly Waste Prevention */}
+        {hasAdvancedAnalytics ? (
         <div className="card">
           <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
             <TrendingDown className="w-5 h-5 text-emerald-500" />
@@ -181,8 +203,18 @@ export default function AnalyticsPage() {
             </ResponsiveContainer>
           </div>
         </div>
+        ) : (
+          <LockedPreview
+            currentPlan={plan.plan_name}
+            requiredPlan="Personal Plus"
+            description="Monthly trend charts are available on Personal Plus."
+          >
+            <div className="card h-96" />
+          </LockedPreview>
+        )}
 
         {/* Monthly Savings */}
+        {hasAdvancedAnalytics ? (
         <div className="card">
           <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-amber-500" />
@@ -200,6 +232,15 @@ export default function AnalyticsPage() {
             </ResponsiveContainer>
           </div>
         </div>
+        ) : (
+          <LockedPreview
+            currentPlan={plan.plan_name}
+            requiredPlan="Personal Plus"
+            description="Money saved analytics are available on Personal Plus."
+          >
+            <div className="card h-96" />
+          </LockedPreview>
+        )}
       </div>
     </div>
   );

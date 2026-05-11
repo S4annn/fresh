@@ -1212,3 +1212,85 @@ def business_report():
             {"month": "Apr", "food_saved_kg": 85, "loss_prevented": 2500000, "co2e_reduced": 212.5},
         ],
     }
+
+
+SUBSCRIPTION_STATE = {
+    "plan_id": "free",
+    "plan_name": "Free Starter",
+    "role": "personal",
+    "status": "active",
+    "billing_cycle": "monthly",
+    "started_at": "2026-01-01",
+    "expires_at": None,
+    "usage": {
+        "inventory_items": 18,
+        "ai_scans_this_month": 3,
+        "marketplace_listings": 1,
+        "donation_listings": 2,
+        "branches": 0,
+    },
+}
+
+
+PLAN_NAMES = {
+    "free": "Free Starter",
+    "personal_plus": "Personal Plus",
+    "business_pro": "Business Pro",
+}
+
+
+@app.get("/subscription")
+def get_subscription():
+    return SUBSCRIPTION_STATE
+
+
+@app.post("/subscription/upgrade")
+def upgrade_subscription(payload: dict):
+    plan_id = payload.get("plan_id", "free")
+    role = payload.get("role") or ("business" if plan_id == "business_pro" else "personal")
+    SUBSCRIPTION_STATE.update(
+        {
+            "plan_id": plan_id,
+            "plan_name": PLAN_NAMES.get(plan_id, "Free Starter"),
+            "role": role,
+            "status": "active",
+            "billing_cycle": payload.get("billing_cycle", "monthly"),
+        }
+    )
+    return SUBSCRIPTION_STATE
+
+
+@app.post("/subscription/cancel")
+def cancel_subscription():
+    SUBSCRIPTION_STATE.update({"plan_id": "free", "plan_name": "Free Starter", "role": "personal"})
+    return SUBSCRIPTION_STATE
+
+
+@app.get("/subscription/usage")
+def get_subscription_usage():
+    return SUBSCRIPTION_STATE["usage"]
+
+
+@app.post("/subscription/usage/increment")
+def increment_subscription_usage(payload: dict):
+    usage_type = payload.get("type")
+    if usage_type:
+      SUBSCRIPTION_STATE["usage"][usage_type] = SUBSCRIPTION_STATE["usage"].get(usage_type, 0) + 1
+    return SUBSCRIPTION_STATE
+
+
+@app.post("/payments/create-transaction")
+def create_payment_transaction(payload: dict):
+    return {
+        "transaction_id": f"dummy_tx_{payload.get('plan_id', 'free')}",
+        "plan_id": payload.get("plan_id"),
+        "status": "pending",
+        "checkout_url": None,
+        "sandbox": True,
+        "message": "Replace this dummy response with Midtrans/Xendit transaction API later.",
+    }
+
+
+@app.post("/payments/webhook")
+def payments_webhook(payload: dict):
+    return {"ok": True, "received": payload, "sandbox": True}

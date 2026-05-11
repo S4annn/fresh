@@ -13,7 +13,9 @@ import {
   sortByNearest,
 } from '../utils/geo';
 import FreshMap from '../components/FreshMap';
+import FeatureGate from '../components/FeatureGate';
 import * as api from '../api';
+import { canCreateMarketplaceListing, getPlanLimit, incrementUsage, isUnlimited, useSubscription } from '../services/subscription';
 import {
   ArrowUpDown,
   BadgePercent,
@@ -195,6 +197,7 @@ function MapView({
 
 export default function MarketplacePage() {
   const { isDemoMode } = useAuth();
+  const { plan } = useSubscription();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -210,6 +213,7 @@ export default function MarketplacePage() {
   const [locating, setLocating] = useState(false);
   const [locationMessage, setLocationMessage] = useState('');
   const [selectedListingId, setSelectedListingId] = useState(null);
+  const [limitMessage, setLimitMessage] = useState('');
   const [focusRequest, setFocusRequest] = useState(0);
   const [form, setForm] = useState({
     food_name: '',
@@ -390,6 +394,11 @@ export default function MarketplacePage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!canCreateMarketplaceListing()) {
+      setLimitMessage('Marketplace listing limit reached. Upgrade your plan to create more listings.');
+      setShowForm(false);
+      return;
+    }
 
     const newItem = normalizeMarketplaceItem({
       ...form,
@@ -406,6 +415,7 @@ export default function MarketplacePage() {
     });
 
     setItems((prev) => [newItem, ...prev]);
+    incrementUsage('marketplace_listings');
     setSelectedListingId(newItem.id);
     setShowForm(false);
     setForm({
@@ -443,6 +453,8 @@ export default function MarketplacePage() {
     );
   }
 
+  const marketplaceLimit = getPlanLimit('max_marketplace_listings');
+
   return (
     <div className="space-y-5 pb-20 lg:pb-6 animate-fade-in">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -474,11 +486,48 @@ export default function MarketplacePage() {
               </button>
             ))}
           </div>
-          <button onClick={() => setShowForm(true)} className="btn-primary py-2.5 text-sm">
+          <button
+            onClick={() => {
+              setLimitMessage('');
+              if (!canCreateMarketplaceListing()) {
+                setLimitMessage('Marketplace listing limit reached. Upgrade your plan to create more listings.');
+                return;
+              }
+              setShowForm(true);
+            }}
+            disabled={!canCreateMarketplaceListing()}
+            className="btn-primary py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+          >
             <Plus className="h-4 w-4" /> Add Listing
           </button>
         </div>
       </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="card border-pink-100 bg-pink-50/70">
+          <p className="text-sm font-bold text-gray-800">Marketplace access: {plan.plan_name}</p>
+          <p className="mt-1 text-xs text-gray-600">
+            Browsing is open to all plans. Listing limit: {isUnlimited(marketplaceLimit) ? 'Unlimited' : marketplaceLimit}.
+          </p>
+        </div>
+        <FeatureGate
+          feature="marketplace_bulk_listing"
+          requiredPlan="business_pro"
+          title="Business surplus tools locked"
+          description="Bulk surplus listing, suggested discount, listing analytics, and orders management are available on Business Pro."
+        >
+          <div className="card border-blue-100 bg-blue-50">
+            <p className="text-sm font-bold text-gray-800">Business Pro seller tools</p>
+            <p className="mt-1 text-xs text-gray-600">Bulk listing, suggested discount, orders, and listing analytics are active.</p>
+          </div>
+        </FeatureGate>
+      </div>
+
+      {limitMessage && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-700">
+          {limitMessage} <a href="/pricing" className="ml-1 underline">View Pricing</a>
+        </div>
+      )}
 
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2">

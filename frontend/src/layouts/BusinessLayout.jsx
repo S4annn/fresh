@@ -2,30 +2,36 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   LayoutDashboard, Package, Scan, Brain, Lightbulb, ShoppingBag,
   Heart, BarChart3, Settings, Menu, X, Bell, Search, LogOut,
   ChevronDown, Leaf, User, ClipboardList, GitBranch, Building2,
-  ArrowLeftRight,
+  ArrowLeftRight, Lock, CreditCard, FileText,
 } from 'lucide-react';
+import { hasFeature, useSubscription } from '../services/subscription';
 
-const businessNavItems = [
-  { path: '/business/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/business/inventory', label: 'Inventory', icon: Package },
-  { path: '/business/scanner', label: 'AI Scanner', icon: Scan },
-  { path: '/business/predict', label: 'Risk Forecast', icon: Brain },
-  { path: '/business/recommendations', label: 'Recommendations', icon: Lightbulb },
-  { path: '/business/marketplace', label: 'Marketplace', icon: ShoppingBag },
-  { path: '/business/donation', label: 'Donation', icon: Heart },
-  { path: '/business/orders', label: 'Orders', icon: ClipboardList },
-  { path: '/business/branches', label: 'Branches', icon: GitBranch },
-  { path: '/business/analytics', label: 'Analytics', icon: BarChart3 },
-  { path: '/business/settings', label: 'Settings', icon: Settings },
+const baseBusinessNavItems = [
+  { path: '/business/dashboard', labelKey: 'dashboard', fallback: 'Dashboard', icon: LayoutDashboard },
+  { path: '/business/inventory', labelKey: 'inventory', fallback: 'Inventory', icon: Package, feature: 'business_inventory' },
+  { path: '/business/scanner', labelKey: 'aiScanner', fallback: 'AI Scanner', icon: Scan },
+  { path: '/business/predict', labelKey: 'riskForecast', fallback: 'Risk Forecast', icon: Brain },
+  { path: '/business/recommendations', labelKey: 'recommendations', fallback: 'Recommendations', icon: Lightbulb },
+  { path: '/business/marketplace', labelKey: 'marketplace', fallback: 'Marketplace', icon: ShoppingBag },
+  { path: '/business/donation', labelKey: 'donation', fallback: 'Donation', icon: Heart },
+  { path: '/business/orders', labelKey: 'orders', fallback: 'Orders', icon: ClipboardList, feature: 'business_orders' },
+  { path: '/business/branches', labelKey: 'branches', fallback: 'Branches', icon: GitBranch, feature: 'business_branches' },
+  { path: '/business/analytics', labelKey: 'analytics', fallback: 'Business Analytics', icon: BarChart3, feature: 'business_analytics' },
+  { path: '/business/report', labelKey: 'sustainabilityReport', fallback: 'Sustainability Report', icon: FileText, feature: 'sustainability_report' },
+  { path: '/pricing', labelKey: 'pricing', fallback: 'Pricing', icon: CreditCard },
+  { path: '/business/settings', labelKey: 'settings', fallback: 'Settings', icon: Settings },
 ];
 
 export default function BusinessLayout() {
   const { user, logout, isDemoMode } = useAuth();
   const { setRole } = useRole();
+  const { t } = useLanguage();
+  useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -41,6 +47,10 @@ export default function BusinessLayout() {
     navigate('/dashboard');
   };
 
+  const businessNavItems = baseBusinessNavItems.map((item) => ({
+    ...item,
+    locked: item.feature ? !hasFeature(item.feature) : false,
+  }));
   const currentPage = businessNavItems.find((item) => location.pathname.startsWith(item.path));
 
   return (
@@ -59,7 +69,7 @@ export default function BusinessLayout() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-800 leading-none">F.R.E.S.H</h1>
-              <p className="text-[10px] text-blue-600 font-medium tracking-wider">BUSINESS EDITION</p>
+              <p className="text-[10px] text-blue-600 font-medium tracking-wider">{t('businessEdition', 'BUSINESS EDITION')}</p>
             </div>
           </NavLink>
           <button className="lg:hidden btn-icon hover:bg-gray-100" onClick={() => setSidebarOpen(false)}>
@@ -74,17 +84,18 @@ export default function BusinessLayout() {
             return (
               <NavLink
                 key={item.path}
-                to={item.path}
+                to={item.locked ? '/pricing' : item.path}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 no-underline
-                  ${isActive
+                  ${isActive && !item.locked
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
                     : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`
                 }
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
-                <span>{item.label}</span>
+                <span>{t(item.labelKey, item.fallback)}</span>
+                {item.locked && <Lock className="ml-auto h-3.5 w-3.5 text-gray-400" />}
               </NavLink>
             );
           })}
@@ -97,7 +108,7 @@ export default function BusinessLayout() {
             className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
           >
             <ArrowLeftRight className="w-4 h-4" />
-            Switch to Personal
+            {t('switchToPersonal', 'Switch to Personal')}
           </button>
         </div>
 
@@ -108,8 +119,8 @@ export default function BusinessLayout() {
               {user?.photo ? <img src={user.photo} alt={user.name} className="w-9 h-9 rounded-full object-cover" /> : user?.name?.charAt(0)?.toUpperCase() || 'B'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate">{user?.name || 'Business User'}</p>
-              <p className="text-xs text-blue-600 font-medium">Business Account</p>
+              <p className="text-sm font-semibold text-gray-800 truncate">{user?.name || t('businessUser', 'Business User')}</p>
+              <p className="text-xs text-blue-600 font-medium">{t('businessAccount', 'Business Account')}</p>
             </div>
           </div>
         </div>
@@ -124,15 +135,15 @@ export default function BusinessLayout() {
               <Menu className="w-5 h-5 text-gray-600" />
             </button>
             <div className="hidden sm:flex items-center gap-3">
-              <h2 className="text-lg font-bold text-gray-800">{currentPage?.label || 'Business Dashboard'}</h2>
-              <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg">Business</span>
+              <h2 className="text-lg font-bold text-gray-800">{currentPage ? t(currentPage.labelKey, currentPage.fallback) : t('dashboard', 'Dashboard')}</h2>
+              <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg">{t('business', 'Business')}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-2.5 w-56 border border-gray-100 focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
               <Search className="w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Search..." className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder:text-gray-400 w-full" />
+              <input type="text" placeholder={t('search', 'Search...')} className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder:text-gray-400 w-full" />
             </div>
 
             <button
@@ -159,16 +170,16 @@ export default function BusinessLayout() {
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fade-in">
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-semibold text-gray-800">{user?.name}</p>
-                      <p className="text-xs text-blue-600 font-medium">Business Account</p>
+                      <p className="text-xs text-blue-600 font-medium">{t('businessAccount', 'Business Account')}</p>
                     </div>
                     <NavLink to="/business/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors no-underline">
-                      <User className="w-4 h-4" /> Settings
+                      <User className="w-4 h-4" /> {t('settings', 'Settings')}
                     </NavLink>
                     <button onClick={handleSwitchToPersonal} className="flex items-center gap-3 px-4 py-2.5 text-sm text-emerald-600 hover:bg-emerald-50 w-full transition-colors">
-                      <ArrowLeftRight className="w-4 h-4" /> Switch to Personal
+                      <ArrowLeftRight className="w-4 h-4" /> {t('switchToPersonal', 'Switch to Personal')}
                     </button>
                     <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 w-full transition-colors">
-                      <LogOut className="w-4 h-4" /> Sign Out
+                      <LogOut className="w-4 h-4" /> {t('signOut', 'Sign Out')}
                     </button>
                   </div>
                 </>
@@ -189,9 +200,9 @@ export default function BusinessLayout() {
             const Icon = item.icon;
             const isActive = location.pathname.startsWith(item.path);
             return (
-              <NavLink key={item.path} to={item.path} className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-colors no-underline ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
+              <NavLink key={item.path} to={item.locked ? '/pricing' : item.path} className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-colors no-underline ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
                 <Icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{item.label.split(' ')[0]}</span>
+                <span className="text-[10px] font-medium">{t(item.labelKey, item.fallback).split(' ')[0]}</span>
               </NavLink>
             );
           })}

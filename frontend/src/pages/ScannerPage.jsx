@@ -2,6 +2,8 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { analyzeFoodImage, createFood, getScannerLabels } from '../api';
 import { useRole } from '../context/RoleContext';
+import { canAddInventory, canUseAiScan, getPlanLimit, incrementUsage, isUnlimited, useSubscription } from '../services/subscription';
+import { LockedFeatureCard } from '../components/FeatureGate';
 import {
   Camera, Upload, X, Scan, Loader2, CheckCircle2, AlertTriangle,
   Flame, Package, Thermometer, Lightbulb, ShoppingBag,
@@ -146,6 +148,7 @@ function SourceBadge({ source }) {
 export default function ScannerPage() {
   const navigate = useNavigate();
   const { isBusiness } = useRole();
+  const { subscription, plan } = useSubscription();
   const fileInputRef = useRef(null);
 
   // Camera stream refs
@@ -292,6 +295,10 @@ export default function ScannerPage() {
   // ─── Analyze ────────────────────────────────────────────────────────────────
   async function handleAnalyze() {
     if (!imageFile) return;
+    if (!canUseAiScan()) {
+      setError('You have reached your monthly AI scan limit. Upgrade to Personal Plus for more scans.');
+      return;
+    }
     setAnalyzing(true);
     setError(null);
     setResult(null);
@@ -303,6 +310,7 @@ export default function ScannerPage() {
         setScannerLabelOptions(data.available_labels.map((label) => normalizeLabelOption({ label })));
       }
       setResult(data);
+      incrementUsage('ai_scans_this_month');
     } catch {
       setError('Analysis failed. Please try again with a clearer image.');
     } finally {
@@ -312,6 +320,10 @@ export default function ScannerPage() {
 
   async function handleAddToInventory() {
     if (!result?.suggested_inventory) return;
+    if (!canAddInventory()) {
+      showToast('Inventory limit reached. Upgrade your plan for more items.', 'error');
+      return;
+    }
     setAddingToInventory(true);
     const today      = new Date();
     const expiryDate = new Date(today.getTime() + result.estimated_shelf_life_days * 86400000);
@@ -330,11 +342,13 @@ export default function ScannerPage() {
     };
     try {
       await createFood(inventoryData);
+      incrementUsage('inventory_items');
       showToast(`${result.detected_food} added to inventory!`);
     } catch {
       const existing = JSON.parse(localStorage.getItem('fresh_scanned_items') || '[]');
       existing.push({ ...inventoryData, id: 'scan_' + Date.now(), risk_level: result.risk_label });
       localStorage.setItem('fresh_scanned_items', JSON.stringify(existing));
+      incrementUsage('inventory_items');
       showToast(`${result.detected_food} saved locally!`);
     }
     setAddedSuccess(true);
@@ -392,6 +406,8 @@ export default function ScannerPage() {
   const marketplacePath = isBusiness() ? '/business/marketplace' : '/marketplace';
   const donationPath    = isBusiness() ? '/business/donation'    : '/donation';
   const predictPath     = isBusiness() ? '/business/predict'     : '/predict';
+  const scanLimit = getPlanLimit('max_ai_scans_per_month');
+  const scansUsed = subscription.usage?.ai_scans_this_month || 0;
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in max-w-4xl mx-auto">
@@ -414,6 +430,29 @@ export default function ScannerPage() {
         </h1>
         <p className="text-gray-500 mt-1">Scan or upload food images to identify ingredients and reduce waste.</p>
       </div>
+
+      <div className="card flex flex-col gap-3 border-emerald-100 bg-emerald-50/70 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-bold text-gray-800">{plan.plan_name}</p>
+          <p className="text-xs text-gray-600">
+            {isUnlimited(scanLimit) ? 'Unlimited AI scans this month' : `${scansUsed}/${scanLimit} AI scans used this month`}
+          </p>
+        </div>
+        {!isUnlimited(scanLimit) && (
+          <div className="h-2 w-full overflow-hidden rounded-full bg-white sm:w-56">
+            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, (scansUsed / scanLimit) * 100)}%` }} />
+          </div>
+        )}
+      </div>
+
+      {!canUseAiScan() && (
+        <LockedFeatureCard
+          title="AI scan limit reached"
+          currentPlan={plan.plan_name}
+          requiredPlan={isBusiness() ? 'Business Pro' : 'Personal Plus'}
+          description="You have reached your monthly AI scan limit. Upgrade to unlock more scans."
+        />
+      )}
 
       {/* ── CAMERA MODAL ── */}
       {cameraOpen && (

@@ -1,288 +1,274 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
+import CheckoutModal from '../components/CheckoutModal';
+import { PLANS, setCurrentSubscription, useSubscription } from '../services/subscription';
 import {
-  Leaf, Check, X, Zap, Building2, User, ChevronDown, ChevronUp,
-  ArrowRight, Sparkles, Shield, Star,
+  Leaf, Check, ArrowRight, Sparkles, Star, User, Building2,
+  CreditCard, Shield, CheckCircle2,
 } from 'lucide-react';
 
-const plans = [
-  {
-    id: 'free',
-    name: 'Free Starter',
-    target: 'Personal users',
-    price: 0,
-    priceYearly: 0,
-    color: 'from-gray-500 to-slate-600',
-    bg: 'bg-gray-50',
+const planTheme = {
+  free: {
+    icon: User,
+    color: 'from-gray-600 to-slate-700',
     border: 'border-gray-200',
-    badge: null,
-    icon: User,
-    features: [
-      { text: 'Up to 30 inventory items', included: true },
-      { text: 'Basic food expiry reminder', included: true },
-      { text: 'AI food scanner (5/day)', included: true },
-      { text: 'Basic recommendations', included: true },
-      { text: 'Marketplace browse', included: true },
-      { text: 'Donation listing', included: true },
-      { text: 'Unlimited inventory', included: false },
-      { text: 'Business analytics', included: false },
-      { text: 'Multi-branch management', included: false },
-    ],
-    cta: 'Get Started Free',
-    ctaStyle: 'btn-secondary',
-    role: 'personal',
+    button: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+    badge: 'Starter',
   },
-  {
-    id: 'personal',
-    name: 'Personal Plus',
-    target: 'Advanced household users',
-    price: 29000,
-    priceYearly: 290000,
+  personal_plus: {
+    icon: User,
     color: 'from-emerald-500 to-teal-600',
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
+    border: 'border-emerald-300',
+    button: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25',
     badge: 'Popular',
-    icon: User,
-    features: [
-      { text: 'Unlimited inventory items', included: true },
-      { text: 'Unlimited AI food scanner', included: true },
-      { text: 'Smart recipe recommendations', included: true },
-      { text: 'Food waste analytics', included: true },
-      { text: 'Priority expiry reminders', included: true },
-      { text: 'Marketplace selling', included: true },
-      { text: 'Donation tracking', included: true },
-      { text: 'Business analytics', included: false },
-      { text: 'Multi-branch management', included: false },
-    ],
-    cta: 'Start Personal Plus',
-    ctaStyle: 'btn-primary',
-    role: 'personal',
   },
-  {
-    id: 'business',
-    name: 'Business Pro',
-    target: 'Restaurants, hotels, cafes, catering',
-    price: 149000,
-    priceYearly: 1490000,
-    color: 'from-blue-500 to-indigo-600',
-    bg: 'bg-blue-50',
-    border: 'border-blue-300',
-    badge: 'Best for Business',
+  business_pro: {
     icon: Building2,
-    features: [
-      { text: 'Multi-branch inventory', included: true },
-      { text: 'Bulk stock management', included: true },
-      { text: 'AI waste risk forecast', included: true },
-      { text: 'Surplus marketplace', included: true },
-      { text: 'Donation scheduling', included: true },
-      { text: 'Orders & reservations', included: true },
-      { text: 'Business analytics', included: true },
-      { text: 'Sustainability report', included: true },
-      { text: 'Team access ready', included: true },
-    ],
-    cta: 'Start Business Pro',
-    ctaStyle: 'btn-primary',
-    role: 'business',
+    color: 'from-blue-500 to-indigo-600',
+    border: 'border-blue-300',
+    button: 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/25',
+    badge: 'Best for Business',
   },
-];
-
-const faqs = [
-  { q: 'Is there a free plan?', a: 'Yes! The Free Starter plan is completely free with up to 30 inventory items, basic reminders, and limited AI scanner access.' },
-  { q: 'Can I use F.R.E.S.H for my restaurant?', a: 'Absolutely. The Business Pro plan is designed for restaurants, hotels, cafes, catering, and grocery stores with multi-branch inventory and surplus management.' },
-  { q: 'Does it support AI food scanning?', a: 'Yes. All plans include AI food scanning. Free plan has 5 scans/day, Personal Plus and Business Pro have unlimited scans.' },
-  { q: 'Do I need Google Maps billing?', a: 'No. F.R.E.S.H uses Leaflet + OpenStreetMap which is completely free. No Google Maps billing required.' },
-  { q: 'Can I donate surplus food?', a: 'Yes. All plans support food donation listings. Business Pro adds donation scheduling and pickup coordination.' },
-];
+};
 
 const comparison = [
-  { feature: 'Inventory Items', free: '30 items', personal: 'Unlimited', business: 'Unlimited' },
-  { feature: 'AI Food Scanner', free: '5/day', personal: 'Unlimited', business: 'Unlimited' },
-  { feature: 'Expiry Reminders', free: 'Basic', personal: 'Priority', business: 'Priority' },
-  { feature: 'Recipe Recommendations', free: 'Basic', personal: 'Smart AI', business: 'Smart AI' },
-  { feature: 'Marketplace', free: 'Browse only', personal: 'Buy & Sell', business: 'Surplus Management' },
-  { feature: 'Donation', free: 'List only', personal: 'Full tracking', business: 'Scheduling + Pickup' },
-  { feature: 'Analytics', free: '—', personal: 'Personal', business: 'Business + Sustainability' },
-  { feature: 'Multi-branch', free: '—', personal: '—', business: '✓' },
-  { feature: 'Orders/Reservations', free: '—', personal: '—', business: '✓' },
-  { feature: 'Team Access', free: '—', personal: '—', business: 'Ready' },
+  { feature: 'Inventory Items', free: '30 items', personal_plus: 'Unlimited', business_pro: 'Unlimited' },
+  { feature: 'AI Food Scanner', free: '5/month', personal_plus: '100/month', business_pro: 'Unlimited' },
+  { feature: 'Marketplace Listings', free: '2', personal_plus: '20', business_pro: 'Unlimited' },
+  { feature: 'Donation Listings', free: '5', personal_plus: 'Unlimited', business_pro: 'Unlimited + schedule' },
+  { feature: 'Analytics', free: 'Basic', personal_plus: 'Advanced', business_pro: 'Business' },
+  { feature: 'Multi-branch', free: '-', personal_plus: '-', business_pro: '5 branches' },
+  { feature: 'Sustainability Report', free: '-', personal_plus: '-', business_pro: 'Included' },
 ];
+
+function formatPrice(value) {
+  if (!value) return 'Rp0';
+  return Number(value).toLocaleString('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  });
+}
 
 export default function PricingPage() {
   const navigate = useNavigate();
-  const { setRole } = useRole();
-  const [yearly, setYearly] = useState(false);
-  const [openFaq, setOpenFaq] = useState(null);
+  const { isAuthenticated } = useAuth();
+  const { role, setRole } = useRole();
+  const { subscription, plan: currentPlan, refreshSubscription } = useSubscription();
+  const [billingCycle, setBillingCycle] = useState('monthly');
+  const [checkoutPlanId, setCheckoutPlanId] = useState(null);
+  const [toast, setToast] = useState(null);
 
-  function handleCTA(plan) {
-    setRole(plan.role);
-    navigate('/signup');
+  function showToast(message, type = 'success') {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 3500);
+  }
+
+  function redirectAfterPlan(nextRole) {
+    navigate(isAuthenticated ? (nextRole === 'business' ? '/business/dashboard' : '/dashboard') : '/signup');
+  }
+
+  function handlePlanClick(plan) {
+    if (currentPlan.plan_id === plan.plan_id) return;
+
+    if (plan.plan_id === 'free') {
+      setRole('personal');
+      setCurrentSubscription('free', 'personal', billingCycle);
+      refreshSubscription();
+      showToast('Free Starter is now active.');
+      redirectAfterPlan('personal');
+      return;
+    }
+
+    if (plan.plan_id === 'business_pro' && role !== 'business') {
+      setRole('business');
+      showToast('Switched to Business account for Business Pro checkout.');
+    } else {
+      setRole(plan.role);
+    }
+    setCheckoutPlanId(plan.plan_id);
+  }
+
+  function handleCheckoutSuccess(nextSubscription) {
+    refreshSubscription();
+    setCheckoutPlanId(null);
+    showToast('Payment successful. Your plan has been upgraded.');
+    redirectAfterPlan(nextSubscription.role);
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/30">
-      {/* Navbar */}
-      <nav className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-emerald-100/50 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+      {toast && (
+        <div className={`fixed right-6 top-6 z-[80] flex items-center gap-3 rounded-2xl px-5 py-3.5 text-white shadow-xl ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-red-500'}`}>
+          <CheckCircle2 className="h-5 w-5" />
+          <span className="text-sm font-semibold">{toast.message}</span>
+        </div>
+      )}
+
+      <nav className="sticky top-0 z-50 border-b border-emerald-100/50 bg-white/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link to="/" className="flex items-center gap-2.5 no-underline">
-            <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-              <Leaf className="w-5 h-5 text-white" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600">
+              <Leaf className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-extrabold text-gray-800">F.R.E.S.H</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link to="/signin" className="text-sm font-semibold text-gray-600 hover:text-emerald-600 no-underline">Sign In</Link>
+            <Link to={isAuthenticated ? (role === 'business' ? '/business/dashboard' : '/dashboard') : '/signin'} className="text-sm font-semibold text-gray-600 no-underline hover:text-emerald-600">
+              {isAuthenticated ? 'Dashboard' : 'Sign In'}
+            </Link>
             <Link to="/signup" className="btn-primary text-sm no-underline">Get Started</Link>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100/80 rounded-full mb-4">
-            <Sparkles className="w-4 h-4 text-emerald-600" />
-            <span className="text-sm font-semibold text-emerald-700">Simple, Transparent Pricing</span>
+      <main className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mb-12 text-center">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-100/80 px-4 py-2">
+            <Sparkles className="h-4 w-4 text-emerald-600" />
+            <span className="text-sm font-semibold text-emerald-700">Plan-based access is active</span>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4">
+          <h1 className="mb-4 text-4xl font-extrabold text-gray-900 sm:text-5xl">
             Choose Your <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">F.R.E.S.H</span> Plan
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-8">
-            Whether you're managing your home fridge or running a restaurant chain, we have the right plan for you.
+          <p className="mx-auto mb-8 max-w-2xl text-lg text-gray-600">
+            Start free, then unlock more scans, analytics, marketplace capacity, and business workflows when you grow.
           </p>
 
-          {/* Billing Toggle */}
-          <div className="inline-flex items-center gap-3 bg-gray-100 rounded-2xl p-1.5">
-            <button onClick={() => setYearly(false)} className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${!yearly ? 'bg-white shadow-md text-gray-800' : 'text-gray-500'}`}>Monthly</button>
-            <button onClick={() => setYearly(true)} className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${yearly ? 'bg-white shadow-md text-gray-800' : 'text-gray-500'}`}>
-              Yearly
-              <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-lg">Save 17%</span>
+          <div className="inline-flex items-center gap-3 rounded-2xl bg-gray-100 p-1.5">
+            <button onClick={() => setBillingCycle('monthly')} className={`rounded-xl px-5 py-2 text-sm font-semibold transition-all ${billingCycle === 'monthly' ? 'bg-white text-gray-800 shadow-md' : 'text-gray-500'}`}>
+              Monthly
             </button>
+            <button onClick={() => setBillingCycle('yearly')} className={`flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold transition-all ${billingCycle === 'yearly' ? 'bg-white text-gray-800 shadow-md' : 'text-gray-500'}`}>
+              Yearly <span className="rounded-lg bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">Save 20%</span>
+            </button>
+          </div>
+
+          <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm">
+            <Shield className="h-4 w-4 text-emerald-600" />
+            Current plan: <span className="font-bold text-gray-800">{currentPlan.plan_name}</span>
           </div>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          {plans.map((plan) => {
-            const Icon = plan.icon;
-            const price = yearly ? plan.priceYearly : plan.price;
-            const isHighlighted = plan.id === 'business';
-            return (
-              <div key={plan.id} className={`relative rounded-3xl border-2 p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl
-                ${isHighlighted ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-xl shadow-blue-500/15' : `${plan.border} bg-white`}`}>
-                {plan.badge && (
-                  <div className={`absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-xs font-bold text-white bg-gradient-to-r ${plan.color} shadow-lg`}>
-                    {plan.badge === 'Best for Business' ? <><Star className="w-3 h-3 inline mr-1" />{plan.badge}</> : plan.badge}
-                  </div>
-                )}
+        <section className="mb-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Object.values(PLANS).map((plan) => {
+            const theme = planTheme[plan.plan_id];
+            const Icon = theme.icon;
+            const isCurrent = subscription.plan_id === plan.plan_id;
+            const price = billingCycle === 'yearly' ? plan.yearly_price : plan.monthly_price;
 
-                <div className={`w-14 h-14 bg-gradient-to-br ${plan.color} rounded-2xl flex items-center justify-center mb-5 shadow-lg`}>
-                  <Icon className="w-7 h-7 text-white" />
+            return (
+              <article key={plan.plan_id} className={`relative rounded-3xl border-2 bg-white p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${theme.border} ${plan.plan_id === 'business_pro' ? 'bg-gradient-to-br from-blue-50 to-indigo-50 shadow-xl shadow-blue-500/10' : ''}`}>
+                <div className="absolute right-5 top-5 flex items-center gap-2">
+                  {isCurrent && <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">Current Plan</span>}
+                  {theme.badge && !isCurrent && <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">{theme.badge}</span>}
                 </div>
 
-                <h3 className="text-xl font-extrabold text-gray-800 mb-1">{plan.name}</h3>
-                <p className="text-sm text-gray-500 mb-5">{plan.target}</p>
+                <div className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${theme.color} shadow-lg`}>
+                  <Icon className="h-7 w-7 text-white" />
+                </div>
+
+                <h3 className="mb-1 text-xl font-extrabold text-gray-800">{plan.plan_name}</h3>
+                <p className="mb-5 text-sm text-gray-500">{plan.target}</p>
 
                 <div className="mb-6">
-                  {price === 0 ? (
-                    <p className="text-4xl font-extrabold text-gray-800">Free</p>
-                  ) : (
-                    <div>
-                      <p className="text-4xl font-extrabold text-gray-800">
-                        Rp{price.toLocaleString()}
-                        <span className="text-base font-normal text-gray-500">/{yearly ? 'year' : 'month'}</span>
-                      </p>
-                      {yearly && <p className="text-sm text-emerald-600 font-medium mt-1">≈ Rp{Math.round(price / 12).toLocaleString()}/month</p>}
-                    </div>
+                  <p className="text-4xl font-extrabold text-gray-800">
+                    {formatPrice(price)}
+                    <span className="text-base font-normal text-gray-500">/{billingCycle === 'yearly' ? 'year' : 'month'}</span>
+                  </p>
+                  {billingCycle === 'yearly' && price > 0 && (
+                    <p className="mt-1 text-sm font-medium text-emerald-600">about {formatPrice(Math.round(price / 12))}/month</p>
                   )}
                 </div>
 
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((f, i) => (
-                    <li key={i} className={`flex items-center gap-3 text-sm ${f.included ? 'text-gray-700' : 'text-gray-400'}`}>
-                      {f.included
-                        ? <div className="w-5 h-5 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0"><Check className="w-3 h-3 text-emerald-600" /></div>
-                        : <div className="w-5 h-5 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0"><X className="w-3 h-3 text-gray-400" /></div>}
-                      {f.text}
+                <ul className="mb-8 space-y-3">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-3 text-sm text-gray-700">
+                      <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                        <Check className="h-3 w-3 text-emerald-600" />
+                      </span>
+                      {feature}
                     </li>
                   ))}
                 </ul>
 
+                {plan.plan_id === 'business_pro' && role === 'personal' && !isCurrent && (
+                  <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
+                    This plan uses Business mode. We will switch your account before checkout.
+                  </div>
+                )}
+
                 <button
-                  onClick={() => handleCTA(plan)}
-                  className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
-                    ${isHighlighted
-                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/25'
-                      : plan.id === 'personal'
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                  onClick={() => handlePlanClick(plan)}
+                  disabled={isCurrent}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:bg-emerald-100 disabled:text-emerald-700 ${theme.button}`}
                 >
-                  {plan.cta} <ArrowRight className="w-4 h-4" />
+                  {isCurrent ? 'Current Plan' : plan.plan_id === 'free' ? 'Get Started Free' : plan.plan_id === 'personal_plus' ? 'Upgrade to Personal Plus' : 'Start Business Pro'}
+                  {!isCurrent && <ArrowRight className="h-4 w-4" />}
                 </button>
-              </div>
+              </article>
             );
           })}
-        </div>
+        </section>
 
-        {/* Comparison Table */}
-        <div className="mb-16">
-          <h2 className="text-2xl font-extrabold text-gray-800 text-center mb-8">Feature Comparison</h2>
-          <div className="card p-0 overflow-hidden">
+        <section className="mb-16">
+          <h2 className="mb-8 text-center text-2xl font-extrabold text-gray-800">Plan Comparison</h2>
+          <div className="card overflow-hidden p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="border-b border-gray-100 bg-gray-50">
                   <tr>
                     <th className="px-6 py-4 text-left font-semibold text-gray-600">Feature</th>
-                    <th className="px-6 py-4 text-center font-semibold text-gray-600">Free</th>
+                    <th className="px-6 py-4 text-center font-semibold text-gray-600">Free Starter</th>
                     <th className="px-6 py-4 text-center font-semibold text-emerald-600">Personal Plus</th>
                     <th className="px-6 py-4 text-center font-semibold text-blue-600">Business Pro</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {comparison.map((row, i) => (
-                    <tr key={i} className="hover:bg-gray-50/50">
+                  {comparison.map((row) => (
+                    <tr key={row.feature} className="hover:bg-gray-50/50">
                       <td className="px-6 py-3 font-medium text-gray-700">{row.feature}</td>
                       <td className="px-6 py-3 text-center text-gray-500">{row.free}</td>
-                      <td className="px-6 py-3 text-center text-emerald-600 font-medium">{row.personal}</td>
-                      <td className="px-6 py-3 text-center text-blue-600 font-medium">{row.business}</td>
+                      <td className="px-6 py-3 text-center font-medium text-emerald-600">{row.personal_plus}</td>
+                      <td className="px-6 py-3 text-center font-medium text-blue-600">{row.business_pro}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* FAQ */}
-        <div className="max-w-3xl mx-auto mb-16">
-          <h2 className="text-2xl font-extrabold text-gray-800 text-center mb-8">Frequently Asked Questions</h2>
-          <div className="space-y-3">
-            {faqs.map((faq, i) => (
-              <div key={i} className="card cursor-pointer" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-gray-800">{faq.q}</p>
-                  {openFaq === i ? <ChevronUp className="w-5 h-5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />}
-                </div>
-                {openFaq === i && <p className="text-gray-600 mt-3 text-sm leading-relaxed">{faq.a}</p>}
-              </div>
-            ))}
+        <section className="rounded-3xl bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 p-10 text-center text-white">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15">
+            <CreditCard className="h-7 w-7" />
           </div>
-        </div>
-
-        {/* CTA */}
-        <div className="text-center bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 rounded-3xl p-12 text-white">
-          <h2 className="text-3xl font-extrabold mb-4">Ready to Reduce Food Waste?</h2>
-          <p className="text-emerald-200 mb-8 max-w-xl mx-auto">Start free today. No credit card required. Upgrade anytime.</p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={() => { setRole('personal'); navigate('/signup'); }} className="flex items-center gap-2 px-8 py-4 bg-white text-emerald-700 rounded-xl font-bold hover:bg-emerald-50 transition-colors">
-              <User className="w-5 h-5" /> Use as Personal
+          <h2 className="mb-3 text-3xl font-extrabold">Sandbox billing today. Payment-ready tomorrow.</h2>
+          <p className="mx-auto mb-7 max-w-2xl text-emerald-100">
+            This MVP uses dummy checkout and localStorage, with clear hooks ready for Midtrans or Xendit transaction sessions.
+          </p>
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <button onClick={() => handlePlanClick(PLANS.free)} className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-bold text-emerald-700 hover:bg-emerald-50">
+              Start Free <ArrowRight className="h-4 w-4" />
             </button>
-            <button onClick={() => { setRole('business'); navigate('/signup'); }} className="flex items-center gap-2 px-8 py-4 bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600 transition-colors">
-              <Building2 className="w-5 h-5" /> Use as Business
+            <button onClick={() => handlePlanClick(PLANS.business_pro)} className="inline-flex items-center gap-2 rounded-xl bg-blue-500 px-6 py-3 font-bold text-white hover:bg-blue-600">
+              <Star className="h-4 w-4" /> Start Business Pro
             </button>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
+
+      {checkoutPlanId && (
+        <CheckoutModal
+          planId={checkoutPlanId}
+          billingCycle={billingCycle}
+          role={PLANS[checkoutPlanId]?.role}
+          onClose={() => setCheckoutPlanId(null)}
+          onSuccess={handleCheckoutSuccess}
+        />
+      )}
     </div>
   );
 }

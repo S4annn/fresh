@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { DUMMY_RECOMMENDATIONS, WASTE_TIPS, DUMMY_FOODS } from '../data/dummyData';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import * as api from '../api';
 import {
   Lightbulb, Clock, ShoppingBag, Heart, Utensils, ChefHat,
@@ -9,14 +10,15 @@ import {
 } from 'lucide-react';
 
 const actionConfig = {
-  use_today: { label: 'Use Today', icon: Flame, color: 'bg-red-100 text-red-700', border: 'border-red-200' },
-  cook_recipe: { label: 'Cook Recipe', icon: ChefHat, color: 'bg-violet-100 text-violet-700', border: 'border-violet-200' },
-  sell_marketplace: { label: 'Sell in Marketplace', icon: ShoppingBag, color: 'bg-blue-100 text-blue-700', border: 'border-blue-200' },
-  donate: { label: 'Donate', icon: Heart, color: 'bg-pink-100 text-pink-700', border: 'border-pink-200' },
+  use_today: { labelKey: 'useToday', fallback: 'Use Today', icon: Flame, color: 'bg-red-100 text-red-700', border: 'border-red-200' },
+  cook_recipe: { labelKey: 'recipes', fallback: 'Cook Recipe', icon: ChefHat, color: 'bg-violet-100 text-violet-700', border: 'border-violet-200' },
+  sell_marketplace: { labelKey: 'marketplace', fallback: 'Sell in Marketplace', icon: ShoppingBag, color: 'bg-blue-100 text-blue-700', border: 'border-blue-200' },
+  donate: { labelKey: 'donate', fallback: 'Donate', icon: Heart, color: 'bg-pink-100 text-pink-700', border: 'border-pink-200' },
 };
 
 export default function RecommendationsPage() {
   const { isDemoMode } = useAuth();
+  const { t, tv } = useLanguage();
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -58,7 +60,7 @@ export default function RecommendationsPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">Loading recommendations...</p>
+          <p className="text-gray-500">{t('loadingFresh', 'Loading F.R.E.S.H...')}</p>
         </div>
       </div>
     );
@@ -70,45 +72,45 @@ export default function RecommendationsPage() {
       <div>
         <h1 className="text-2xl font-extrabold text-gray-800 flex items-center gap-2">
           <Lightbulb className="w-6 h-6 text-amber-500" />
-          Smart Recommendations
+          {t('smartRecommendations', 'Smart Recommendations')}
         </h1>
-        <p className="text-gray-500 mt-1">AI-powered suggestions to minimize food waste.</p>
+        <p className="text-gray-500 mt-1">{t('recommendationsSubtitle', 'AI-powered suggestions to minimize food waste.')}</p>
       </div>
 
       {/* Priority Foods */}
       <div className="card bg-gradient-to-r from-amber-50 to-orange-50 border-amber-100">
         <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 text-amber-500" />
-          Use These First
+          {t('useTheseFirst', 'Use These First')}
         </h2>
         {priorityFoods.length > 0 ? (
           <div className="flex gap-3 overflow-x-auto pb-2">
             {priorityFoods.map((food) => (
             <div key={food.id} className="flex-shrink-0 bg-white rounded-xl p-4 border border-amber-100 min-w-[160px]">
               <span className={`badge ${food.risk_level === 'High Risk' ? 'badge-danger' : 'badge-warning'} mb-2`}>
-                {food.risk_level}
+                {tv(food.risk_level)}
               </span>
               <p className="font-bold text-gray-800 text-sm">{food.food_name}</p>
               <p className="text-xs text-gray-500 mt-1">{food.quantity} {food.unit}</p>
               <p className={`text-xs mt-1 ${food.risk_level === 'High Risk' ? 'text-red-500' : 'text-amber-500'}`}>
-                Expires: {food.expiry_date}
+                {t('expiry', 'Expires')}: {food.expiry_date}
               </p>
             </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-500">No priority foods yet.</p>
+          <p className="text-sm text-gray-500">{t('noPriorityFoods', 'No priority foods yet.')}</p>
         )}
       </div>
 
       {/* Filters */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {[
-          { key: 'all', label: 'All' },
-          { key: 'high', label: 'Urgent' },
-          { key: 'use_today', label: 'Use Today' },
-          { key: 'cook_recipe', label: 'Recipes' },
-          { key: 'sell_marketplace', label: 'Marketplace' },
+          { key: 'all', label: t('all', 'All') },
+          { key: 'high', label: t('urgent', 'Urgent') },
+          { key: 'use_today', label: t('useToday', 'Use Today') },
+          { key: 'cook_recipe', label: t('recipes', 'Recipes') },
+          { key: 'sell_marketplace', label: t('marketplace', 'Marketplace') },
         ].map((f) => (
           <button
             key={f.key}
@@ -134,7 +136,7 @@ export default function RecommendationsPage() {
               <div className="flex items-center justify-between mb-4">
                 <span className={`badge ${action.color}`}>
                   <ActionIcon className="w-3 h-3 mr-1" />
-                  {action.label}
+                  {t(action.labelKey, action.fallback)}
                 </span>
                 <span className={`text-xs font-bold ${rec.urgency === 'high' ? 'text-red-500' : 'text-amber-500'}`}>
                   {rec.expires_in}
@@ -163,7 +165,7 @@ export default function RecommendationsPage() {
                 )}
                 {rec.urgency === 'high' && (
                   <Link to="/donation" className="btn-ghost text-xs flex-1 no-underline">
-                    <Heart className="w-3 h-3" /> Donate
+                    <Heart className="w-3 h-3" /> {t('donate', 'Donate')}
                   </Link>
                 )}
               </div>
@@ -173,8 +175,8 @@ export default function RecommendationsPage() {
         {filtered.length === 0 && (
           <div className="sm:col-span-2 lg:col-span-3 text-center py-12 card">
             <Lightbulb className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">No recommendations yet</p>
-            <p className="text-gray-400 text-sm mt-1">Add inventory items to generate suggestions.</p>
+            <p className="text-gray-500 font-medium">{t('noRecommendationsYet', 'No recommendations yet')}</p>
+            <p className="text-gray-400 text-sm mt-1">{t('addInventoryForSuggestions', 'Add inventory items to generate suggestions.')}</p>
           </div>
         )}
       </div>
@@ -183,7 +185,7 @@ export default function RecommendationsPage() {
       <div className="card">
         <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-emerald-500" />
-          Food Waste Reduction Tips
+          {t('foodWasteTips', 'Food Waste Reduction Tips')}
         </h2>
         <div className="grid sm:grid-cols-2 gap-3">
           {tips.map((tip, i) => (
@@ -195,7 +197,7 @@ export default function RecommendationsPage() {
             </div>
           ))}
           {tips.length === 0 && (
-            <p className="text-sm text-gray-500">No tips available yet.</p>
+            <p className="text-sm text-gray-500">{t('noTipsAvailable', 'No tips available yet.')}</p>
           )}
         </div>
       </div>

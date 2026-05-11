@@ -430,6 +430,51 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full mb-4">
+              <Shield className="w-4 h-4 text-emerald-600" />
+              <span className="text-sm font-semibold text-emerald-700">Plan-based access</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">
+              Start free, upgrade when you grow
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              F.R.E.S.H keeps basic food-saving workflows free, then unlocks higher limits and business tools when your needs grow.
+            </p>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-3">
+            {[
+              { title: 'Free Starter', desc: 'Free for personal basic use: inventory, reminders, marketplace browsing, and donation listings.', icon: User, color: 'emerald' },
+              { title: 'Personal Plus', desc: 'For households that need unlimited inventory, smarter recommendations, and advanced analytics.', icon: Heart, color: 'teal' },
+              { title: 'Business Pro', desc: 'For restaurants, hotels, cafes, catering, bakeries, and grocery teams managing surplus at scale.', icon: Building2, color: 'blue' },
+            ].map(({ title, desc, icon: Icon, color }) => (
+              <div key={title} className="rounded-2xl border border-gray-100 bg-gray-50/70 p-6">
+                <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${color === 'blue' ? 'bg-blue-600' : 'bg-emerald-600'} text-white`}>
+                  <Icon className="h-6 w-6" />
+                </div>
+                <h3 className="text-lg font-extrabold text-gray-800">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600">{desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <button onClick={() => handleUseAs('personal')} className="btn-primary">
+              Start Free <ArrowRight className="w-4 h-4" />
+            </button>
+            <Link to="/pricing" className="btn-secondary no-underline">
+              View Pricing
+            </Link>
+            <button onClick={() => handleUseAs('business')} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-bold text-white hover:bg-blue-700">
+              Start Business Pro <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Impact Section */}
       <section id="impact" className="py-20 lg:py-32 bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(16,185,129,0.15),transparent_50%)]" />

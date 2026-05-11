@@ -1,3 +1,10 @@
+import {
+  getCurrentSubscription as getLocalSubscription,
+  upgradePlan as upgradeLocalPlan,
+  downgradePlan,
+  incrementUsage as incrementLocalUsage,
+} from './services/subscription';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export function getUserRole() {
@@ -46,6 +53,53 @@ export async function getDonationItems() { return apiFetch('/donations'); }
 export async function createDonationItem(data) { return apiFetch('/donations', { method: 'POST', body: JSON.stringify(data) }); }
 export async function getAnalytics() { return apiFetch('/analytics'); }
 export async function getDashboard() { return apiFetch('/dashboard'); }
+
+// Subscription API with localStorage fallback for MVP.
+export async function getSubscription() {
+  try {
+    return await apiFetch('/subscription');
+  } catch {
+    return getLocalSubscription();
+  }
+}
+
+export async function upgradeSubscription(planId, role, billingCycle = 'monthly') {
+  try {
+    return await apiFetch('/subscription/upgrade', {
+      method: 'POST',
+      body: JSON.stringify({ plan_id: planId, role, billing_cycle: billingCycle }),
+    });
+  } catch {
+    return upgradeLocalPlan(planId, role, billingCycle);
+  }
+}
+
+export async function cancelSubscription() {
+  try {
+    return await apiFetch('/subscription/cancel', { method: 'POST', body: JSON.stringify({}) });
+  } catch {
+    return downgradePlan('free');
+  }
+}
+
+export async function getSubscriptionUsage() {
+  try {
+    return await apiFetch('/subscription/usage');
+  } catch {
+    return getLocalSubscription().usage;
+  }
+}
+
+export async function incrementSubscriptionUsage(type) {
+  try {
+    return await apiFetch('/subscription/usage/increment', {
+      method: 'POST',
+      body: JSON.stringify({ type }),
+    });
+  } catch {
+    return incrementLocalUsage(type);
+  }
+}
 
 // ─── AI Scanner ──────────────────────────────────────────────────────────────
 export async function analyzeFoodImage(file) {
@@ -196,4 +250,8 @@ export const api = {
   createDonation: createDonationItem,
   analytics: getAnalytics,
   recommendations: getRecommendations,
+  getSubscription,
+  upgradeSubscription,
+  cancelSubscription,
+  incrementSubscriptionUsage,
 };

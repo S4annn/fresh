@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
+import { ensureSubscriptionForRole, getCurrentSubscription } from '../services/subscription';
 import { Leaf, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Zap, User, Building2 } from 'lucide-react';
 
 export default function SignInPage() {
@@ -27,12 +28,27 @@ export default function SignInPage() {
     return role === 'business' ? '/business/dashboard' : '/dashboard';
   }
 
+  function requiresBusinessPricing() {
+    return selectedRole === 'business' && getCurrentSubscription().plan_id !== 'business_pro';
+  }
+
+  function redirectBusinessToPricing() {
+    setRole('business');
+    setError('Untuk masuk sebagai Business, pilih Business Pro di halaman pricing terlebih dahulu. Demo Login tetap bisa digunakan.');
+    navigate('/pricing');
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (requiresBusinessPricing()) {
+      redirectBusinessToPricing();
+      return;
+    }
     setLoading(true);
     try {
       setRole(selectedRole);
+      ensureSubscriptionForRole(selectedRole);
       signInDemo(email || 'demo@fresh.app', email?.split('@')[0] || 'Demo User');
       navigate(getRedirectPath(selectedRole));
     } catch (err) {
@@ -44,6 +60,10 @@ export default function SignInPage() {
 
   const handleGoogleSignIn = async () => {
     setError('');
+    if (requiresBusinessPricing()) {
+      redirectBusinessToPricing();
+      return;
+    }
     if (!isFirebaseConfigured) {
       setError('Firebase belum dikonfigurasi. Silakan isi Firebase environment variables di file .env untuk menggunakan Google Sign In.');
       return;
@@ -51,6 +71,7 @@ export default function SignInPage() {
     setLoading(true);
     try {
       setRole(selectedRole);
+      ensureSubscriptionForRole(selectedRole);
       const googleUser = await signInWithGoogle();
       if (googleUser) navigate(getRedirectPath(selectedRole));
     } catch (err) {
@@ -70,6 +91,7 @@ export default function SignInPage() {
 
   const handleDemoLogin = () => {
     setRole(selectedRole);
+    ensureSubscriptionForRole(selectedRole);
     signInDemo();
     navigate(getRedirectPath(selectedRole));
   };
@@ -168,6 +190,11 @@ export default function SignInPage() {
                 )}
               </button>
             </div>
+            {selectedRole === 'business' && (
+              <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
+                Business sign in requires an active Business Pro plan. Use Demo Login to preview Business Mode without checkout.
+              </div>
+            )}
           </div>
 
           {error && (

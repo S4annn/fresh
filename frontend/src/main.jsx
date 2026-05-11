@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { RoleProvider, useRole } from './context/RoleContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
+import { ThemeProvider } from './context/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import BusinessLayout from './layouts/BusinessLayout';
 import LandingPage from './pages/LandingPage';
@@ -21,19 +23,23 @@ import ScannerPage from './pages/ScannerPage';
 import NotFoundPage from './pages/NotFoundPage';
 import MapTestPage from './pages/MapTestPage';
 import NotificationsPage from './pages/NotificationsPage';
+import BusinessProRequiredPage from './pages/BusinessProRequiredPage';
 import BusinessDashboardPage from './pages/business/BusinessDashboardPage';
 import BusinessInventoryPage from './pages/business/BusinessInventoryPage';
 import BusinessOrdersPage from './pages/business/BusinessOrdersPage';
 import BusinessBranchesPage from './pages/business/BusinessBranchesPage';
 import BusinessAnalyticsPage from './pages/business/BusinessAnalyticsPage';
+import { canAccessBusinessFeature, useSubscription } from './services/subscription';
 import './index.css';
 
 function LoadingScreen() {
+  const { t } = useLanguage();
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50">
       <div className="text-center">
         <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 font-medium">Loading F.R.E.S.H...</p>
+        <p className="text-gray-500 font-medium">{t('loadingFresh', 'Loading F.R.E.S.H...')}</p>
       </div>
     </div>
   );
@@ -56,12 +62,20 @@ function PublicRoute({ children }) {
   return children;
 }
 
+function BusinessProRoute({ children }) {
+  useSubscription();
+  if (!canAccessBusinessFeature()) return <BusinessProRequiredPage />;
+  return children;
+}
+
 function App() {
   return (
     <AuthProvider>
       <RoleProvider>
-        <BrowserRouter>
-          <Routes>
+        <LanguageProvider>
+          <ThemeProvider>
+            <BrowserRouter>
+              <Routes>
             {/* Public */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/pricing" element={<PricingPage />} />
@@ -78,6 +92,7 @@ function App() {
               <Route path="/marketplace" element={<MarketplacePage />} />
               <Route path="/donation" element={<DonationPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/report" element={<AnalyticsPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
@@ -85,15 +100,16 @@ function App() {
             {/* Business Protected Routes */}
             <Route element={<ProtectedRoute><BusinessLayout /></ProtectedRoute>}>
               <Route path="/business/dashboard" element={<BusinessDashboardPage />} />
-              <Route path="/business/inventory" element={<BusinessInventoryPage />} />
+              <Route path="/business/inventory" element={<BusinessProRoute><BusinessInventoryPage /></BusinessProRoute>} />
               <Route path="/business/scanner" element={<ScannerPage />} />
               <Route path="/business/predict" element={<PredictPage />} />
               <Route path="/business/recommendations" element={<RecommendationsPage />} />
               <Route path="/business/marketplace" element={<MarketplacePage />} />
               <Route path="/business/donation" element={<DonationPage />} />
-              <Route path="/business/orders" element={<BusinessOrdersPage />} />
-              <Route path="/business/branches" element={<BusinessBranchesPage />} />
-              <Route path="/business/analytics" element={<BusinessAnalyticsPage />} />
+              <Route path="/business/orders" element={<BusinessProRoute><BusinessOrdersPage /></BusinessProRoute>} />
+              <Route path="/business/branches" element={<BusinessProRoute><BusinessBranchesPage /></BusinessProRoute>} />
+              <Route path="/business/analytics" element={<BusinessProRoute><BusinessAnalyticsPage /></BusinessProRoute>} />
+              <Route path="/business/report" element={<BusinessProRoute><BusinessAnalyticsPage /></BusinessProRoute>} />
               <Route path="/business/notifications" element={<NotificationsPage />} />
               <Route path="/business/settings" element={<SettingsPage />} />
             </Route>
@@ -102,8 +118,10 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
             {/* Map Test */}
             <Route path="/map-test" element={<MapTestPage />} />
-          </Routes>
-        </BrowserRouter>
+              </Routes>
+            </BrowserRouter>
+          </ThemeProvider>
+        </LanguageProvider>
       </RoleProvider>
     </AuthProvider>
   );

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
 import { BUSINESS_TYPES } from '../data/businessDummyData';
+import { setCurrentSubscription } from '../services/subscription';
 import { Leaf, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, Building2, Phone, MapPin, Briefcase } from 'lucide-react';
 
 export default function SignUpPage() {
@@ -49,6 +50,7 @@ export default function SignUpPage() {
     setLoading(true);
     try {
       setRole(selectedRole);
+      setCurrentSubscription('free', selectedRole);
       const displayName = selectedRole === 'business' ? form.business_name : form.full_name;
       signUpDemo(displayName, form.email);
       navigate(getRedirectPath(selectedRole));
@@ -68,6 +70,7 @@ export default function SignUpPage() {
     setLoading(true);
     try {
       setRole(selectedRole);
+      setCurrentSubscription('free', selectedRole);
       await signInWithGoogle();
       navigate(getRedirectPath(selectedRole));
     } catch (err) {
