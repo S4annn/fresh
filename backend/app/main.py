@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import os
-from datetime import date, timedelta
-from typing import Iterable
+from datetime import date, datetime, timedelta
+from typing import Any, Iterable
 
-from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from .database import create_db_and_tables, get_db
@@ -18,6 +19,9 @@ from .models import (
     DonationItem,
     FoodItem,
     MarketplaceListing,
+    ScanHistory,
+    Subscription,
+    User,
 )
 from .schemas import (
     BusinessBranchCreate,
@@ -31,7 +35,20 @@ from .schemas import (
     MarketplaceCreate,
     MarketplaceUpdate,
     PredictInput,
+    Token,
+    UserCreate,
+    UserLogin,
+    UserResponse,
 )
+from .auth import (
+    authenticate_user,
+    create_access_token,
+    create_user,
+    create_user_session,
+    get_user_by_email,
+    verify_token,
+)
+from .admin_auth import get_current_admin
 from .vision_model import (
     ARTIFACTS_DIR,
     LABELS_PATH,
@@ -70,6 +87,343 @@ app.add_middleware(
 @app.on_event("startup")
 def load_vision_model_on_startup():
     load_assets()
+
+
+# Security
+security = HTTPBearer()
+
+UNLIMITED = "unlimited"
+
+
+# Authentication Dependencies
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
+    """Get current authenticated user from JWT token."""
+    token = credentials.credentials
+    token_data = verify_token(token)
+    
+    if token_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    user = db.query(User).filter(User.id == token_data.user_id).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is inactive",
+        )
+    
+    return user
+
+
+def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current active user."""
+    return current_user
+
+
+# User Management Endpoints
+@app.post("/auth/register", response_model=UserResponse)
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    """Register a new user."""
+    # Check if user already exists
+    db_user = get_user_by_email(db, user.email)
+    if db_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create new user
+    try:
+        db_user = create_user(db, user.model_dump())
+        return db_user
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}"
+        )
+
+
+@app.post("/auth/login", response_model=Token)
+def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
+    """Authenticate user and return JWT token."""
+    user = authenticate_user(db, user_credentials.email, user_credentials.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Update last login
+    user.last_login = datetime.utcnow()
+    db.commit()
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=30)
+    access_token = create_access_token(
+        data={"sub": str(user.id), "uid": user.uid}, 
+        expires_delta=access_token_expires
+    )
+    
+    # Create session record
+    create_user_session(db, user, access_token)
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": 1800  # 30 minutes in seconds
+    }
+
+
+@app.get("/auth/me", response_model=UserResponse)
+def get_current_user_info(current_user: User = Depends(get_current_active_user)):
+    """Get current user information."""
+    return current_user
+
+
+@app.post("/auth/logout")
+def logout_user(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    """Logout user (revoke all sessions)."""
+    try:
+        from .auth import revoke_user_sessions
+        revoke_user_sessions(db, current_user.id)
+        return {"message": "Successfully logged out"}
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to logout"
+        )
+
+
+# Admin Authentication
+@app.post("/admin/login")
+def admin_login(username: str, password: str, db: Session = Depends(get_db)):
+    """Admin login endpoint."""
+    try:
+        from .admin_auth import verify_admin_credentials, create_admin_token
+        
+        if not verify_admin_credentials(username, password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid admin credentials"
+            )
+        
+        token = create_admin_token(username)
+        
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "expires_in": 3600  # 1 hour
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Admin login failed: {str(e)}"
+        )
+
+# Admin Endpoints (for viewing user data)
+@app.get("/admin/users")
+def get_all_users(current_admin: str = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Get all users (admin endpoint for viewing user data)."""
+    try:
+        users = db.query(User).order_by(User.created_at.desc()).all()
+        
+        # Calculate statistics
+        total_users = len(users)
+        personal_users = len([u for u in users if u.role == "personal"])
+        business_users = len([u for u in users if u.role == "business"])
+        active_users = len([u for u in users if u.is_active])
+        
+        # Get session count
+        from .models import UserSession
+        total_sessions = db.query(UserSession).count()
+        
+        user_data = []
+        for user in users:
+            user_dict = {
+                "id": user.id,
+                "uid": user.uid,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "provider": user.provider,
+                "business_name": user.business_name,
+                "business_type": user.business_type,
+                "business_location": user.business_location,
+                "contact_number": user.contact_number,
+                "is_active": user.is_active,
+                "email_verified": user.email_verified,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+                "last_login": user.last_login.isoformat() if user.last_login else None
+            }
+            user_data.append(user_dict)
+        
+        return {
+            "stats": {
+                "total_users": total_users,
+                "personal_users": personal_users,
+                "business_users": business_users,
+                "active_users": active_users,
+                "total_sessions": total_sessions
+            },
+            "users": user_data
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch users: {str(e)}"
+        )
+
+PLAN_NAMES = {
+    "free": "Free Starter",
+    "personal_plus": "Personal Plus",
+    "business_pro": "Business Pro",
+}
+
+PLAN_LIMITS = {
+    "free": {
+        "max_inventory_items": 30,
+        "max_ai_scans_per_month": 5,
+        "max_marketplace_listings": 2,
+        "max_donation_listings": 5,
+        "analytics_level": "basic",
+        "business_features": False,
+        "multi_branch": False,
+        "sustainability_report": False,
+        "max_branches": 0,
+    },
+    "personal_plus": {
+        "max_inventory_items": UNLIMITED,
+        "max_ai_scans_per_month": 100,
+        "max_marketplace_listings": 20,
+        "max_donation_listings": UNLIMITED,
+        "analytics_level": "advanced",
+        "business_features": False,
+        "multi_branch": False,
+        "sustainability_report": False,
+        "max_branches": 0,
+    },
+    "business_pro": {
+        "max_inventory_items": UNLIMITED,
+        "max_ai_scans_per_month": UNLIMITED,
+        "max_marketplace_listings": UNLIMITED,
+        "max_donation_listings": UNLIMITED,
+        "analytics_level": "business",
+        "business_features": True,
+        "multi_branch": True,
+        "sustainability_report": True,
+        "max_branches": 5,
+    },
+}
+
+SUBSCRIPTION_STATE: dict[str, Any] = {
+    "plan_id": "free",
+    "plan_name": "Free Starter",
+    "role": "personal",
+    "status": "active",
+    "billing_cycle": "monthly",
+    "started_at": "2026-01-01",
+    "expires_at": None,
+    "usage": {
+        "inventory_items": 18,
+        "ai_scans_this_month": 3,
+        "marketplace_listings": 1,
+        "donation_listings": 2,
+        "branches": 0,
+    },
+}
+
+
+def _is_unlimited(value: Any) -> bool:
+    return value in {UNLIMITED, None}
+
+
+def _plan_limits(plan_id: str) -> dict[str, Any]:
+    return PLAN_LIMITS.get(plan_id, PLAN_LIMITS["free"])
+
+
+def _subscription_from_headers(
+    x_fresh_demo: str | None,
+    x_fresh_role: str | None,
+    x_fresh_plan_id: str | None,
+    x_fresh_user_id: str | None,
+) -> dict[str, Any]:
+    # MVP only: demo accounts may preview Business Pro flows without payment.
+    # In production, replace this with authenticated user/session claims.
+    is_demo_account = (x_fresh_demo or "").lower() == "true" and (x_fresh_user_id or "").startswith("demo-user")
+    if is_demo_account:
+        role = x_fresh_role or "personal"
+        plan_id = "business_pro" if role == "business" else (x_fresh_plan_id or "free")
+        plan_id = plan_id if plan_id in PLAN_LIMITS else "free"
+        return {
+            **SUBSCRIPTION_STATE,
+            "plan_id": plan_id,
+            "plan_name": PLAN_NAMES[plan_id],
+            "role": role,
+            "demo": True,
+            "usage": {**SUBSCRIPTION_STATE.get("usage", {})},
+        }
+
+    return SUBSCRIPTION_STATE
+
+
+def get_active_subscription(
+    x_fresh_demo: str | None = Header(default=None),
+    x_fresh_role: str | None = Header(default=None),
+    x_fresh_plan_id: str | None = Header(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
+) -> dict[str, Any]:
+    return _subscription_from_headers(x_fresh_demo, x_fresh_role, x_fresh_plan_id, x_fresh_user_id)
+
+
+def _raise_upgrade_required(required_plan: str, message: str):
+    raise HTTPException(
+        status_code=402,
+        detail={
+            "code": "upgrade_required",
+            "required_plan": required_plan,
+            "message": message,
+        },
+    )
+
+
+def _check_limit(subscription: dict[str, Any], limit_name: str, current_count: int, required_plan: str, message: str):
+    limit = _plan_limits(subscription.get("plan_id", "free")).get(limit_name)
+    if _is_unlimited(limit):
+        return
+    if current_count >= int(limit):
+        _raise_upgrade_required(required_plan, message)
+
+
+def _increment_usage(usage_type: str) -> dict[str, Any]:
+    SUBSCRIPTION_STATE.setdefault("usage", {})
+    SUBSCRIPTION_STATE["usage"][usage_type] = SUBSCRIPTION_STATE["usage"].get(usage_type, 0) + 1
+    return SUBSCRIPTION_STATE
+
+
+def require_business_pro(subscription: dict[str, Any] = Depends(get_active_subscription)) -> dict[str, Any]:
+    limits = _plan_limits(subscription.get("plan_id", "free"))
+    if not limits.get("business_features"):
+        _raise_upgrade_required(
+            "business_pro",
+            "Business Pro is required for this business feature.",
+        )
+    return subscription
 
 
 def _today_plus(days: int) -> date:
@@ -673,11 +1027,24 @@ def debug_artifacts():
 
 
 @app.post("/scan-food")
-async def scan_food(image: UploadFile = File(...)):
+async def scan_food(
+    image: UploadFile = File(...),
+    subscription: dict[str, Any] = Depends(get_active_subscription),
+):
+    used_scans = int(subscription.get("usage", {}).get("ai_scans_this_month", 0) or 0)
+    _check_limit(
+        subscription,
+        "max_ai_scans_per_month",
+        used_scans,
+        "personal_plus",
+        "You have reached your monthly AI scan limit.",
+    )
     image_bytes = await image.read()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Uploaded image is empty")
-    return predict_food_from_image(image_bytes, filename=image.filename)
+    result = predict_food_from_image(image_bytes, filename=image.filename)
+    _increment_usage("ai_scans_this_month")
+    return result
 
 
 @app.post("/predict-risk")
@@ -699,7 +1066,23 @@ def list_foods(
 
 
 @app.post("/foods")
-def create_food(payload: FoodCreate, db: Session = Depends(get_db)):
+def create_food(
+    payload: FoodCreate,
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(get_active_subscription),
+):
+    active_items = (
+        db.query(FoodItem)
+        .filter(FoodItem.user_id == payload.user_id, FoodItem.is_finished == False)
+        .count()
+    )
+    _check_limit(
+        subscription,
+        "max_inventory_items",
+        active_items,
+        "personal_plus",
+        "Free plan supports up to 30 inventory items.",
+    )
     food_name = payload.food_name or payload.name or "Food Item"
     expiration_date = _as_expiration_date(
         payload.expiration_date,
@@ -738,6 +1121,7 @@ def create_food(payload: FoodCreate, db: Session = Depends(get_db)):
     db.add(item)
     db.commit()
     db.refresh(item)
+    _increment_usage("inventory_items")
     return _json(_serialize_food(item))
 
 
@@ -866,8 +1250,22 @@ def list_marketplace(db: Session = Depends(get_db)):
 
 @app.post("/marketplace")
 @app.post("/marketplace/listings")
-def create_marketplace(payload: MarketplaceCreate, db: Session = Depends(get_db)):
-    return _create_marketplace(payload, db)
+def create_marketplace(
+    payload: MarketplaceCreate,
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(get_active_subscription),
+):
+    listing_count = db.query(MarketplaceListing).filter(MarketplaceListing.user_id == payload.user_id).count()
+    _check_limit(
+        subscription,
+        "max_marketplace_listings",
+        listing_count,
+        "personal_plus",
+        "Your marketplace listing limit has been reached.",
+    )
+    item = _create_marketplace(payload, db)
+    _increment_usage("marketplace_listings")
+    return item
 
 
 @app.get("/marketplace/{listing_id}")
@@ -919,7 +1317,19 @@ def list_donations(db: Session = Depends(get_db)):
 
 
 @app.post("/donations")
-def create_donation(payload: DonationCreate, db: Session = Depends(get_db)):
+def create_donation(
+    payload: DonationCreate,
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(get_active_subscription),
+):
+    donation_count = db.query(DonationItem).filter(DonationItem.user_id == payload.user_id).count()
+    _check_limit(
+        subscription,
+        "max_donation_listings",
+        donation_count,
+        "personal_plus",
+        "Your donation listing limit has been reached.",
+    )
     item = DonationItem(
         user_id=payload.user_id,
         role=payload.role,
@@ -938,6 +1348,7 @@ def create_donation(payload: DonationCreate, db: Session = Depends(get_db)):
     db.add(item)
     db.commit()
     db.refresh(item)
+    _increment_usage("donation_listings")
     return _json(_serialize_donation(item))
 
 
@@ -1051,14 +1462,21 @@ def recommendations(db: Session = Depends(get_db)):
 
 
 @app.get("/business/inventory")
-def get_business_inventory(db: Session = Depends(get_db)):
+def get_business_inventory(
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(require_business_pro),
+):
     seed_business_inventory(db)
     items = db.query(BusinessInventory).order_by(BusinessInventory.created_at.desc()).all()
     return _json([_serialize_business_inventory(item) for item in items])
 
 
 @app.post("/business/inventory")
-def create_business_inventory(payload: BusinessInventoryCreate, db: Session = Depends(get_db)):
+def create_business_inventory(
+    payload: BusinessInventoryCreate,
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(require_business_pro),
+):
     expiration_date = payload.expiration_date or payload.expiry_date or _today_plus(5)
     risk = predict_food_risk(
         food_name=payload.item_name,
@@ -1107,6 +1525,7 @@ def update_business_inventory(
     inventory_id: int,
     payload: BusinessInventoryUpdate,
     db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(require_business_pro),
 ):
     item = db.query(BusinessInventory).filter(BusinessInventory.id == inventory_id).first()
     if not item:
@@ -1123,7 +1542,11 @@ def update_business_inventory(
 
 
 @app.delete("/business/inventory/{inventory_id}")
-def delete_business_inventory(inventory_id: int, db: Session = Depends(get_db)):
+def delete_business_inventory(
+    inventory_id: int,
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(require_business_pro),
+):
     item = db.query(BusinessInventory).filter(BusinessInventory.id == inventory_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Business inventory item not found")
@@ -1133,14 +1556,22 @@ def delete_business_inventory(inventory_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/business/orders")
-def get_business_orders(db: Session = Depends(get_db)):
+def get_business_orders(
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(require_business_pro),
+):
     seed_business_orders(db)
     orders = db.query(BusinessOrder).order_by(BusinessOrder.created_at.desc()).all()
     return _json(orders)
 
 
 @app.patch("/business/orders/{order_id}")
-def update_business_order(order_id: int, payload: BusinessOrderUpdate, db: Session = Depends(get_db)):
+def update_business_order(
+    order_id: int,
+    payload: BusinessOrderUpdate,
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(require_business_pro),
+):
     seed_business_orders(db)
     order = db.query(BusinessOrder).filter(BusinessOrder.id == order_id).first()
     if not order:
@@ -1152,14 +1583,29 @@ def update_business_order(order_id: int, payload: BusinessOrderUpdate, db: Sessi
 
 
 @app.get("/business/branches")
-def get_business_branches(db: Session = Depends(get_db)):
+def get_business_branches(
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(require_business_pro),
+):
     seed_business_branches(db)
     branches = db.query(BusinessBranch).order_by(BusinessBranch.created_at.desc()).all()
     return _json([_serialize_branch(branch) for branch in branches])
 
 
 @app.post("/business/branches")
-def create_business_branch(payload: BusinessBranchCreate, db: Session = Depends(get_db)):
+def create_business_branch(
+    payload: BusinessBranchCreate,
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(require_business_pro),
+):
+    branch_count = db.query(BusinessBranch).count()
+    _check_limit(
+        subscription,
+        "max_branches",
+        branch_count,
+        "business_pro",
+        "Business Pro branch limit has been reached.",
+    )
     branch = BusinessBranch(**payload.model_dump())
     db.add(branch)
     db.commit()
@@ -1168,7 +1614,10 @@ def create_business_branch(payload: BusinessBranchCreate, db: Session = Depends(
 
 
 @app.get("/business/analytics")
-def business_analytics(db: Session = Depends(get_db)):
+def business_analytics(
+    db: Session = Depends(get_db),
+    subscription: dict[str, Any] = Depends(require_business_pro),
+):
     seed_business_inventory(db)
     seed_business_branches(db)
     inventory = db.query(BusinessInventory).all()
@@ -1198,7 +1647,7 @@ def business_analytics(db: Session = Depends(get_db)):
 
 
 @app.get("/business/report")
-def business_report():
+def business_report(subscription: dict[str, Any] = Depends(require_business_pro)):
     return {
         "food_saved_kg": 85,
         "estimated_loss_prevented": 2500000,
@@ -1214,53 +1663,47 @@ def business_report():
     }
 
 
-SUBSCRIPTION_STATE = {
-    "plan_id": "free",
-    "plan_name": "Free Starter",
-    "role": "personal",
-    "status": "active",
-    "billing_cycle": "monthly",
-    "started_at": "2026-01-01",
-    "expires_at": None,
-    "usage": {
-        "inventory_items": 18,
-        "ai_scans_this_month": 3,
-        "marketplace_listings": 1,
-        "donation_listings": 2,
-        "branches": 0,
-    },
-}
-
-
-PLAN_NAMES = {
-    "free": "Free Starter",
-    "personal_plus": "Personal Plus",
-    "business_pro": "Business Pro",
-}
-
-
+# Database-based Subscription Endpoints
 @app.get("/subscription")
-def get_subscription():
-    return SUBSCRIPTION_STATE
+def get_subscription(
+    user_id: str = Query("demo-user"),
+    role: str = Query("personal"),
+    db: Session = Depends(get_db)
+):
+    """Get user subscription from database"""
+    from .subscription_service import get_subscription_limits
+    
+    subscription_data = get_subscription_limits(db, user_id)
+    return subscription_data
 
 
 @app.post("/subscription/upgrade")
-def upgrade_subscription(payload: dict):
+def upgrade_subscription(
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    """Upgrade user subscription plan"""
+    from .subscription_service import upgrade_subscription
+    
+    user_id = payload.get("user_id", "demo-user")
     plan_id = payload.get("plan_id", "free")
-    role = payload.get("role") or ("business" if plan_id == "business_pro" else "personal")
-    SUBSCRIPTION_STATE.update(
-        {
-            "plan_id": plan_id,
-            "plan_name": PLAN_NAMES.get(plan_id, "Free Starter"),
-            "role": role,
-            "status": "active",
-            "billing_cycle": payload.get("billing_cycle", "monthly"),
+    
+    if plan_id not in ["free", "personal_plus", "business_pro"]:
+        raise HTTPException(status_code=400, detail="Unknown subscription plan")
+    
+    try:
+        subscription = upgrade_subscription(db, user_id, plan_id)
+        return {
+            "message": f"Upgraded to {subscription.plan_name}",
+            "subscription": {
+                "plan_id": subscription.plan_id,
+                "plan_name": subscription.plan_name,
+                "status": subscription.status,
+                "expires_at": subscription.expires_at.isoformat() if subscription.expires_at else None
+            }
         }
-    )
-    return SUBSCRIPTION_STATE
-
-
-@app.post("/subscription/cancel")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upgrade subscription: {str(e)}")
 def cancel_subscription():
     SUBSCRIPTION_STATE.update({"plan_id": "free", "plan_name": "Free Starter", "role": "personal"})
     return SUBSCRIPTION_STATE
@@ -1275,7 +1718,7 @@ def get_subscription_usage():
 def increment_subscription_usage(payload: dict):
     usage_type = payload.get("type")
     if usage_type:
-      SUBSCRIPTION_STATE["usage"][usage_type] = SUBSCRIPTION_STATE["usage"].get(usage_type, 0) + 1
+        _increment_usage(usage_type)
     return SUBSCRIPTION_STATE
 
 

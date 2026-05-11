@@ -1,4 +1,5 @@
 import os
+from typing import Generator
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -9,24 +10,43 @@ try:
 except ImportError:
     pass
 
+# Database configuration with PostgreSQL Railway support
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fresh.db")
 
-# Railway/Postgres sometimes exposes postgres://, while SQLAlchemy expects postgresql://.
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+# Determine database type for logging
+if DATABASE_URL.startswith("postgresql"):
+    DB_TYPE = "PostgreSQL"
+    print(f"🐘 Using {DB_TYPE} database: Railway")
+elif DATABASE_URL.startswith("sqlite"):
+    DB_TYPE = "SQLite"
+    print(f"🗄️ Using {DB_TYPE} database: Local fallback")
+else:
+    DB_TYPE = "Unknown"
+    print(f"❓ Using {DB_TYPE} database")
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+# Create engine with appropriate settings
+if DATABASE_URL.startswith("postgresql"):
+    # PostgreSQL configuration for Railway
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        echo=os.getenv("ENVIRONMENT") == "development"
+    )
+else:
+    # SQLite configuration for local development
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        echo=os.getenv("ENVIRONMENT") == "development"
+    )
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args,
-    pool_pre_ping=True,
-)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-def get_db():
+def get_db() -> Generator[sessionmaker.Session, None, None]:
+    """Dependency to get DB session"""
     db = SessionLocal()
     try:
         yield db
@@ -34,10 +54,20 @@ def get_db():
         db.close()
 
 
-def create_db_and_tables() -> None:
-    """Create MVP tables and patch old local SQLite tables with missing columns."""
+def create_db_and_tables():
+    """Create database tables"""
+    print(f"🔧 Creating database tables for {DB_TYPE}...")
     Base.metadata.create_all(bind=engine)
-    _ensure_sqlite_columns()
+    print(f"✅ Database tables created successfully for {DB_TYPE}")
+
+
+def get_database_info():
+    """Get database connection info"""
+    return {
+        "type": DB_TYPE,
+        "url": DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else DATABASE_URL,
+        "environment": os.getenv("ENVIRONMENT", "development")
+    }
 
 
 def _ensure_sqlite_columns() -> None:

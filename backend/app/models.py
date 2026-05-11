@@ -1,5 +1,6 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String, Text, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
 from .database import Base
 
@@ -28,6 +29,60 @@ class FoodItem(Base):
     # Legacy columns kept so old local SQLite files and older code paths do not break.
     name = Column(String(150), nullable=True)
     risk_level = Column(String(30), nullable=True)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String(100), unique=True, index=True, nullable=False)
+    name = Column(String(150), nullable=False)
+    email = Column(String(150), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(30), default="personal")
+    provider = Column(String(30), default="local")
+    business_name = Column(String(150), nullable=True)
+    business_type = Column(String(100), nullable=True)
+    business_location = Column(String(200), nullable=True)
+    contact_number = Column(String(50), nullable=True)
+    is_active = Column(Boolean, default=True)
+    email_verified = Column(Boolean, default=False)
+    last_login = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+    subscriptions = relationship("UserSubscription", back_populates="user", cascade="all, delete-orphan")
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    token_hash = Column(String(255), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="sessions")
+
+
+class UserSubscription(Base):
+    __tablename__ = "user_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    plan_id = Column(String(50), nullable=False)
+    is_demo = Column(Boolean, default=False)
+    usage_data = Column(Text, nullable=True)  # JSON string
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="subscriptions")
 
 
 class MarketplaceListing(Base):
@@ -138,4 +193,42 @@ class BusinessBranch(Base):
     waste_prevented = Column(Float, default=0)
     marketplace_listings = Column(Integer, default=0)
     status = Column(String(30), default="Active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Subscription(Base):
+    """Enhanced subscription model for PostgreSQL migration"""
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(100), index=True, default="demo-user")
+    plan_id = Column(String(50), nullable=False, default="free")
+    plan_name = Column(String(100), nullable=False, default="Free Starter")
+    status = Column(String(30), nullable=False, default="active")
+    billing_cycle = Column(String(20), nullable=True)  # monthly, yearly, trial
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Usage counters
+    ai_scans_this_month = Column(Integer, default=0)
+    inventory_items_count = Column(Integer, default=0)
+    marketplace_listings_count = Column(Integer, default=0)
+    donation_listings_count = Column(Integer, default=0)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ScanHistory(Base):
+    """Scan history model for PostgreSQL migration"""
+    __tablename__ = "scan_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(100), index=True, default="demo-user")
+    detected_food = Column(String(150), nullable=False)
+    category = Column(String(80), nullable=False)
+    confidence = Column(Float, default=0.0)
+    source = Column(String(50), default="vision_model")  # vision_model, manual, etc.
+    image_filename = Column(String(255), nullable=True)
+    top_predictions_json = Column(Text, nullable=True)  # JSON string of top predictions
     created_at = Column(DateTime(timezone=True), server_default=func.now())
