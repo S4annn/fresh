@@ -9,7 +9,7 @@ import {
   ChevronDown, User, ClipboardList, GitBranch, Building2,
   Lock, FileText,
 } from 'lucide-react';
-import { hasFeature, useSubscription } from '../services/subscription';
+import { hasFeature, useSubscription, isDemoUser } from '../services/subscription';
 
 const baseBusinessNavItems = [
   { path: '/business/dashboard', labelKey: 'dashboard', fallback: 'Dashboard', icon: LayoutDashboard },
@@ -40,16 +40,20 @@ export default function BusinessLayout() {
     navigate('/');
   };
 
+  const isDemo = isDemoUser();
   const businessNavItems = baseBusinessNavItems.map((item) => ({
     ...item,
-    locked: item.feature ? !hasFeature(item.feature) : false,
+    // In demo mode, don't lock features
+    locked: isDemo ? false : (item.feature ? !hasFeature(item.feature) : false),
   }));
   const currentPage = businessNavItems.find((item) => location.pathname.startsWith(item.path));
   const editionLabel = plan.plan_id === 'business_pro'
     ? 'BUSINESS'
     : plan.plan_id === 'personal_plus'
       ? 'PERSONAL PLUS'
-      : 'FREE EDITION';
+      : isDemo
+        ? 'DEMO EDITION'
+        : 'FREE EDITION';
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/30 overflow-hidden">

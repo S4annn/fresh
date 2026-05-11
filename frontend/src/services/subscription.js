@@ -101,26 +101,39 @@ export const PLANS = {
 const ANALYTICS_RANK = { basic: 1, advanced: 2, business: 3 };
 
 const DEMO_USAGE = {
-  free: {
-    inventory_items: 18,
-    ai_scans_this_month: 3,
-    marketplace_listings: 1,
-    donation_listings: 2,
-    branches: 0,
-  },
-  personal_plus: {
-    inventory_items: 42,
-    ai_scans_this_month: 14,
-    marketplace_listings: 4,
-    donation_listings: 8,
-    branches: 0,
-  },
-  business_pro: {
-    inventory_items: 125,
+  personal_demo: {
+    inventory_items: 0,
     ai_scans_this_month: 0,
-    marketplace_listings: 18,
-    donation_listings: 12,
-    branches: 3,
+    marketplace_listings: 0,
+    donation_listings: 0,
+    branches: 0,
+    // Demo limits - 3 uses per feature
+    demo_inventory_add: 0,
+    demo_ai_scan: 0,
+    demo_marketplace_create: 0,
+    demo_donation_create: 0,
+    demo_predict_risk: 0,
+    demo_recommendations: 0,
+    demo_analytics_view: 0,
+  },
+  business_demo: {
+    inventory_items: 0,
+    ai_scans_this_month: 0,
+    marketplace_listings: 0,
+    donation_listings: 0,
+    branches: 0,
+    // Demo limits - 3 uses per feature
+    demo_inventory_add: 0,
+    demo_ai_scan: 0,
+    demo_marketplace_create: 0,
+    demo_donation_create: 0,
+    demo_predict_risk: 0,
+    demo_recommendations: 0,
+    demo_analytics_view: 0,
+    demo_business_inventory: 0,
+    demo_business_orders: 0,
+    demo_business_branches: 0,
+    demo_business_analytics: 0,
   },
 };
 
@@ -387,6 +400,83 @@ export function getUsageLabel(type) {
   return `${usage[type] || 0}/${limit}`;
 }
 
+// Demo subscription functions
+export function createDemoSubscription(role = 'personal') {
+  const demoKey = role === 'business' ? 'business_demo' : 'personal_demo';
+  return {
+    plan_id: 'demo',
+    plan_name: `${role === 'business' ? 'Business' : 'Personal'} Demo`,
+    role: role,
+    status: 'active',
+    billing_cycle: 'monthly',
+    started_at: todayString(),
+    expires_at: null,
+    is_demo: true,
+    last_usage_reset_month: currentMonthKey(),
+    usage: { ...(DEMO_USAGE[demoKey] || DEMO_USAGE.personal_demo) },
+  };
+}
+
+export function isDemoUser() {
+  const subscription = getCurrentSubscription();
+  return Boolean(subscription.is_demo);
+}
+
+export function canUseDemoFeature(featureName) {
+  if (!isDemoUser()) return true;
+  
+  const subscription = getCurrentSubscription();
+  const usage = subscription.usage || {};
+  const currentUsage = usage[`demo_${featureName}`] || 0;
+  const limit = 3; // 3 uses per feature for demo
+  
+  return currentUsage < limit;
+}
+
+export function incrementDemoUsage(featureName) {
+  if (!isDemoUser()) return getCurrentSubscription();
+  
+  const subscription = getCurrentSubscription();
+  const usageKey = `demo_${featureName}`;
+  const currentUsage = subscription.usage?.[usageKey] || 0;
+  
+  if (currentUsage >= 3) {
+    throw new Error(`Demo limit reached for ${featureName}. Maximum 3 uses allowed.`);
+  }
+  
+  return incrementUsage(usageKey);
+}
+
+export function getDemoUsageLabel(featureName) {
+  if (!isDemoUser()) return null;
+  
+  const subscription = getCurrentSubscription();
+  const usage = subscription.usage || {};
+  const usageKey = `demo_${featureName}`;
+  const currentUsage = usage[usageKey] || 0;
+  const limit = 3;
+  
+  return `${currentUsage}/${limit}`;
+}
+
+export function resetDemoUsage() {
+  if (!isDemoUser()) return getCurrentSubscription();
+  
+  const subscription = getCurrentSubscription();
+  const role = subscription.role || 'personal';
+  const demoKey = role === 'business' ? 'business_demo' : 'personal_demo';
+  
+  const next = {
+    ...subscription,
+    last_usage_reset_month: currentMonthKey(),
+    usage: { ...(DEMO_USAGE[demoKey] || DEMO_USAGE.personal_demo) },
+  };
+  
+  localStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(next));
+  emitSubscriptionUpdated(next);
+  return next;
+}
+
 export function useSubscription() {
   const [subscription, setSubscription] = useState(getCurrentSubscription);
 
@@ -404,5 +494,10 @@ export function useSubscription() {
     subscription,
     plan: PLANS[subscription.plan_id] || PLANS.free,
     refreshSubscription: () => setSubscription(getCurrentSubscription()),
+    isDemo: Boolean(subscription.is_demo),
+    canUseDemoFeature,
+    incrementDemoUsage,
+    getDemoUsageLabel,
+    resetDemoUsage,
   };
 }

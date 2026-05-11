@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Lock, ArrowUpRight } from 'lucide-react';
-import { canUseFeature, PLANS, useSubscription } from '../services/subscription';
+import { canUseFeature, PLANS, useSubscription, isDemoUser } from '../services/subscription';
 
 export default function FeatureGate({
   feature,
@@ -12,7 +12,11 @@ export default function FeatureGate({
   className = '',
 }) {
   const { plan } = useSubscription();
+  const isDemo = isDemoUser();
 
+  // In demo mode, allow all features
+  if (isDemo) return children;
+  
   if (canUseFeature(feature)) return children;
 
   const required = PLANS[requiredPlan] || PLANS.personal_plus;

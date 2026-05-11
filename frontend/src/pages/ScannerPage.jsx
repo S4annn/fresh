@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { analyzeFoodImage, createFood, getScannerLabels } from '../api';
 import { useRole } from '../context/RoleContext';
 import { canAddInventory, canUseAiScan, getPlanLimit, incrementUsage, isUnlimited, useSubscription } from '../services/subscription';
+import DemoUsageIndicator, { DemoLimitWarning } from '../components/DemoUsageIndicator';
 import { LockedFeatureCard } from '../components/FeatureGate';
 import {
   Camera, Upload, X, Scan, Loader2, CheckCircle2, AlertTriangle,
@@ -419,6 +420,9 @@ export default function ScannerPage() {
         </div>
       )}
 
+      {/* Demo Limit Warning */}
+      <DemoLimitWarning featureName="ai_scan" />
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-extrabold text-gray-800 flex items-center gap-2">
@@ -429,6 +433,7 @@ export default function ScannerPage() {
           {isBusiness() && <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg">Business Mode</span>}
         </h1>
         <p className="text-gray-500 mt-1">Scan or upload food images to identify ingredients and reduce waste.</p>
+        <DemoUsageIndicator featureName="ai_scan" className="mt-2" />
       </div>
 
       <div className="card flex flex-col gap-3 border-emerald-100 bg-emerald-50/70 sm:flex-row sm:items-center sm:justify-between">

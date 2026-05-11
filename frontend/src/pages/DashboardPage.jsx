@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import PlanUsageCard from '../components/PlanUsageCard';
+import { DemoBanner } from '../components/DemoUsageIndicator';
 import { DUMMY_FOODS, DUMMY_ANALYTICS, DUMMY_RECOMMENDATIONS } from '../data/dummyData';
 import * as api from '../api';
 import {
@@ -22,16 +23,13 @@ export default function DashboardPage() {
 
   async function loadData() {
     setLoading(true);
-    if (!isDemoMode) {
-      setFoods([]);
-      setLoading(false);
-      return;
-    }
-
     try {
-      const data = await api.getFoods();
-      setFoods(Array.isArray(data) && data.length > 0 ? data : DUMMY_FOODS);
-    } catch {
+      // Use API with demo tracking
+      const foodsData = await api.getFoods();
+      setFoods(foodsData || []);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      // Fallback to dummy data for demo
       setFoods(DUMMY_FOODS);
     } finally {
       setLoading(false);
@@ -85,6 +83,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in">
+      {/* Demo Banner */}
+      <DemoBanner />
+
       {/* Welcome */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

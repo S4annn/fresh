@@ -4,6 +4,10 @@ import {
   upgradePlan as upgradeLocalPlan,
   downgradePlan,
   incrementUsage as incrementLocalUsage,
+  isDemoUser,
+  canUseDemoFeature,
+  incrementDemoUsage,
+  getDemoUsageLabel,
 } from './services/subscription';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -20,6 +24,31 @@ function getFreshHeaders() {
     'X-Fresh-Role': localStorage.getItem('fresh_user_role') || subscription.role || 'personal',
     'X-Fresh-Plan-Id': subscription.plan_id || 'free',
     'X-Fresh-Demo': demoUser?.provider === 'demo' ? 'true' : 'false',
+  };
+}
+
+// Demo tracking wrapper
+function withDemoTracking(featureName, apiCall) {
+  return async (...args) => {
+    // Check if demo user and if feature can be used
+    if (isDemoUser()) {
+      if (!canUseDemoFeature(featureName)) {
+        throw new Error(`Demo limit reached for ${featureName}. Maximum 3 uses allowed. Please sign up for full access.`);
+      }
+      
+      // Increment demo usage before making the API call
+      try {
+        const result = await apiCall(...args);
+        incrementDemoUsage(featureName);
+        return result;
+      } catch (error) {
+        // Don't increment usage if API call failed
+        throw error;
+      }
+    }
+    
+    // Non-demo users proceed normally
+    return apiCall(...args);
   };
 }
 
@@ -56,25 +85,25 @@ async function apiFetchMultipart(path, formData) {
 }
 
 // ─── Personal Food API ───────────────────────────────────────────────────────
-export async function getFoods() { return apiFetch('/foods'); }
-export async function createFood(data) { return apiFetch('/foods', { method: 'POST', body: JSON.stringify(data) }); }
-export async function updateFood(id, data) { return apiFetch(`/foods/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
-export async function deleteFood(id) { return apiFetch(`/foods/${id}`, { method: 'DELETE' }); }
-export async function predictRisk(data) { return apiFetch('/predict-risk', { method: 'POST', body: JSON.stringify(data) }); }
-export async function getRecommendations() { return apiFetch('/recommendations'); }
-export async function getMarketplaceItems(params = {}) {
+export const getFoods = withDemoTracking('inventory_add', () => apiFetch('/foods'));
+export const createFood = withDemoTracking('inventory_add', (data) => apiFetch('/foods', { method: 'POST', body: JSON.stringify(data) }));
+export const updateFood = withDemoTracking('inventory_add', (id, data) => apiFetch(`/foods/${id}`, { method: 'PUT', body: JSON.stringify(data) }));
+export const deleteFood = withDemoTracking('inventory_add', (id) => apiFetch(`/foods/${id}`, { method: 'DELETE' }));
+export const predictRisk = withDemoTracking('predict_risk', (data) => apiFetch('/predict-risk', { method: 'POST', body: JSON.stringify(data) }));
+export const getRecommendations = withDemoTracking('recommendations', () => apiFetch('/recommendations'));
+export const getMarketplaceItems = withDemoTracking('marketplace_create', (params = {}) => {
   const query = new URLSearchParams();
   if (params.lat !== undefined && params.lat !== null) query.set('lat', params.lat);
   if (params.lng !== undefined && params.lng !== null) query.set('lng', params.lng);
   if (params.radius !== undefined && params.radius !== null) query.set('radius', params.radius);
   const suffix = query.toString() ? `?${query.toString()}` : '';
   return apiFetch(`/marketplace/listings${suffix}`);
-}
-export async function createMarketplaceItem(data) { return apiFetch('/marketplace/listings', { method: 'POST', body: JSON.stringify(data) }); }
-export async function getDonationItems() { return apiFetch('/donations'); }
-export async function createDonationItem(data) { return apiFetch('/donations', { method: 'POST', body: JSON.stringify(data) }); }
-export async function getAnalytics() { return apiFetch('/analytics'); }
-export async function getDashboard() { return apiFetch('/dashboard'); }
+});
+export const createMarketplaceItem = withDemoTracking('marketplace_create', (data) => apiFetch('/marketplace/listings', { method: 'POST', body: JSON.stringify(data) }));
+export const getDonationItems = withDemoTracking('donation_create', () => apiFetch('/donations'));
+export const createDonationItem = withDemoTracking('donation_create', (data) => apiFetch('/donations', { method: 'POST', body: JSON.stringify(data) }));
+export const getAnalytics = withDemoTracking('analytics_view', () => apiFetch('/analytics'));
+export const getDashboard = withDemoTracking('analytics_view', () => apiFetch('/dashboard'));
 
 // Subscription API with localStorage fallback for MVP.
 export async function getSubscription() {
@@ -124,7 +153,7 @@ export async function incrementSubscriptionUsage(type) {
 }
 
 // ─── AI Scanner ──────────────────────────────────────────────────────────────
-export async function analyzeFoodImage(file) {
+export const analyzeFoodImage = withDemoTracking('ai_scan', async (file) => {
   // Always try the real backend first.
   // Only fall back to local classifier if the network request fails entirely
   // (backend offline, CORS error, network error).
@@ -147,7 +176,7 @@ export async function analyzeFoodImage(file) {
     // Fallback: local classifier based on filename only
     return localFoodClassifier(file.name);
   }
-}
+});
 
 export async function getScannerLabels() {
   return apiFetch('/debug-labels');
@@ -234,15 +263,15 @@ function localFoodClassifier(filename) {
 }
 
 // ─── Business Inventory API ───────────────────────────────────────────────────
-export async function getBusinessInventory() { return apiFetch('/business/inventory'); }
-export async function createBusinessInventory(data) { return apiFetch('/business/inventory', { method: 'POST', body: JSON.stringify(data) }); }
-export async function updateBusinessInventory(id, data) { return apiFetch(`/business/inventory/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
-export async function deleteBusinessInventory(id) { return apiFetch(`/business/inventory/${id}`, { method: 'DELETE' }); }
-export async function getBusinessAnalytics() { return apiFetch('/business/analytics'); }
-export async function getBusinessOrders() { return apiFetch('/business/orders'); }
-export async function updateBusinessOrderStatus(id, status) { return apiFetch(`/business/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }); }
-export async function getBranches() { return apiFetch('/business/branches'); }
-export async function createBranch(data) { return apiFetch('/business/branches', { method: 'POST', body: JSON.stringify(data) }); }
+export const getBusinessInventory = withDemoTracking('business_inventory', () => apiFetch('/business/inventory'));
+export const createBusinessInventory = withDemoTracking('business_inventory', (data) => apiFetch('/business/inventory', { method: 'POST', body: JSON.stringify(data) }));
+export const updateBusinessInventory = withDemoTracking('business_inventory', (id, data) => apiFetch(`/business/inventory/${id}`, { method: 'PUT', body: JSON.stringify(data) }));
+export const deleteBusinessInventory = withDemoTracking('business_inventory', (id) => apiFetch(`/business/inventory/${id}`, { method: 'DELETE' }));
+export const getBusinessAnalytics = withDemoTracking('business_analytics', () => apiFetch('/business/analytics'));
+export const getBusinessOrders = withDemoTracking('business_orders', () => apiFetch('/business/orders'));
+export const updateBusinessOrderStatus = withDemoTracking('business_orders', (id, status) => apiFetch(`/business/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }));
+export const getBranches = withDemoTracking('business_branches', () => apiFetch('/business/branches'));
+export const createBranch = withDemoTracking('business_branches', (data) => apiFetch('/business/branches', { method: 'POST', body: JSON.stringify(data) }));
 
 // ─── Location API ─────────────────────────────────────────────────────────────
 export async function getNearbyMarketplaceItems(lat, lng) { return apiFetch(`/marketplace/listings?lat=${lat}&lng=${lng}`); }

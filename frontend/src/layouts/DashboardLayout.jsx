@@ -8,7 +8,7 @@ import {
   BarChart3, Settings, Menu, X, Bell, Search, LogOut, ChevronDown,
   Leaf, User, Scan, Lock, FileText,
 } from 'lucide-react';
-import { hasFeature, useSubscription } from '../services/subscription';
+import { hasFeature, useSubscription, isDemoUser } from '../services/subscription';
 
 const baseSidebarItems = [
   { path: '/dashboard', labelKey: 'dashboard', fallback: 'Dashboard', icon: LayoutDashboard },
@@ -38,11 +38,13 @@ export default function DashboardLayout() {
     navigate('/');
   };
 
+  const isDemo = isDemoUser();
   const sidebarItems = baseSidebarItems.map((item) => ({
     ...item,
-    locked: item.feature ? !hasFeature(item.feature) : false,
+    // In demo mode, don't lock features
+    locked: isDemo ? false : (item.feature ? !hasFeature(item.feature) : false),
     fallback: item.path === '/analytics'
-      ? (plan.plan_id === 'free' ? 'Basic Analytics' : 'Advanced Analytics')
+      ? (plan.plan_id === 'free' && !isDemo ? 'Basic Analytics' : 'Advanced Analytics')
       : item.fallback,
   }));
   const currentPage = sidebarItems.find((item) => location.pathname.startsWith(item.path));
@@ -50,7 +52,9 @@ export default function DashboardLayout() {
     ? 'BUSINESS'
     : plan.plan_id === 'personal_plus'
       ? 'PERSONAL PLUS'
-      : 'FREE EDITION';
+      : isDemo
+        ? 'DEMO EDITION'
+        : 'FREE EDITION';
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/30 overflow-hidden">

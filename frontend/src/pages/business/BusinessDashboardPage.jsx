@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import PlanUsageCard from '../../components/PlanUsageCard';
 import FeatureGate from '../../components/FeatureGate';
+import { DemoBanner } from '../../components/DemoUsageIndicator';
 import { DUMMY_BUSINESS_INVENTORY, DUMMY_BRANCHES, DUMMY_ORDERS, DUMMY_BUSINESS_ANALYTICS } from '../../data/businessDummyData';
 import {
   Package, AlertTriangle, TrendingDown, ShoppingBag, GitBranch, BarChart3,
@@ -53,6 +54,9 @@ export default function BusinessDashboardPage() {
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in">
+      {/* Demo Banner */}
+      <DemoBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

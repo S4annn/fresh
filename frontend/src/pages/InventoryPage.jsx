@@ -3,6 +3,7 @@ import { DUMMY_FOODS, FOOD_CATEGORIES, STORAGE_TYPES, UNITS } from '../data/dumm
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { canAddInventory, getPlanLimit, incrementUsage, isUnlimited, useSubscription } from '../services/subscription';
+import DemoUsageIndicator, { DemoLimitWarning } from '../components/DemoUsageIndicator';
 import * as api from '../api';
 import {
   Package, Plus, Search, Filter, Edit3, Trash2, X, Save, AlertTriangle,
@@ -177,6 +178,9 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in">
+      {/* Demo Limit Warning */}
+      <DemoLimitWarning featureName="inventory_add" />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -185,6 +189,7 @@ export default function InventoryPage() {
             {t('foodInventory', 'Food Inventory')}
           </h1>
           <p className="text-gray-500 mt-1">{foods.length} {t('itemsTracked', 'items tracked')}</p>
+          <DemoUsageIndicator featureName="inventory_add" className="mt-2" />
         </div>
         <button
           onClick={() => {

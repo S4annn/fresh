@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, isConfigured } from '../firebase';
+import { createDemoSubscription, saveSubscription } from '../services/subscription';
 
 const AuthContext = createContext(null);
 
@@ -145,13 +146,20 @@ export function AuthProvider({ children }) {
 
   // ── Demo Login (no credentials needed) ─────────────────────────────────────
   const signInDemo = (email = 'demo@fresh.app', name = 'Demo User') => {
+    const role = localStorage.getItem('fresh_user_role') || 'personal';
     const demoUser = {
-      uid:      'demo-user-001',
-      name,
+      uid:      `demo-user-${role}-${Date.now()}`,
+      name:     `${role === 'business' ? 'Business' : 'Personal'} Demo User`,
       email,
       photo:    null,
       provider: 'demo',
+      role:     role,
     };
+    
+    // Create demo subscription with role-specific limits
+    const demoSubscription = createDemoSubscription(role);
+    saveSubscription(demoSubscription);
+    
     saveSession(demoUser);
     // Keep legacy key for backward compat
     localStorage.setItem('fresh_demo_user', JSON.stringify(demoUser));

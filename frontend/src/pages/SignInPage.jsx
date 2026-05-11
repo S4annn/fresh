@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
+import { canAccessBusinessFeature } from '../services/subscription';
 import {
   Leaf, Mail, Lock, Eye, EyeOff, AlertCircle,
   Loader2, Zap, User, Building2,
@@ -20,6 +21,12 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState('');
+
+  // Check if user can access business features
+  const canAccessBusiness = canAccessBusinessFeature();
+  const isBusinessSelected = selectedRole === 'business';
+  const isBusinessDisabled = isBusinessSelected && !canAccessBusiness;
+  const isSigninDisabled = isBusinessSelected && !canAccessBusiness; // For signin buttons only
 
   function handleRoleSelect(r) {
     setSelectedRole(r);
@@ -202,6 +209,26 @@ export default function SignInPage() {
             </div>
           )}
 
+          {/* Business Access Warning */}
+          {isBusinessDisabled && (
+            <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl mb-5 animate-fade-in">
+              <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm text-amber-700 font-medium mb-1">Business Pro Required for Account Sign In</p>
+                <p className="text-xs text-amber-600">
+                  Real account sign in requires Business Pro subscription. 
+                  <Link to="/pricing" className="font-semibold text-amber-700 hover:text-amber-800 underline ml-1">
+                    Upgrade your plan
+                  </Link>
+                  {' '}to create a business account.
+                </p>
+                <p className="text-xs text-amber-500 mt-2">
+                  <strong>Demo Login:</strong> Try all business features for free (3 uses per feature)
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Sign In Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -244,8 +271,8 @@ export default function SignInPage() {
 
             <button
               type="submit"
-              disabled={loading}
-              className="btn-primary w-full py-3.5 text-base"
+              disabled={loading || isSigninDisabled}
+              className="btn-primary w-full py-3.5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading
                 ? <Loader2 className="w-5 h-5 animate-spin" />
@@ -266,8 +293,8 @@ export default function SignInPage() {
           {/* Google Sign In */}
           <button
             onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 disabled:opacity-60"
+            disabled={loading || isSigninDisabled}
+            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
@@ -280,9 +307,19 @@ export default function SignInPage() {
 
           {/* Demo Login — clearly separated */}
           <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-            <p className="text-xs text-amber-600 mb-3">
-              Jelajahi semua fitur F.R.E.S.H tanpa mendaftar. Data tidak tersimpan secara permanen.
-            </p>
+            <div className="flex items-start gap-2 mb-3">
+              <Zap className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs text-amber-700 font-medium mb-1">Free Demo Mode</p>
+                <p className="text-xs text-amber-600">
+                  Try all features without signing up. Data is not permanently stored.
+                </p>
+                <p className="text-xs text-amber-500 mt-1">
+                  <strong>Limit:</strong> 3 uses per feature for demo
+                  {selectedRole === 'business' ? ' • All business features included' : ' • Personal features only'}
+                </p>
+              </div>
+            </div>
             <button
               onClick={handleDemoLogin}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-100 border border-amber-300 rounded-xl font-semibold text-amber-800 hover:bg-amber-200 transition-colors text-sm"
