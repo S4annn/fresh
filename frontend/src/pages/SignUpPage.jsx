@@ -3,11 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
 import { BUSINESS_TYPES } from '../data/businessDummyData';
-import { setCurrentSubscription } from '../services/subscription';
-import { Leaf, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, Building2, Phone, MapPin, Briefcase } from 'lucide-react';
+import { Leaf, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, Building2, Phone, MapPin, Briefcase, CheckCircle2 } from 'lucide-react';
 
 export default function SignUpPage() {
-  const { signInWithGoogle, signUpDemo, isFirebaseConfigured } = useAuth();
+  const { signUpLocal, signInWithGoogle, isFirebaseConfigured } = useAuth();
   const { setRole } = useRole();
   const navigate = useNavigate();
 
@@ -15,18 +14,19 @@ export default function SignUpPage() {
     () => localStorage.getItem('fresh_user_role') || 'personal'
   );
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState('');
+  const [success, setSuccess]           = useState('');
 
   const [form, setForm] = useState({
-    full_name: '',
-    email: '',
-    password: '',
-    confirm_password: '',
-    business_name: '',
-    business_type: 'Restaurant',
+    full_name:         '',
+    email:             '',
+    password:          '',
+    confirm_password:  '',
+    business_name:     '',
+    business_type:     'Restaurant',
     business_location: '',
-    contact_number: '',
+    contact_number:    '',
   });
 
   function handleRoleSelect(r) {
@@ -41,21 +41,31 @@ export default function SignUpPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!form.full_name.trim()) { setError('Nama lengkap wajib diisi.'); return; }
-    if (!form.email.trim()) { setError('Email wajib diisi.'); return; }
-    if (form.password.length < 6) { setError('Password minimal 6 karakter.'); return; }
-    if (form.password !== form.confirm_password) { setError('Password tidak cocok.'); return; }
+    setSuccess('');
+
+    // Validations
+    if (!form.full_name.trim())                                    { setError('Nama lengkap wajib diisi.'); return; }
+    if (!form.email.trim())                                        { setError('Email wajib diisi.'); return; }
+    if (form.password.length < 6)                                  { setError('Password minimal 6 karakter.'); return; }
+    if (form.password !== form.confirm_password)                   { setError('Password dan konfirmasi password tidak cocok.'); return; }
     if (selectedRole === 'business' && !form.business_name.trim()) { setError('Nama bisnis wajib diisi.'); return; }
 
     setLoading(true);
     try {
       setRole(selectedRole);
-      setCurrentSubscription('free', selectedRole);
-      const displayName = selectedRole === 'business' ? form.business_name : form.full_name;
-      signUpDemo(displayName, form.email);
+      signUpLocal({
+        name:             selectedRole === 'business' ? form.business_name.trim() : form.full_name.trim(),
+        email:            form.email.trim(),
+        password:         form.password,
+        role:             selectedRole,
+        businessName:     form.business_name || null,
+        businessType:     form.business_type || null,
+        businessLocation: form.business_location || null,
+        contactNumber:    form.contact_number || null,
+      });
       navigate(getRedirectPath(selectedRole));
     } catch (err) {
-      setError(err.message || 'Sign up failed.');
+      setError(err.message || 'Pendaftaran gagal. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -70,18 +80,17 @@ export default function SignUpPage() {
     setLoading(true);
     try {
       setRole(selectedRole);
-      setCurrentSubscription('free', selectedRole);
       await signInWithGoogle();
       navigate(getRedirectPath(selectedRole));
     } catch (err) {
       if (err.code === 'auth/unauthorized-domain') {
-        setError('Domain aplikasi belum ditambahkan di Firebase Authentication > Settings > Authorized domains.');
+        setError('Domain belum ditambahkan di Firebase Authentication > Settings > Authorized domains.');
       } else if (err.code === 'auth/popup-blocked') {
-        setError('Popup login diblokir browser. Izinkan popup untuk situs ini, matikan popup blocker/ad blocker sementara, lalu klik Sign Up with Google lagi.');
+        setError('Popup diblokir browser. Izinkan popup untuk situs ini lalu coba lagi.');
       } else if (err.code === 'auth/popup-closed-by-user') {
-        setError('Popup Google ditutup sebelum login selesai. Klik Sign Up with Google lagi untuk mencoba ulang.');
+        setError('Popup Google ditutup sebelum selesai. Coba lagi.');
       } else {
-        setError(err.message || 'Google sign up failed.');
+        setError(err.message || 'Google sign up gagal.');
       }
     } finally {
       setLoading(false);

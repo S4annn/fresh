@@ -2,22 +2,24 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
-import { ensureSubscriptionForRole, getCurrentSubscription } from '../services/subscription';
-import { Leaf, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Zap, User, Building2 } from 'lucide-react';
+import {
+  Leaf, Mail, Lock, Eye, EyeOff, AlertCircle,
+  Loader2, Zap, User, Building2,
+} from 'lucide-react';
 
 export default function SignInPage() {
-  const { signInWithGoogle, signInDemo, isFirebaseConfigured } = useAuth();
+  const { signInLocal, signInWithGoogle, signInDemo, isFirebaseConfigured } = useAuth();
   const { setRole } = useRole();
   const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState(
     () => localStorage.getItem('fresh_user_role') || 'personal'
   );
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState('');
 
   function handleRoleSelect(r) {
     setSelectedRole(r);
@@ -28,70 +30,63 @@ export default function SignInPage() {
     return role === 'business' ? '/business/dashboard' : '/dashboard';
   }
 
-  function requiresBusinessPricing() {
-    return selectedRole === 'business' && getCurrentSubscription().plan_id !== 'business_pro';
-  }
-
-  function redirectBusinessToPricing() {
-    setRole('business');
-    setError('Untuk masuk sebagai Business, pilih Business Pro di halaman pricing terlebih dahulu. Demo Login tetap bisa digunakan.');
-    navigate('/pricing');
-  }
-
+  // ── Sign In with registered email + password ────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (requiresBusinessPricing()) {
-      redirectBusinessToPricing();
+
+    if (!email.trim()) {
+      setError('Email wajib diisi.');
       return;
     }
+    if (!password) {
+      setError('Password wajib diisi.');
+      return;
+    }
+
     setLoading(true);
     try {
+      const sessionUser = signInLocal({ email: email.trim(), password });
+      // Override role from form selection (user may switch role on sign-in page)
       setRole(selectedRole);
-      ensureSubscriptionForRole(selectedRole);
-      signInDemo(email || 'demo@fresh.app', email?.split('@')[0] || 'Demo User');
       navigate(getRedirectPath(selectedRole));
     } catch (err) {
-      setError(err.message || 'Sign in failed. Please try again.');
+      setError(err.message || 'Sign in gagal. Periksa email dan password Anda.');
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Google Sign In ──────────────────────────────────────────────────────────
   const handleGoogleSignIn = async () => {
     setError('');
-    if (requiresBusinessPricing()) {
-      redirectBusinessToPricing();
-      return;
-    }
     if (!isFirebaseConfigured) {
-      setError('Firebase belum dikonfigurasi. Silakan isi Firebase environment variables di file .env untuk menggunakan Google Sign In.');
+      setError('Firebase belum dikonfigurasi. Isi Firebase environment variables di file .env untuk menggunakan Google Sign In.');
       return;
     }
     setLoading(true);
     try {
       setRole(selectedRole);
-      ensureSubscriptionForRole(selectedRole);
-      const googleUser = await signInWithGoogle();
-      if (googleUser) navigate(getRedirectPath(selectedRole));
+      await signInWithGoogle();
+      navigate(getRedirectPath(selectedRole));
     } catch (err) {
       if (err.code === 'auth/unauthorized-domain') {
-        setError('Domain aplikasi belum ditambahkan di Firebase Authentication > Settings > Authorized domains.');
+        setError('Domain belum ditambahkan di Firebase Authentication > Settings > Authorized domains.');
       } else if (err.code === 'auth/popup-blocked') {
-        setError('Popup login diblokir browser. Izinkan popup untuk situs ini, matikan popup blocker/ad blocker sementara, lalu klik Sign In with Google lagi.');
+        setError('Popup diblokir browser. Izinkan popup untuk situs ini lalu coba lagi.');
       } else if (err.code === 'auth/popup-closed-by-user') {
-        setError('Popup Google ditutup sebelum login selesai. Klik Sign In with Google lagi untuk mencoba ulang.');
+        setError('Popup Google ditutup sebelum login selesai. Coba lagi.');
       } else {
-        setError(err.message || 'Google sign in failed.');
+        setError(err.message || 'Google sign in gagal.');
       }
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Demo Login (no credentials) ─────────────────────────────────────────────
   const handleDemoLogin = () => {
     setRole(selectedRole);
-    ensureSubscriptionForRole(selectedRole);
     signInDemo();
     navigate(getRedirectPath(selectedRole));
   };
@@ -132,6 +127,7 @@ export default function SignInPage() {
       {/* Right Panel */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 overflow-y-auto">
         <div className="w-full max-w-md">
+          {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-8">
             <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25">
               <Leaf className="w-5 h-5 text-white" />
@@ -140,16 +136,17 @@ export default function SignInPage() {
           </div>
 
           <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Sign In</h1>
-          <p className="text-gray-500 mb-6">Pilih tipe akun dan masuk ke F.R.E.S.H.</p>
+          <p className="text-gray-500 mb-6">Masuk dengan akun yang sudah terdaftar.</p>
 
           {/* Role Selection */}
           <div className="mb-6">
             <p className="text-sm font-semibold text-gray-700 mb-3">I am signing in as:</p>
             <div className="grid grid-cols-2 gap-3">
+              {/* Personal */}
               <button
                 type="button"
                 onClick={() => handleRoleSelect('personal')}
-                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 text-left
+                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200
                   ${selectedRole === 'personal'
                     ? 'border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/15'
                     : 'border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50'}`}
@@ -163,15 +160,18 @@ export default function SignInPage() {
                 </div>
                 {selectedRole === 'personal' && (
                   <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center self-end">
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
                 )}
               </button>
 
+              {/* Business */}
               <button
                 type="button"
                 onClick={() => handleRoleSelect('business')}
-                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 text-left
+                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200
                   ${selectedRole === 'business'
                     ? 'border-blue-500 bg-blue-50 shadow-lg shadow-blue-500/15'
                     : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50'}`}
@@ -185,18 +185,16 @@ export default function SignInPage() {
                 </div>
                 {selectedRole === 'business' && (
                   <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center self-end">
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
                 )}
               </button>
             </div>
-            {selectedRole === 'business' && (
-              <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
-                Business sign in requires an active Business Pro plan. Use Demo Login to preview Business Mode without checkout.
-              </div>
-            )}
           </div>
 
+          {/* Error */}
           {error && (
             <div className="flex items-start gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl mb-5 animate-fade-in">
               <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -204,35 +202,73 @@ export default function SignInPage() {
             </div>
           )}
 
+          {/* Sign In Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="input-label">Email</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className="input-field pl-12" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="input-field pl-12"
+                  required
+                  autoComplete="email"
+                />
               </div>
             </div>
             <div>
               <label className="input-label">Password</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" className="input-field pl-12 pr-12" />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-transparent border-none p-0 cursor-pointer">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="input-field pl-12 pr-12"
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-transparent border-none p-0 cursor-pointer"
+                >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 text-base">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : `Sign In as ${selectedRole === 'business' ? 'Business' : 'Personal'}`}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full py-3.5 text-base"
+            >
+              {loading
+                ? <Loader2 className="w-5 h-5 animate-spin" />
+                : `Sign In as ${selectedRole === 'business' ? 'Business' : 'Personal'}`}
             </button>
           </form>
 
+          {/* Divider */}
           <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-            <div className="relative flex justify-center text-sm"><span className="px-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 text-gray-500">or continue with</span></div>
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 text-gray-500">or continue with</span>
+            </div>
           </div>
 
-          <button onClick={handleGoogleSignIn} className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200">
+          {/* Google Sign In */}
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 disabled:opacity-60"
+          >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -242,16 +278,29 @@ export default function SignInPage() {
             Sign In with Google
           </button>
 
-          <button onClick={handleDemoLogin} className="w-full flex items-center justify-center gap-2 px-6 py-3.5 mt-3 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl font-semibold text-emerald-700 hover:border-emerald-400 hover:from-emerald-100 hover:to-teal-100 transition-all duration-200">
-            <Zap className="w-5 h-5" />
-            Demo Login — {selectedRole === 'business' ? 'Business Mode' : 'Personal Mode'}
-          </button>
+          {/* Demo Login — clearly separated */}
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+            <p className="text-xs text-amber-600 mb-3">
+              Jelajahi semua fitur F.R.E.S.H tanpa mendaftar. Data tidak tersimpan secara permanen.
+            </p>
+            <button
+              onClick={handleDemoLogin}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-100 border border-amber-300 rounded-xl font-semibold text-amber-800 hover:bg-amber-200 transition-colors text-sm"
+            >
+              <Zap className="w-4 h-4" />
+              Demo Login — {selectedRole === 'business' ? 'Business Mode' : 'Personal Mode'}
+            </button>
+          </div>
 
           <p className="text-center text-sm text-gray-500 mt-6">
-            Don't have an account?{' '}
-            <Link to="/signup" className="font-semibold text-emerald-600 hover:text-emerald-700 no-underline">Sign Up</Link>
+            Belum punya akun?{' '}
+            <Link to="/signup" className="font-semibold text-emerald-600 hover:text-emerald-700 no-underline">
+              Daftar sekarang
+            </Link>
           </p>
-          <Link to="/" className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-3 no-underline">← Back to home</Link>
+          <Link to="/" className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-3 no-underline">
+            ← Back to home
+          </Link>
         </div>
       </div>
     </div>

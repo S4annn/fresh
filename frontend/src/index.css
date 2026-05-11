@@ -405,22 +405,87 @@ html.dark .btn-danger {
 }
 
 html.dark .badge-safe {
-  background-color: rgba(16, 185, 129, 0.16) !important;
+  background-color: rgba(16, 185, 129, 0.22) !important;
   color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
 }
 
 html.dark .badge-warning {
-  background-color: rgba(245, 158, 11, 0.16) !important;
+  background-color: rgba(245, 158, 11, 0.22) !important;
   color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
 }
 
 html.dark .badge-danger {
-  background-color: rgba(239, 68, 68, 0.16) !important;
+  background-color: rgba(239, 68, 68, 0.22) !important;
   color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
 }
 
 html.dark .badge-info {
-  background-color: rgba(59, 130, 246, 0.16) !important;
+  background-color: rgba(59, 130, 246, 0.22) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+/* ─── Fix inline badge/pill classes that use light bg + dark text ─────────
+   These are used throughout the app as inline Tailwind classes like
+   bg-emerald-100 text-emerald-700, bg-blue-100 text-blue-700, etc.
+   In dark mode the bg becomes dark (via the bg-* override above) but the
+   text color also needs to be lightened so it stays readable.
+*/
+html.dark [class*="bg-emerald-100"] { background-color: rgba(16, 185, 129, 0.18) !important; }
+html.dark [class*="bg-teal-100"]    { background-color: rgba(20, 184, 166, 0.18) !important; }
+html.dark [class*="bg-blue-100"]    { background-color: rgba(59, 130, 246, 0.18) !important; }
+html.dark [class*="bg-violet-100"]  { background-color: rgba(139, 92, 246, 0.18) !important; }
+html.dark [class*="bg-purple-100"]  { background-color: rgba(168, 85, 247, 0.18) !important; }
+html.dark [class*="bg-pink-100"]    { background-color: rgba(236, 72, 153, 0.18) !important; }
+html.dark [class*="bg-red-100"]     { background-color: rgba(239, 68, 68, 0.18) !important; }
+html.dark [class*="bg-amber-100"]   { background-color: rgba(245, 158, 11, 0.18) !important; }
+html.dark [class*="bg-orange-100"]  { background-color: rgba(249, 115, 22, 0.18) !important; }
+html.dark [class*="bg-yellow-100"]  { background-color: rgba(234, 179, 8, 0.18) !important; }
+
+/* Text colors for inline badges in dark mode */
+html.dark [class*="text-emerald-700"],
+html.dark [class*="text-emerald-600"] { color: #6ee7b7 !important; }
+html.dark [class*="text-teal-700"],
+html.dark [class*="text-teal-600"]    { color: #5eead4 !important; }
+html.dark [class*="text-blue-700"],
+html.dark [class*="text-blue-600"]    { color: #93c5fd !important; }
+html.dark [class*="text-violet-700"],
+html.dark [class*="text-violet-600"]  { color: #c4b5fd !important; }
+html.dark [class*="text-purple-700"],
+html.dark [class*="text-purple-600"]  { color: #d8b4fe !important; }
+html.dark [class*="text-pink-700"],
+html.dark [class*="text-pink-600"]    { color: #f9a8d4 !important; }
+html.dark [class*="text-red-700"],
+html.dark [class*="text-red-600"]     { color: #fca5a5 !important; }
+html.dark [class*="text-amber-700"],
+html.dark [class*="text-amber-600"]   { color: #fcd34d !important; }
+html.dark [class*="text-orange-700"],
+html.dark [class*="text-orange-600"]  { color: #fdba74 !important; }
+
+/* Keep white text white in dark mode (buttons, active badges, etc.) */
+html.dark [class*="text-white"] { color: #ffffff !important; }
+
+/* Gradient text stays readable */
+html.dark .gradient-text {
+  background: linear-gradient(to right, #6ee7b7, #5eead4, #6ee7b7) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+}
+
+/* Role badge in topbar */
+html.dark span[class*="bg-emerald-100"][class*="text-emerald-700"],
+html.dark span[class*="bg-blue-100"][class*="text-blue-700"] {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  color: #6ee7b7 !important;
+}
+
+/* Business Control Center badge */
+html.dark span[class*="bg-blue-100"][class*="text-blue-700"] {
+  background-color: rgba(59, 130, 246, 0.2) !important;
   color: #93c5fd !important;
 }
 

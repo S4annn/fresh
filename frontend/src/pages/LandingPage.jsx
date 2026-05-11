@@ -224,9 +224,9 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 lg:pt-32 lg:pb-24">
           <div className="text-center max-w-4xl mx-auto">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100/80 backdrop-blur-sm rounded-full mb-8 animate-fade-in">
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-emerald-700">AI-Powered Food Management Platform</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 dark:bg-emerald-500 backdrop-blur-sm rounded-full mb-8 animate-fade-in">
+              <Sparkles className="w-4 h-4 text-white" />
+              <span className="text-sm font-semibold text-white">AI-Powered Food Management Platform</span>
             </div>
 
             {/* Headline */}
@@ -292,9 +292,9 @@ export default function LandingPage() {
       <section id="features" className="py-20 lg:py-32 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100/80 rounded-full mb-4">
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-emerald-700">Powerful Features</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 rounded-full mb-4">
+              <Sparkles className="w-4 h-4 text-white" />
+              <span className="text-sm font-semibold text-white">Powerful Features</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4">
               Everything You Need to{' '}
@@ -329,9 +329,9 @@ export default function LandingPage() {
       <section id="how-it-works" className="py-20 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-teal-100/80 rounded-full mb-4">
-              <CheckCircle2 className="w-4 h-4 text-teal-600" />
-              <span className="text-sm font-semibold text-teal-700">Simple Process</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 rounded-full mb-4">
+              <CheckCircle2 className="w-4 h-4 text-white" />
+              <span className="text-sm font-semibold text-white">Simple Process</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4">
               How <span className="gradient-text">F.R.E.S.H</span> Works
@@ -366,9 +366,9 @@ export default function LandingPage() {
       <section id="for-you" className="py-20 lg:py-32 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100/80 rounded-full mb-4">
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-emerald-700">Choose How You Use F.R.E.S.H</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 rounded-full mb-4">
+              <Sparkles className="w-4 h-4 text-white" />
+              <span className="text-sm font-semibold text-white">Choose How You Use F.R.E.S.H</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4">
               Built for <span className="gradient-text">Everyone</span>
@@ -436,9 +436,9 @@ export default function LandingPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full mb-4">
-              <Shield className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-emerald-700">Plan-based access</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 rounded-full mb-4">
+              <Shield className="w-4 h-4 text-white" />
+              <span className="text-sm font-semibold text-white">Plan-based access</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">
               Start free, upgrade when you grow
