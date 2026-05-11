@@ -1,6 +1,6 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { analyzeFoodImage, createFood } from '../api';
+import { analyzeFoodImage, createFood, getScannerLabels } from '../api';
 import { useRole } from '../context/RoleContext';
 import {
   Camera, Upload, X, Scan, Loader2, CheckCircle2, AlertTriangle,
@@ -15,7 +15,43 @@ const riskConfig = {
   'High Risk': { color: 'badge-danger',  bg: 'bg-red-50',     border: 'border-red-200',     text: 'text-red-700',     icon: Flame },
 };
 
-const manualCorrectionOptions = [
+const DEFAULT_MANUAL_CORRECTION_OPTIONS = [
+  { label: 'apple', display: 'Apple', category: 'Fruit', shelf: 7, storage: 'Refrigerator' },
+  { label: 'banana', display: 'Banana', category: 'Fruit', shelf: 3, storage: 'Room Temperature' },
+  { label: 'beetroot', display: 'Beetroot', category: 'Vegetable', shelf: 14, storage: 'Refrigerator' },
+  { label: 'bell pepper', display: 'Bell Pepper', category: 'Vegetable', shelf: 7, storage: 'Refrigerator' },
+  { label: 'cabbage', display: 'Cabbage', category: 'Vegetable', shelf: 10, storage: 'Refrigerator' },
+  { label: 'capsicum', display: 'Capsicum', category: 'Vegetable', shelf: 7, storage: 'Refrigerator' },
+  { label: 'carrot', display: 'Carrot', category: 'Vegetable', shelf: 14, storage: 'Refrigerator' },
+  { label: 'cauliflower', display: 'Cauliflower', category: 'Vegetable', shelf: 7, storage: 'Refrigerator' },
+  { label: 'chilli pepper', display: 'Chilli Pepper', category: 'Vegetable', shelf: 7, storage: 'Refrigerator' },
+  { label: 'corn', display: 'Corn', category: 'Vegetable', shelf: 5, storage: 'Refrigerator' },
+  { label: 'cucumber', display: 'Cucumber', category: 'Vegetable', shelf: 5, storage: 'Refrigerator' },
+  { label: 'eggplant', display: 'Eggplant', category: 'Vegetable', shelf: 5, storage: 'Refrigerator' },
+  { label: 'garlic', display: 'Garlic', category: 'Vegetable', shelf: 30, storage: 'Room Temperature' },
+  { label: 'ginger', display: 'Ginger', category: 'Vegetable', shelf: 21, storage: 'Refrigerator' },
+  { label: 'grapes', display: 'Grapes', category: 'Fruit', shelf: 7, storage: 'Refrigerator' },
+  { label: 'jalepeno', display: 'Jalepeno', category: 'Vegetable', shelf: 7, storage: 'Refrigerator' },
+  { label: 'kiwi', display: 'Kiwi', category: 'Fruit', shelf: 7, storage: 'Refrigerator' },
+  { label: 'lemon', display: 'Lemon', category: 'Fruit', shelf: 14, storage: 'Refrigerator' },
+  { label: 'lettuce', display: 'Lettuce', category: 'Vegetable', shelf: 5, storage: 'Refrigerator' },
+  { label: 'mango', display: 'Mango', category: 'Fruit', shelf: 5, storage: 'Room Temperature' },
+  { label: 'onion', display: 'Onion', category: 'Vegetable', shelf: 30, storage: 'Room Temperature' },
+  { label: 'orange', display: 'Orange', category: 'Fruit', shelf: 14, storage: 'Refrigerator' },
+  { label: 'paprika', display: 'Paprika', category: 'Vegetable', shelf: 7, storage: 'Refrigerator' },
+  { label: 'pear', display: 'Pear', category: 'Fruit', shelf: 7, storage: 'Refrigerator' },
+  { label: 'peas', display: 'Peas', category: 'Vegetable', shelf: 5, storage: 'Refrigerator' },
+  { label: 'pineapple', display: 'Pineapple', category: 'Fruit', shelf: 5, storage: 'Refrigerator' },
+  { label: 'pomegranate', display: 'Pomegranate', category: 'Fruit', shelf: 14, storage: 'Refrigerator' },
+  { label: 'potato', display: 'Potato', category: 'Vegetable', shelf: 21, storage: 'Room Temperature' },
+  { label: 'raddish', display: 'Radish', category: 'Vegetable', shelf: 7, storage: 'Refrigerator' },
+  { label: 'soy beans', display: 'Soy Beans', category: 'Protein', shelf: 5, storage: 'Refrigerator' },
+  { label: 'spinach', display: 'Spinach', category: 'Vegetable', shelf: 2, storage: 'Refrigerator' },
+  { label: 'sweetcorn', display: 'Sweetcorn', category: 'Vegetable', shelf: 5, storage: 'Refrigerator' },
+  { label: 'sweetpotato', display: 'Sweet Potato', category: 'Vegetable', shelf: 14, storage: 'Room Temperature' },
+  { label: 'tomato', display: 'Tomato', category: 'Vegetable', shelf: 5, storage: 'Room Temperature' },
+  { label: 'turnip', display: 'Turnip', category: 'Vegetable', shelf: 10, storage: 'Refrigerator' },
+  { label: 'watermelon', display: 'Watermelon', category: 'Fruit', shelf: 7, storage: 'Refrigerator' },
   { label: 'Beef', category: 'Protein', shelf: 2, storage: 'Refrigerator' },
   { label: 'Chicken', category: 'Protein', shelf: 2, storage: 'Refrigerator' },
   { label: 'Egg', category: 'Protein', shelf: 14, storage: 'Refrigerator' },
@@ -30,6 +66,24 @@ function riskFromShelfLife(days) {
   if (days <= 2) return 'High Risk';
   if (days <= 5) return 'Warning';
   return 'Safe';
+}
+
+function labelDisplay(option) {
+  if (String(option.label || '').toLowerCase() === 'raddish') return 'Radish';
+  return option.display || String(option.label || '').replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function normalizeLabelOption(option) {
+  const shelfLife = Number(option.estimated_shelf_life_days ?? option.shelf_life ?? option.shelf ?? 5);
+  return {
+    label: option.label,
+    display: labelDisplay(option),
+    category: option.category || 'Other',
+    shelf: shelfLife,
+    storage: option.storage || option.storage_condition || 'Refrigerator',
+    storage_advice: option.storage_advice,
+    recommendations: option.recommendations,
+  };
 }
 
 // Map source field from backend/fallback to a human-readable badge
@@ -66,6 +120,11 @@ function SourceBadge({ source }) {
       icon: WifiOff,
       label: 'Local Demo Fallback',
       className: 'bg-gray-100 text-gray-600 border border-gray-200',
+    },
+    manual_correction: {
+      icon: CheckCircle2,
+      label: 'Manual Correction',
+      className: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
     },
   };
 
@@ -107,6 +166,28 @@ export default function ScannerPage() {
   const [cameraOpen, setCameraOpen]       = useState(false);
   const [cameraError, setCameraError]     = useState(null);
   const [cameraReady, setCameraReady]     = useState(false);
+  const [scannerLabelOptions, setScannerLabelOptions] = useState(
+    DEFAULT_MANUAL_CORRECTION_OPTIONS.map(normalizeLabelOption)
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    getScannerLabels()
+      .then((data) => {
+        const options = Array.isArray(data.label_options) && data.label_options.length > 0
+          ? data.label_options
+          : (data.labels || []).map((label) => ({ label }));
+        if (!cancelled && options.length > 0) {
+          setScannerLabelOptions(options.map(normalizeLabelOption));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setScannerLabelOptions(DEFAULT_MANUAL_CORRECTION_OPTIONS.map(normalizeLabelOption));
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   function showToast(message, type = 'success') {
     setToast({ message, type });
@@ -216,6 +297,11 @@ export default function ScannerPage() {
     setResult(null);
     try {
       const data = await analyzeFoodImage(imageFile);
+      if (Array.isArray(data.label_options) && data.label_options.length > 0) {
+        setScannerLabelOptions(data.label_options.map(normalizeLabelOption));
+      } else if (Array.isArray(data.available_labels) && data.available_labels.length > 0) {
+        setScannerLabelOptions(data.available_labels.map((label) => normalizeLabelOption({ label })));
+      }
       setResult(data);
     } catch {
       setError('Analysis failed. Please try again with a clearer image.');
@@ -257,9 +343,9 @@ export default function ScannerPage() {
 
   function handleManualCorrection(label) {
     if (!label || !result) return;
-    const selected = manualCorrectionOptions.find((item) => item.label === label);
+    const selected = scannerLabelOptions.find((item) => item.label === label);
     if (!selected) return;
-    const foodName = selected.display || selected.label.replace(/_/g, ' ');
+    const foodName = labelDisplay(selected);
     const shelfLife = selected.shelf;
     setResult({
       ...result,
@@ -267,7 +353,11 @@ export default function ScannerPage() {
       category: selected.category,
       estimated_shelf_life_days: shelfLife,
       risk_label: riskFromShelfLife(shelfLife),
-      storage_advice: `Store in ${selected.storage}. Use within ${shelfLife} days for best quality.`,
+      source: 'manual_correction',
+      is_low_confidence: false,
+      needs_review: false,
+      storage_advice: selected.storage_advice || `Store in ${selected.storage}. Use within ${shelfLife} days for best quality.`,
+      recommendations: selected.recommendations || result.recommendations,
       suggested_inventory: {
         ...(result.suggested_inventory || {}),
         food_name: foodName,
@@ -283,6 +373,13 @@ export default function ScannerPage() {
 
   const risk    = result ? riskConfig[result.risk_label] || riskConfig.Safe : null;
   const RiskIcon = risk?.icon;
+  const isLowConfidence = Boolean(
+    result && (
+      result.is_low_confidence ||
+      result.needs_review ||
+      Number(result.confidence || 0) < Number(result.confidence_threshold || 0.6)
+    )
+  );
   const scannerSourceLabel = result?.classifier === 'vision_model'
     ? `Vision model${result.model_label ? `: ${result.model_label}` : ''}`
     : result?.classifier === 'frontend_filename_fallback'
@@ -544,18 +641,39 @@ export default function ScannerPage() {
                 </div>
               )}
 
+              {isLowConfidence && result.source === 'tensorflow_vision_model' && (
+                <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-amber-700">
+                    <p className="font-semibold mb-0.5">AI is not fully sure. Please confirm the food manually.</p>
+                    <p>Low confidence may happen when the image style, background, or food type is different from the training dataset.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Main Result */}
               <div className={`rounded-2xl border-2 p-5 ${risk.bg} ${risk.border}`}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h2 className="text-2xl font-extrabold text-gray-800">{result.detected_food}</h2>
+                    <h2 className="text-2xl font-extrabold text-gray-800">
+                      {isLowConfidence ? `Possible: ${result.detected_food}` : result.detected_food}
+                    </h2>
                     <p className="text-gray-500 text-sm mt-0.5">{result.category}</p>
                   </div>
-                  <span className={`badge ${risk.color} text-sm px-3 py-1.5`}>{result.risk_label}</span>
+                  <span className={`badge ${isLowConfidence ? 'badge-warning' : risk.color} text-sm px-3 py-1.5`}>
+                    {isLowConfidence ? 'Low Confidence' : result.risk_label}
+                  </span>
                 </div>
                 {/* Source badge */}
                 <div className="mb-4">
-                  <SourceBadge source={result.source || result.classifier} />
+                  {isLowConfidence ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Low Confidence
+                    </span>
+                  ) : (
+                    <SourceBadge source={result.source || result.classifier} />
+                  )}
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white/70 rounded-xl p-3 text-center">
@@ -573,19 +691,21 @@ export default function ScannerPage() {
                 </div>
               </div>
 
+              {(isLowConfidence || result.source === 'manual_correction') && (
               <div className="bg-white rounded-2xl border border-gray-100 p-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Manual Correction</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Correct food label</label>
                 <select
-                  value={manualCorrectionOptions.find((item) => (item.display || item.label.replace(/_/g, ' ')) === result.detected_food)?.label || ''}
+                  value={scannerLabelOptions.find((item) => labelDisplay(item) === result.detected_food)?.label || ''}
                   onChange={(e) => handleManualCorrection(e.target.value)}
                   className="input-field"
                 >
                   <option value="">Select corrected label</option>
-                  {manualCorrectionOptions.map((item) => (
-                    <option key={item.label} value={item.label}>{item.display || item.label.replace(/_/g, ' ')}</option>
+                  {scannerLabelOptions.map((item) => (
+                    <option key={item.label} value={item.label}>{labelDisplay(item)}</option>
                   ))}
                 </select>
               </div>
+              )}
 
               {Array.isArray(result.top_predictions) && result.top_predictions.length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -595,12 +715,25 @@ export default function ScannerPage() {
                   </div>
                   <div className="space-y-2">
                     {result.top_predictions.slice(0, 5).map((prediction) => (
-                      <div key={prediction.label} className="flex items-center justify-between gap-3 text-sm">
-                        <span className="font-medium text-gray-700">{String(prediction.label).replace(/_/g, ' ')}</span>
-                        <span className="text-gray-500">{Math.round(Number(prediction.confidence || 0) * 100)}%</span>
+                      <div key={prediction.label} className="text-sm">
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                          <span className="font-medium text-gray-700">{String(prediction.label).replace(/_/g, ' ')}</span>
+                          <span className="text-gray-500">{Math.round(Number(prediction.confidence || 0) * 100)}%</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${isLowConfidence ? 'bg-amber-400' : 'bg-violet-500'}`}
+                            style={{ width: `${Math.min(100, Math.max(0, Number(prediction.confidence || 0) * 100))}%` }}
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
+                  {isLowConfidence && (
+                    <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-3">
+                      Prediction confidence is low. The uploaded image may be different from the training dataset or the model may need more training data.
+                    </p>
+                  )}
                 </div>
               )}
 

@@ -82,11 +82,18 @@ export async function analyzeFoodImage(file) {
   }
 }
 
+export async function getScannerLabels() {
+  return apiFetch('/debug-labels');
+}
+
 function backendErrorFallback(error) {
   return {
     detected_food: 'Unknown Food',
     category: 'Other',
     confidence: 0,
+    is_low_confidence: true,
+    needs_review: true,
+    confidence_threshold: 0.6,
     estimated_shelf_life_days: 5,
     risk_label: 'Warning',
     source: 'fallback_no_model',
@@ -138,6 +145,9 @@ function localFoodClassifier(filename) {
     detected_food: item.food,
     category: item.category,
     confidence: item.confidence,
+    is_low_confidence: item.confidence < 0.6,
+    needs_review: item.confidence < 0.6,
+    confidence_threshold: 0.6,
     estimated_shelf_life_days: item.shelf,
     risk_label: item.risk,
     source: 'local_fallback',           // clearly marks this as frontend fallback

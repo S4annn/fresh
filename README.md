@@ -207,6 +207,17 @@ Untuk mengganti model AI Food Scanner:
 5. Test `GET /debug-model` dan pastikan `model_load_success` bernilai `true`.
 6. Test `POST /scan-food` dengan field multipart `image` dan pastikan response memiliki `source: "tensorflow_vision_model"` serta `top_predictions`.
 
+## Model Accuracy Notes
+
+Jika confidence scanner sering rendah, dataset training perlu ditambah dan divariasikan.
+
+- Gunakan gambar training dari kamera HP, bukan hanya PNG transparan atau gambar katalog.
+- Variasikan background, angle, lighting, ukuran objek, bentuk makanan, dan kondisi makanan.
+- Jangan campur `food_vision_model.keras`, `food_labels.json`, dan `food_metadata.json` dari training berbeda.
+- Jika model diganti, ganti juga labels dan metadata dari training yang sama.
+- Setelah mengganti model atau artifact scanner, redeploy Railway.
+- Confidence rendah bukan hasil final; user harus melakukan manual correction sebelum menambahkan item ke inventory.
+
 ## Deployment Singkat
 
 Frontend bisa dideploy ke Vercel dengan root directory:

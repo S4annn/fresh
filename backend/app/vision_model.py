@@ -36,6 +36,7 @@ METADATA_PATH = ARTIFACTS_DIR / "food_metadata.json"
 
 # Must match the IMG_SIZE used during training
 IMAGE_SIZE = (160, 160)
+CONFIDENCE_THRESHOLD = 0.60
 
 # ─── In-memory asset store (loaded once per process) ─────────────────────────
 _ASSETS: dict[str, Any] = {
@@ -203,6 +204,8 @@ def _normalize(value: str) -> str:
 
 
 def _display_label(label: str) -> str:
+    if _normalize(label) == "raddish":
+        return "Radish"
     return (label or "Unknown Food").replace("_", " ").replace("-", " ").strip().title()
 
 
@@ -217,6 +220,42 @@ def _metadata_for(label: str) -> dict[str, Any]:
         if isinstance(value, dict) and _normalize(key) == norm:
             return value
     return {}
+
+
+def _label_option(label: str) -> dict[str, Any]:
+    record = _metadata_for(label)
+    display = (
+        record.get("detected_food")
+        or record.get("food_name")
+        or record.get("name")
+        or _display_label(label)
+    )
+    shelf_life = int(
+        record.get("estimated_shelf_life_days")
+        or record.get("shelf_life_days")
+        or record.get("shelf_life")
+        or 5
+    )
+    storage = record.get("storage") or record.get("storage_condition") or "Refrigerator"
+    recommendations = record.get("recommendations") or [
+        "Use while still fresh",
+        "Check smell, texture, and packaging before consuming",
+        "When in doubt, refrigerate and use soon",
+    ]
+    storage_advice = (
+        record.get("storage_advice")
+        or f"Store in {storage}. Use within {shelf_life} days for best quality."
+    )
+    return {
+        "label": label,
+        "display": display,
+        "category": record.get("category", "Other"),
+        "estimated_shelf_life_days": shelf_life,
+        "risk_label": get_risk_label(shelf_life),
+        "storage": storage,
+        "storage_advice": storage_advice,
+        "recommendations": recommendations,
+    }
 
 
 def _build_response(
@@ -254,17 +293,24 @@ def _build_response(
         record.get("storage_advice")
         or f"Store in {storage}. Use within {shelf_life} days for best quality."
     )
+    labels = _ASSETS.get("labels") or []
+    is_low_confidence = float(confidence) < CONFIDENCE_THRESHOLD
 
     response: dict[str, Any] = {
         "detected_food":           detected_food,
         "category":                category,
         "confidence":              round(float(confidence), 4),
+        "is_low_confidence":       is_low_confidence,
+        "needs_review":            is_low_confidence,
+        "confidence_threshold":     CONFIDENCE_THRESHOLD,
         "source":                  source,
         "estimated_shelf_life_days": shelf_life,
         "risk_label":              get_risk_label(shelf_life),
         "storage_advice":          storage_advice,
         "recommendations":         recommendations,
         "top_predictions":         top_predictions,
+        "available_labels":        labels,
+        "label_options":           [_label_option(lbl) for lbl in labels],
         "suggested_inventory": {
             "food_name":        detected_food,
             "category":         category,
@@ -395,7 +441,7 @@ def predict_food_from_image(
         top_idxs = np.argsort(probs)[::-1][:top_n]
         top_predictions = [
             {
-                "label":      labels[i] if i < len(labels) else f"class_{i}",
+                "label":      _label_option(labels[i])["display"] if i < len(labels) else f"Class {i}",
                 "confidence": round(float(probs[i]), 4),
             }
             for i in top_idxs
@@ -519,4 +565,16 @@ def debug_model_info() -> dict[str, Any]:
         "image_size_used":       list(IMAGE_SIZE),
         "preprocessing":         "mobilenet_v2.preprocess_input (range -1 to 1)",
         "error":                 assets.get("error"),
+    }
+
+
+def debug_labels_info() -> dict[str, Any]:
+    """Return labels and correction metadata for the active scanner artifacts."""
+    assets = load_assets()
+    labels = assets.get("labels") or []
+    return {
+        "labels_count": len(labels),
+        "labels": labels,
+        "label_options": [_label_option(label) for label in labels],
+        "error": assets.get("error"),
     }
