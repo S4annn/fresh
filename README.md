@@ -248,36 +248,6 @@ DATABASE_URL=optional_postgres_url
 
 Panduan lebih detail ada di [docs/INSTALL_DEPLOY.md](docs/INSTALL_DEPLOY.md).
 
-## Catatan MVP
-
-Bagian yang sudah cukup siap untuk demo:
-
-- personal inventory;
-- prediksi risiko;
-- scanner dengan fallback;
-- marketplace listing sederhana;
-- business dashboard berbasis dummy data;
-- deployment frontend dan backend.
-
-Bagian yang masih bisa dikembangkan:
-
-- auth backend yang benar-benar terhubung ke user;
-- endpoint donation terpisah;
-- CRUD lengkap untuk business inventory, orders, dan branches;
-- integrasi marketplace berbasis lokasi dari backend;
-- training model dengan data real user;
-- audit keamanan dan validasi production.
-
-## Arah Pengembangan
-
-Next step yang paling masuk akal:
-
-1. rapikan koneksi frontend-backend supaya semua halaman tidak lagi bergantung pada dummy data;
-2. tambahkan autentikasi backend dan pemetaan `user_id`;
-3. buat endpoint donation dan business CRUD lengkap;
-4. tambah notifikasi expiry;
-5. latih ulang model dengan data penggunaan yang lebih realistis;
-6. buat laporan dampak seperti makanan terselamatkan, uang dihemat, dan estimasi CO2 reduction.
 
 ## License
 
