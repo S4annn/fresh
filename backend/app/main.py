@@ -37,6 +37,7 @@ from .vision_model import (
     LABELS_PATH,
     METADATA_PATH,
     MODEL_PATH,
+    debug_model_info,
     load_assets,
     predict_food_from_image,
     vision_model_status,
@@ -646,6 +647,11 @@ def get_metadata():
 @app.get("/scan-food/status")
 def scan_food_status():
     return vision_model_status()
+
+
+@app.get("/debug-model")
+def debug_model():
+    return debug_model_info()
 
 
 @app.get("/debug-artifacts")

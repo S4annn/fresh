@@ -193,6 +193,20 @@ backend/artifacts/food_metadata.json
 
 Kalau TensorFlow, Pillow, atau model vision belum siap, scanner tetap mengembalikan hasil fallback agar aplikasi tidak rusak saat demo.
 
+## Updating AI Scanner Model
+
+Untuk mengganti model AI Food Scanner:
+
+1. Ganti file di `backend/artifacts`.
+2. Pastikan nama file tetap:
+   - `food_vision_model.keras`
+   - `food_labels.json`
+   - `food_metadata.json`
+3. Pastikan jumlah output class model sama dengan jumlah label di `food_labels.json`.
+4. Restart backend lokal atau redeploy Railway setelah file diganti.
+5. Test `GET /debug-model` dan pastikan `model_load_success` bernilai `true`.
+6. Test `POST /scan-food` dengan field multipart `image` dan pastikan response memiliki `source: "tensorflow_vision_model"` serta `top_predictions`.
+
 ## Deployment Singkat
 
 Frontend bisa dideploy ke Vercel dengan root directory:

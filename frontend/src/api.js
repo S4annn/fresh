@@ -63,10 +63,10 @@ export async function analyzeFoodImage(file) {
     });
 
     if (!res.ok) {
-      // Backend is up but returned an error (4xx/5xx) — still use fallback
+      // Backend is reachable, so surface its error instead of using local fallback.
       const errText = await res.text().catch(() => 'Unknown error');
       console.warn(`[Scanner] Backend /scan-food returned ${res.status}: ${errText}`);
-      throw new Error(`Backend error ${res.status}`);
+      return backendErrorFallback(`Backend /scan-food returned ${res.status}: ${errText}`);
     }
 
     const data = await res.json();
@@ -82,9 +82,42 @@ export async function analyzeFoodImage(file) {
   }
 }
 
+function backendErrorFallback(error) {
+  return {
+    detected_food: 'Unknown Food',
+    category: 'Other',
+    confidence: 0,
+    estimated_shelf_life_days: 5,
+    risk_label: 'Warning',
+    source: 'fallback_no_model',
+    error,
+    storage_advice: 'Store appropriately based on the food type.',
+    recommendations: [
+      'Check /debug-model for backend model details',
+      'Verify TensorFlow, model file, labels, and metadata are available',
+      'Try again after restarting the backend',
+    ],
+    top_predictions: [],
+    suggested_inventory: {
+      food_name: 'Unknown Food',
+      category: 'Other',
+      quantity: 1,
+      unit: 'pcs',
+      storage_type: 'Refrigerator',
+      days_to_expiry: 5,
+    },
+  };
+}
+
 function localFoodClassifier(filename) {
   const name = filename.toLowerCase();
   const foodMap = [
+    { keywords: ['beef', 'sapi', 'daging-sapi'], food: 'Beef', category: 'Protein', shelf: 2, storage: 'Refrigerator', confidence: 0.86, risk: 'High Risk', recs: ['Keep refrigerated and cook soon', 'Freeze if not using today', 'Avoid leaving raw meat at room temperature'] },
+    { keywords: ['fish', 'ikan'], food: 'Fish', category: 'Protein', shelf: 1, storage: 'Refrigerator', confidence: 0.86, risk: 'High Risk', recs: ['Cook today for best quality', 'Keep cold and sealed', 'Freeze immediately for longer storage'] },
+    { keywords: ['goat', 'goatmeat', 'goat-meat', 'kambing'], food: 'Goat Meat', category: 'Protein', shelf: 2, storage: 'Refrigerator', confidence: 0.86, risk: 'High Risk', recs: ['Keep refrigerated and cook soon', 'Freeze if not using today', 'Store separately from ready-to-eat foods'] },
+    { keywords: ['tofu', 'tahu'], food: 'Tofu', category: 'Protein', shelf: 3, storage: 'Refrigerator', confidence: 0.84, risk: 'Warning', recs: ['Keep submerged in clean water if opened', 'Change water daily', 'Use within a few days'] },
+    { keywords: ['tempeh', 'tempe'], food: 'Tempeh', category: 'Protein', shelf: 4, storage: 'Refrigerator', confidence: 0.84, risk: 'Warning', recs: ['Keep refrigerated', 'Cook while aroma and texture are still fresh', 'Freeze for longer storage'] },
+    { keywords: ['shrimp', 'udang'], food: 'Shrimp', category: 'Seafood', shelf: 1, storage: 'Refrigerator', confidence: 0.86, risk: 'High Risk', recs: ['Cook today', 'Keep cold and sealed', 'Freeze immediately if storing longer'] },
     { keywords: ['greenbeans', 'greenbean', 'green-beans', 'green-bean', 'beans', 'bean', 'buncis'], food: 'Bean', category: 'Vegetable', shelf: 5, storage: 'Refrigerator', confidence: 0.72, risk: 'Warning', recs: ['Store in a sealed container in the refrigerator', 'Use for stir-fry, soup, or vegetable mix', 'Use within 3-5 days for best freshness'] },
     { keywords: ['banana', 'pisang'], food: 'Banana', category: 'Fruit', shelf: 3, storage: 'Room Temperature', confidence: 0.88, risk: 'Warning', recs: ['Use within 2-3 days', 'Make banana smoothie or banana bread', 'Freeze sliced banana for later use', 'If still fresh, list in marketplace or donate'] },
     { keywords: ['apple', 'apel'], food: 'Apple', category: 'Fruit', shelf: 7, storage: 'Refrigerator', confidence: 0.91, risk: 'Safe', recs: ['Store in refrigerator to extend freshness', 'Make apple juice or apple crumble', 'Great for snacking or salads'] },
@@ -111,6 +144,7 @@ function localFoodClassifier(filename) {
     classifier: 'frontend_filename_fallback',
     storage_advice: `Store in ${item.storage}. ${item.shelf <= 2 ? 'Use immediately.' : item.shelf <= 5 ? 'Use within a few days.' : 'Monitor regularly.'}`,
     recommendations: item.recs,
+    top_predictions: [{ label: item.food, confidence: item.confidence }],
     suggested_inventory: {
       food_name: item.food,
       category: item.category,

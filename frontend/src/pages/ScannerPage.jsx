@@ -15,6 +15,23 @@ const riskConfig = {
   'High Risk': { color: 'badge-danger',  bg: 'bg-red-50',     border: 'border-red-200',     text: 'text-red-700',     icon: Flame },
 };
 
+const manualCorrectionOptions = [
+  { label: 'Beef', category: 'Protein', shelf: 2, storage: 'Refrigerator' },
+  { label: 'Chicken', category: 'Protein', shelf: 2, storage: 'Refrigerator' },
+  { label: 'Egg', category: 'Protein', shelf: 14, storage: 'Refrigerator' },
+  { label: 'Fish', category: 'Protein', shelf: 1, storage: 'Refrigerator' },
+  { label: 'Goat_Meat', display: 'Goat Meat', category: 'Protein', shelf: 2, storage: 'Refrigerator' },
+  { label: 'Shrimp', category: 'Seafood', shelf: 1, storage: 'Refrigerator' },
+  { label: 'Tempeh', category: 'Protein', shelf: 4, storage: 'Refrigerator' },
+  { label: 'Tofu', category: 'Protein', shelf: 3, storage: 'Refrigerator' },
+];
+
+function riskFromShelfLife(days) {
+  if (days <= 2) return 'High Risk';
+  if (days <= 5) return 'Warning';
+  return 'Safe';
+}
+
 // Map source field from backend/fallback to a human-readable badge
 function SourceBadge({ source }) {
   if (!source) return null;
@@ -212,6 +229,7 @@ export default function ScannerPage() {
     setAddingToInventory(true);
     const today      = new Date();
     const expiryDate = new Date(today.getTime() + result.estimated_shelf_life_days * 86400000);
+    const storageType = result.suggested_inventory.storage_type || result.suggested_inventory.storage_condition || 'Refrigerator';
     const inventoryData = {
       food_name:         result.suggested_inventory.food_name,
       category:          result.suggested_inventory.category,
@@ -219,9 +237,9 @@ export default function ScannerPage() {
       unit:              result.suggested_inventory.unit,
       purchase_date:     today.toISOString().slice(0, 10),
       expiry_date:       expiryDate.toISOString().slice(0, 10),
-      storage_type:      result.suggested_inventory.storage_type,
+      storage_type:      storageType,
       days_to_expiry:    result.estimated_shelf_life_days,
-      storage_condition: result.suggested_inventory.storage_type,
+      storage_condition: storageType,
       shelf_life:        result.estimated_shelf_life_days,
     };
     try {
@@ -235,6 +253,32 @@ export default function ScannerPage() {
     }
     setAddedSuccess(true);
     setAddingToInventory(false);
+  }
+
+  function handleManualCorrection(label) {
+    if (!label || !result) return;
+    const selected = manualCorrectionOptions.find((item) => item.label === label);
+    if (!selected) return;
+    const foodName = selected.display || selected.label.replace(/_/g, ' ');
+    const shelfLife = selected.shelf;
+    setResult({
+      ...result,
+      detected_food: foodName,
+      category: selected.category,
+      estimated_shelf_life_days: shelfLife,
+      risk_label: riskFromShelfLife(shelfLife),
+      storage_advice: `Store in ${selected.storage}. Use within ${shelfLife} days for best quality.`,
+      suggested_inventory: {
+        ...(result.suggested_inventory || {}),
+        food_name: foodName,
+        category: selected.category,
+        storage_type: selected.storage,
+        storage_condition: selected.storage,
+        shelf_life: shelfLife,
+        days_to_expiry: shelfLife,
+      },
+    });
+    setAddedSuccess(false);
   }
 
   const risk    = result ? riskConfig[result.risk_label] || riskConfig.Safe : null;
@@ -490,6 +534,16 @@ export default function ScannerPage() {
                 </div>
               )}
 
+              {result.source === 'fallback_no_model' && (
+                <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <WifiOff className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-amber-700">
+                    <p className="font-semibold mb-0.5">Backend model fallback</p>
+                    <p>{result.error || 'The TensorFlow vision model could not be loaded. Check /debug-model for details.'}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Main Result */}
               <div className={`rounded-2xl border-2 p-5 ${risk.bg} ${risk.border}`}>
                 <div className="flex items-start justify-between mb-3">
@@ -518,6 +572,37 @@ export default function ScannerPage() {
                   </div>
                 </div>
               </div>
+
+              <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Manual Correction</label>
+                <select
+                  value={manualCorrectionOptions.find((item) => (item.display || item.label.replace(/_/g, ' ')) === result.detected_food)?.label || ''}
+                  onChange={(e) => handleManualCorrection(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Select corrected label</option>
+                  {manualCorrectionOptions.map((item) => (
+                    <option key={item.label} value={item.label}>{item.display || item.label.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+
+              {Array.isArray(result.top_predictions) && result.top_predictions.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Cpu className="w-4 h-4 text-violet-500" />
+                    <span className="font-semibold text-gray-700 text-sm">Top Predictions</span>
+                  </div>
+                  <div className="space-y-2">
+                    {result.top_predictions.slice(0, 5).map((prediction) => (
+                      <div key={prediction.label} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="font-medium text-gray-700">{String(prediction.label).replace(/_/g, ' ')}</span>
+                        <span className="text-gray-500">{Math.round(Number(prediction.confidence || 0) * 100)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Storage Advice */}
               <div className="bg-white rounded-2xl border border-gray-100 p-4">
