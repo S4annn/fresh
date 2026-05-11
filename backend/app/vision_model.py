@@ -130,6 +130,10 @@ def load_assets(force_reload: bool = False) -> dict[str, Any]:
         import tensorflow as tf
 
         print(f"  TensorFlow version: {tf.__version__}", flush=True)
+        custom_objects = {
+            "preprocess_input": tf.keras.applications.mobilenet_v2.preprocess_input,
+            "function": tf.keras.applications.mobilenet_v2.preprocess_input,
+        }
 
         # Compatibility shim: some saved models include quantization_config
         # in Dense layer configs which older TF versions don't recognise.
@@ -142,14 +146,20 @@ def load_assets(force_reload: bool = False) -> dict[str, Any]:
 
         tf.keras.layers.Dense.from_config = _compat_dense_from_config
         try:
-            try:
-                model = tf.keras.models.load_model(
-                    MODEL_PATH,
-                    compile=False,
-                    safe_mode=False,
-                )
-            except TypeError:
-                model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+            with tf.keras.utils.custom_object_scope(custom_objects):
+                try:
+                    model = tf.keras.models.load_model(
+                        MODEL_PATH,
+                        compile=False,
+                        custom_objects=custom_objects,
+                        safe_mode=False,
+                    )
+                except TypeError:
+                    model = tf.keras.models.load_model(
+                        MODEL_PATH,
+                        compile=False,
+                        custom_objects=custom_objects,
+                    )
         finally:
             tf.keras.layers.Dense.from_config = _orig_dense_from_config
 
