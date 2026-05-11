@@ -158,25 +158,59 @@ export function AuthProvider({ children }) {
   };
 
   // ── Local Sign In (validate credentials) ───────────────────────────────────
-  const signInLocal = ({ email, password }) => {
+  const signInLocal = async ({ email, password }) => {
     if (!email || !password) {
       throw new Error('Email dan password wajib diisi.');
     }
-    const accounts = getAccounts();
-    const key = email.toLowerCase().trim();
-    const account = accounts[key];
 
-    if (!account) {
-      throw new Error('Email tidak ditemukan. Silakan daftar terlebih dahulu.');
-    }
-    if (account.password !== password) {
-      throw new Error('Password salah. Silakan coba lagi.');
-    }
+    try {
+      // Call backend API to authenticate user
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.toLowerCase().trim(),
+          password: password,
+        }),
+      });
 
-    const sessionUser = _buildSessionUser(account);
-    saveSession(sessionUser);
-    setUser(sessionUser);
-    return sessionUser;
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle backend error messages
+        if (response.status === 401) {
+          throw new Error('Email tidak ditemukan atau password salah. Silakan coba lagi.');
+        }
+        throw new Error(data.detail || 'Login gagal. Silakan coba lagi.');
+      }
+
+      // Create session user from backend response
+      const sessionUser = {
+        uid: data.user.uid,
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role,
+        provider: data.user.provider,
+        business_name: data.user.business_name,
+        business_type: data.user.business_type,
+        business_location: data.user.business_location,
+        contact_number: data.user.contact_number,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Save session and update context
+      saveSession(sessionUser);
+      setUser(sessionUser);
+      return sessionUser;
+
+    } catch (error) {
+      console.error('Login error:', error);
+      throw new Error('Login gagal. Periksa koneksi internet dan coba lagi.');
+    }
   };
 
   // ── Demo Login (no credentials needed) ─────────────────────────────────────

@@ -53,7 +53,7 @@ export default function SignInPage() {
 
     setLoading(true);
     try {
-      const sessionUser = signInLocal({ email: email.trim(), password });
+      const sessionUser = await signInLocal({ email: email.trim(), password });
       // Override role from form selection (user may switch role on sign-in page)
       setRole(selectedRole);
       navigate(getRedirectPath(selectedRole));
