@@ -1,7 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, isConfigured } from '../firebase';
-import { createDemoSubscription, ensureSubscriptionForRole, saveSubscription } from '../services/subscription';
+import {
+  createDemoSubscription,
+  ensureSubscriptionForRole,
+  getCurrentSubscription,
+  saveSubscription,
+  setCurrentSubscription,
+} from '../services/subscription';
 
 const AuthContext = createContext(null);
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -29,6 +35,9 @@ function saveAccounts(accounts) {
 }
 
 function saveSession(user) {
+  if (user?.provider !== 'demo') {
+    localStorage.removeItem('fresh_demo_user');
+  }
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   localStorage.setItem('fresh_current_user', JSON.stringify(user));
   if (user?.uid) localStorage.setItem('fresh_user_id', user.uid);
@@ -97,6 +106,37 @@ function buildSessionUser(data) {
   };
 }
 
+function getPreferredRole() {
+  const role = localStorage.getItem('fresh_user_role');
+  return role === 'business' ? 'business' : 'personal';
+}
+
+function buildGoogleSessionUser(firebaseUser) {
+  return {
+    uid: firebaseUser.uid,
+    name: firebaseUser.displayName || 'User',
+    email: firebaseUser.email,
+    photo: firebaseUser.photoURL,
+    provider: 'google',
+    role: getPreferredRole(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function ensureRealUserSubscription(role = 'personal') {
+  const subscription = getCurrentSubscription();
+  if (subscription?.is_demo || subscription?.plan_id === 'demo') {
+    return setCurrentSubscription('free', role, 'monthly');
+  }
+  return ensureSubscriptionForRole(role);
+}
+
+function persistRealSession(user) {
+  localStorage.removeItem(TOKEN_KEY);
+  saveSession(user);
+  ensureRealUserSubscription(user.role || 'personal');
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null);
@@ -108,15 +148,9 @@ export function AuthProvider({ children }) {
     if (isConfigured && auth) {
       const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         if (firebaseUser) {
-          const u = {
-            uid:      firebaseUser.uid,
-            name:     firebaseUser.displayName || 'User',
-            email:    firebaseUser.email,
-            photo:    firebaseUser.photoURL,
-            provider: 'google',
-          };
+          const u = buildGoogleSessionUser(firebaseUser);
+          persistRealSession(u);
           setUser(u);
-          saveSession(u);
         } else {
           // Firebase signed out — check local session
           const session = loadSession();
@@ -139,7 +173,10 @@ export function AuthProvider({ children }) {
       throw new Error('Firebase belum dikonfigurasi. Silakan isi Firebase environment variables di file .env');
     }
     const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
+    const sessionUser = buildGoogleSessionUser(result.user);
+    persistRealSession(sessionUser);
+    setUser(sessionUser);
+    return sessionUser;
   };
 
   // ── Local Sign Up (register new account) ───────────────────────────────────
@@ -291,13 +328,16 @@ export function AuthProvider({ children }) {
 
   // Legacy alias used by some pages
   const signUpDemo = (name, email) => {
+    const role = getPreferredRole();
     const demoUser = {
       uid:      'demo-user-' + Date.now(),
       name,
       email,
       photo:    null,
       provider: 'demo',
+      role,
     };
+    saveSubscription(createDemoSubscription(role));
     saveSession(demoUser);
     localStorage.setItem('fresh_demo_user', JSON.stringify(demoUser));
     setUser(demoUser);
