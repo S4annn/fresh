@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles, Send, X, Trash2, MessageCircle, Loader2 } from 'lucide-react';
+import { Bot, Send, X, Trash2, MessageCircle, Loader2 } from 'lucide-react';
 import { chatWithAssistant } from '../api';
 
 const STORAGE_KEY = 'fresh_ai_assistant_chat';
@@ -166,7 +166,7 @@ export default function AIAssistantWidget() {
           aria-label="Buka F.R.E.S.H Assistant"
           className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/40 hover:scale-105 active:scale-95 transition-transform flex items-center justify-center group"
         >
-          <Sparkles className="w-6 h-6" />
+          <Bot className="w-7 h-7" />
           <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 ring-2 ring-white animate-pulse" />
           <span className="sr-only">Chat dengan F.R.E.S.H Assistant</span>
         </button>
@@ -183,7 +183,7 @@ export default function AIAssistantWidget() {
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-4 h-4" />
+                <Bot className="w-5 h-5" />
               </div>
               <div className="min-w-0">
                 <h3 className="font-bold text-sm leading-tight">F.R.E.S.H Assistant</h3>
