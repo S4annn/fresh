@@ -70,7 +70,30 @@ from .vision_model import (
 from .otp import create_otp_record, validate_otp
 from .email_service import send_otp_email
 
+# Run database migration on startup
+def run_database_migration():
+    """Run database migration on startup"""
+    try:
+        import sys
+        import os
+        
+        # Add app directory to path for Railway
+        if os.path.exists('/app'):
+            sys.path.append('/app')
+        
+        from update_database_schema import update_database_schema
+        
+        print("🔄 Running database migration on startup...")
+        update_database_schema()
+        print("✅ Database migration completed successfully!")
+        
+    except Exception as e:
+        print(f"❌ Database migration failed: {e}")
+        # Continue startup even if migration fails
+
+# Create database and run migration
 create_db_and_tables()
+run_database_migration()
 
 app = FastAPI(
     title="F.R.E.S.H API",
