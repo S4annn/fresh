@@ -685,7 +685,7 @@ class AIAssistantRequest(BaseModel):
 
 
 @app.post("/ai-assistant/chat")
-def ai_assistant_chat(payload: AIAssistantRequest):
+def ai_assistant_chat(payload: AIAssistantRequest, db: Session = Depends(get_db)):
     """Chat with F.R.E.S.H AI Assistant (powered by Gemini API)."""
     from .ai_assistant import generate_ai_response
 
@@ -698,6 +698,7 @@ def ai_assistant_chat(payload: AIAssistantRequest):
         role=payload.role,
         inventory=payload.inventory,
         page_context=payload.page_context,
+        db=db,
     )
 
     return result
