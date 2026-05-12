@@ -88,9 +88,9 @@ export default function SignUpPage() {
       setRegisteredEmail(form.email.trim());
       setShowOTP(true);
       
-      // Show development OTP if available
+      // Show OTP code from response (when email delivery is unavailable)
       if (data.dev_otp) {
-        setSuccess(`OTP telah dikirim ke ${form.email.trim()}. Development OTP: ${data.dev_otp}`);
+        setSuccess(`Kode OTP Anda: ${data.dev_otp}`);
       } else {
         setSuccess(`OTP telah dikirim ke ${form.email.trim()}. Silakan periksa email Anda.`);
       }
@@ -123,7 +123,7 @@ export default function SignUpPage() {
       }
 
       if (data.dev_otp) {
-        setSuccess(`OTP baru telah dikirim. Development OTP: ${data.dev_otp}`);
+        setSuccess(`Kode OTP baru: ${data.dev_otp}`);
       } else {
         setSuccess('OTP baru telah dikirim ke email Anda.');
       }
@@ -181,6 +181,7 @@ export default function SignUpPage() {
         onSuccess={handleOTPSuccess}
         onResendOTP={handleResendOTP}
         loading={loading}
+        initialMessage={success}
       />
     );
   }

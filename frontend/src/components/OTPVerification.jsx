@@ -6,13 +6,14 @@ export default function OTPVerification({
   onBack, 
   onSuccess, 
   onResendOTP,
-  loading = false 
+  loading = false,
+  initialMessage = ''
 }) {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
   const [isExpired, setIsExpired] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(initialMessage || '');
   const [verifying, setVerifying] = useState(false);
   const inputRefs = useRef([]);
 
@@ -161,7 +162,7 @@ export default function OTPVerification({
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Verifikasi Email</h2>
           <p className="text-gray-600 text-sm">
-            Kami telah mengirim kode 6 digit ke<br />
+            Masukkan kode 6 digit untuk verifikasi<br />
             <span className="font-medium text-emerald-600">{email}</span>
           </p>
         </div>
