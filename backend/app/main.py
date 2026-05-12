@@ -18,8 +18,10 @@ from .models import (
     BusinessInventory,
     BusinessOrder,
     DonationItem,
+    DonationRequest,
     FoodItem,
     MarketplaceListing,
+    MarketplaceReservation,
     ScanHistory,
     Subscription,
     User,
@@ -1101,6 +1103,38 @@ def _serialize_donation(item: DonationItem) -> dict:
     }
 
 
+def _serialize_reservation(r: "MarketplaceReservation") -> dict:
+    return {
+        "id": r.id,
+        "marketplace_item_id": r.marketplace_item_id,
+        "seller_user_id": r.seller_user_id,
+        "requester_user_id": r.requester_user_id,
+        "requester_name": r.requester_name or "",
+        "requester_email": r.requester_email or "",
+        "message": r.message or "",
+        "quantity_requested": r.quantity_requested or 0,
+        "status": r.status or "pending",
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    }
+
+
+def _serialize_donation_request(r: "DonationRequest") -> dict:
+    return {
+        "id": r.id,
+        "donation_item_id": r.donation_item_id,
+        "donor_user_id": r.donor_user_id,
+        "requester_user_id": r.requester_user_id,
+        "requester_name": r.requester_name or "",
+        "requester_email": r.requester_email or "",
+        "organization_name": r.organization_name or "",
+        "message": r.message or "",
+        "quantity_requested": r.quantity_requested or 0,
+        "pickup_time": r.pickup_time or "",
+        "status": r.status or "pending",
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    }
+
+
 def _serialize_business_inventory(item: BusinessInventory) -> dict:
     return {
         "id": item.id,
@@ -1890,6 +1924,38 @@ def create_marketplace(
     return item
 
 
+@app.get("/marketplace/my")
+def get_my_marketplace(
+    x_fresh_user_id: str | None = Header(default=None),
+    user_id: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    owner_id = _resolve_user_id(user_id, x_fresh_user_id)
+    items = (
+        db.query(MarketplaceListing)
+        .filter(MarketplaceListing.user_id == owner_id)
+        .order_by(MarketplaceListing.created_at.desc())
+        .all()
+    )
+    return _json([_serialize_marketplace(item) for item in items])
+
+
+@app.get("/marketplace/my-reservations")
+def list_my_reservations(
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """List reservations made BY current user (as requester)."""
+    user_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    reservations = (
+        db.query(MarketplaceReservation)
+        .filter(MarketplaceReservation.requester_user_id == user_id)
+        .order_by(MarketplaceReservation.created_at.desc())
+        .all()
+    )
+    return [_serialize_reservation(r) for r in reservations]
+
+
 @app.get("/marketplace/{listing_id}")
 def get_marketplace_item(listing_id: int, db: Session = Depends(get_db)):
     item = db.query(MarketplaceListing).filter(MarketplaceListing.id == listing_id).first()
@@ -1902,11 +1968,15 @@ def get_marketplace_item(listing_id: int, db: Session = Depends(get_db)):
 def update_marketplace_item(
     listing_id: int,
     payload: MarketplaceUpdate,
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ):
     item = db.query(MarketplaceListing).filter(MarketplaceListing.id == listing_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Marketplace item not found")
+    owner_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    if item.user_id and item.user_id != owner_id:
+        raise HTTPException(status_code=403, detail="Anda tidak punya akses ke item ini")
     data = payload.model_dump(exclude_unset=True)
     if "expiry_date" in data and "expiration_date" not in data:
         data["expiration_date"] = data.pop("expiry_date")
@@ -1922,10 +1992,21 @@ def update_marketplace_item(
 
 
 @app.delete("/marketplace/{listing_id}")
-def delete_marketplace_item(listing_id: int, db: Session = Depends(get_db)):
+def delete_marketplace_item(
+    listing_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
     item = db.query(MarketplaceListing).filter(MarketplaceListing.id == listing_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Marketplace item not found")
+    owner_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    if item.user_id and item.user_id != owner_id:
+        raise HTTPException(status_code=403, detail="Anda tidak punya akses ke item ini")
+    # Also clean up reservations tied to this listing.
+    db.query(MarketplaceReservation).filter(
+        MarketplaceReservation.marketplace_item_id == listing_id
+    ).delete(synchronize_session=False)
     db.delete(item)
     db.commit()
     return {"message": "Marketplace item deleted", "id": listing_id}
@@ -1985,6 +2066,38 @@ def create_donation(
     return _json(_serialize_donation(item))
 
 
+@app.get("/donations/my")
+def get_my_donations(
+    x_fresh_user_id: str | None = Header(default=None),
+    user_id: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    owner_id = _resolve_user_id(user_id, x_fresh_user_id)
+    items = (
+        db.query(DonationItem)
+        .filter(DonationItem.user_id == owner_id)
+        .order_by(DonationItem.created_at.desc())
+        .all()
+    )
+    return _json([_serialize_donation(item) for item in items])
+
+
+@app.get("/donations/my-requests")
+def list_my_donation_requests(
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """List donation requests made BY the current user (as requester)."""
+    user_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    requests_list = (
+        db.query(DonationRequest)
+        .filter(DonationRequest.requester_user_id == user_id)
+        .order_by(DonationRequest.created_at.desc())
+        .all()
+    )
+    return [_serialize_donation_request(r) for r in requests_list]
+
+
 @app.get("/donations/{donation_id}")
 def get_donation(donation_id: int, db: Session = Depends(get_db)):
     item = db.query(DonationItem).filter(DonationItem.id == donation_id).first()
@@ -1994,10 +2107,18 @@ def get_donation(donation_id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/donations/{donation_id}")
-def update_donation(donation_id: int, payload: DonationUpdate, db: Session = Depends(get_db)):
+def update_donation(
+    donation_id: int,
+    payload: DonationUpdate,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
     item = db.query(DonationItem).filter(DonationItem.id == donation_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Donation item not found")
+    owner_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    if item.user_id and item.user_id != owner_id:
+        raise HTTPException(status_code=403, detail="Anda tidak punya akses ke donasi ini")
     data = payload.model_dump(exclude_unset=True)
     if "expiry_date" in data and "expiration_date" not in data:
         data["expiration_date"] = data.pop("expiry_date")
@@ -2010,13 +2131,348 @@ def update_donation(donation_id: int, payload: DonationUpdate, db: Session = Dep
 
 
 @app.delete("/donations/{donation_id}")
-def delete_donation(donation_id: int, db: Session = Depends(get_db)):
+def delete_donation(
+    donation_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
     item = db.query(DonationItem).filter(DonationItem.id == donation_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Donation item not found")
+    owner_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    if item.user_id and item.user_id != owner_id:
+        raise HTTPException(status_code=403, detail="Anda tidak punya akses ke donasi ini")
+    # Clean up requests tied to this donation.
+    db.query(DonationRequest).filter(
+        DonationRequest.donation_item_id == donation_id
+    ).delete(synchronize_session=False)
     db.delete(item)
     db.commit()
     return {"message": "Donation item deleted", "id": donation_id}
+
+
+# ─── Marketplace: My Items + Reservations ────────────────────────────────────
+
+@app.patch("/marketplace/{item_id}/status")
+def update_marketplace_status(
+    item_id: int,
+    payload: dict,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    owner_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    item = db.query(MarketplaceListing).filter(MarketplaceListing.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item tidak ditemukan")
+    if item.user_id != owner_id:
+        raise HTTPException(status_code=403, detail="Anda tidak punya akses ke item ini")
+
+    new_status = (payload.get("status") or "").strip()
+    if new_status not in ("Available", "Reserved", "Sold", "Expired", "Cancelled"):
+        raise HTTPException(status_code=400, detail="Status tidak valid")
+
+    item.status = new_status
+    db.commit()
+    db.refresh(item)
+    return _json(_serialize_marketplace(item))
+
+
+@app.post("/marketplace/{item_id}/reserve")
+def reserve_marketplace_item(
+    item_id: int,
+    payload: dict,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    requester_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    item = db.query(MarketplaceListing).filter(MarketplaceListing.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item tidak ditemukan")
+    if item.user_id == requester_id:
+        raise HTTPException(status_code=400, detail="Anda tidak bisa reserve item sendiri")
+    if (item.status or "Available").lower() not in ("available",):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Item tidak tersedia (status: {item.status})",
+        )
+
+    try:
+        quantity = float(payload.get("quantity_requested") or 1)
+    except (TypeError, ValueError):
+        quantity = 1.0
+
+    reservation = MarketplaceReservation(
+        marketplace_item_id=item_id,
+        seller_user_id=item.user_id,
+        requester_user_id=requester_id,
+        requester_name=(payload.get("requester_name") or "").strip() or "F.R.E.S.H User",
+        requester_email=(payload.get("requester_email") or "").strip(),
+        message=(payload.get("message") or "").strip(),
+        quantity_requested=quantity,
+        status="pending",
+    )
+    db.add(reservation)
+    db.commit()
+    db.refresh(reservation)
+    return _serialize_reservation(reservation)
+
+
+@app.get("/marketplace/{item_id}/reservations")
+def list_item_reservations(
+    item_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    owner_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    item = db.query(MarketplaceListing).filter(MarketplaceListing.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item tidak ditemukan")
+    if item.user_id != owner_id:
+        raise HTTPException(status_code=403, detail="Anda tidak punya akses")
+
+    reservations = (
+        db.query(MarketplaceReservation)
+        .filter(MarketplaceReservation.marketplace_item_id == item_id)
+        .order_by(MarketplaceReservation.created_at.desc())
+        .all()
+    )
+    return [_serialize_reservation(r) for r in reservations]
+
+
+@app.patch("/marketplace/reservations/{reservation_id}/accept")
+def accept_reservation(
+    reservation_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    user_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    reservation = (
+        db.query(MarketplaceReservation)
+        .filter(MarketplaceReservation.id == reservation_id)
+        .first()
+    )
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation tidak ditemukan")
+    if reservation.seller_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Anda bukan seller dari item ini")
+
+    reservation.status = "accepted"
+    item = (
+        db.query(MarketplaceListing)
+        .filter(MarketplaceListing.id == reservation.marketplace_item_id)
+        .first()
+    )
+    if item:
+        item.status = "Reserved"
+    db.commit()
+    db.refresh(reservation)
+    return _serialize_reservation(reservation)
+
+
+@app.patch("/marketplace/reservations/{reservation_id}/reject")
+def reject_reservation(
+    reservation_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    user_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    reservation = (
+        db.query(MarketplaceReservation)
+        .filter(MarketplaceReservation.id == reservation_id)
+        .first()
+    )
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation tidak ditemukan")
+    if reservation.seller_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Anda bukan seller dari item ini")
+
+    reservation.status = "rejected"
+    db.commit()
+    db.refresh(reservation)
+    return _serialize_reservation(reservation)
+
+
+@app.patch("/marketplace/reservations/{reservation_id}/complete")
+def complete_reservation(
+    reservation_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    user_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    reservation = (
+        db.query(MarketplaceReservation)
+        .filter(MarketplaceReservation.id == reservation_id)
+        .first()
+    )
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation tidak ditemukan")
+    if reservation.seller_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Anda bukan seller dari item ini")
+
+    reservation.status = "completed"
+    item = (
+        db.query(MarketplaceListing)
+        .filter(MarketplaceListing.id == reservation.marketplace_item_id)
+        .first()
+    )
+    if item:
+        item.status = "Sold"
+    db.commit()
+    db.refresh(reservation)
+    return _serialize_reservation(reservation)
+
+
+# ─── Donations: My Items + Requests ──────────────────────────────────────────
+
+@app.patch("/donations/{item_id}/status")
+def update_donation_status(
+    item_id: int,
+    payload: dict,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    owner_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    item = db.query(DonationItem).filter(DonationItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Donasi tidak ditemukan")
+    if item.user_id != owner_id:
+        raise HTTPException(status_code=403, detail="Anda tidak punya akses ke donasi ini")
+
+    new_status = (payload.get("status") or "").strip()
+    if new_status not in ("Available", "Requested", "Approved", "Donated", "Expired", "Cancelled"):
+        raise HTTPException(status_code=400, detail="Status tidak valid")
+
+    item.status = new_status
+    db.commit()
+    db.refresh(item)
+    return _json(_serialize_donation(item))
+
+
+@app.post("/donations/{item_id}/request")
+def request_donation_item(
+    item_id: int,
+    payload: dict,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    requester_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    item = db.query(DonationItem).filter(DonationItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Donasi tidak ditemukan")
+    if item.user_id == requester_id:
+        raise HTTPException(status_code=400, detail="Anda tidak bisa request donasi sendiri")
+    if (item.status or "Available").lower() not in ("available",):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Donasi tidak tersedia (status: {item.status})",
+        )
+
+    try:
+        quantity = float(payload.get("quantity_requested") or 1)
+    except (TypeError, ValueError):
+        quantity = 1.0
+
+    req = DonationRequest(
+        donation_item_id=item_id,
+        donor_user_id=item.user_id,
+        requester_user_id=requester_id,
+        requester_name=(payload.get("requester_name") or "").strip() or "F.R.E.S.H User",
+        requester_email=(payload.get("requester_email") or "").strip(),
+        organization_name=(payload.get("organization_name") or "").strip(),
+        message=(payload.get("message") or "").strip(),
+        quantity_requested=quantity,
+        pickup_time=(payload.get("pickup_time") or "").strip(),
+        status="pending",
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return _serialize_donation_request(req)
+
+
+@app.get("/donations/{item_id}/requests")
+def list_donation_requests(
+    item_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    owner_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    item = db.query(DonationItem).filter(DonationItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Donasi tidak ditemukan")
+    if item.user_id != owner_id:
+        raise HTTPException(status_code=403, detail="Anda tidak punya akses")
+
+    requests_list = (
+        db.query(DonationRequest)
+        .filter(DonationRequest.donation_item_id == item_id)
+        .order_by(DonationRequest.created_at.desc())
+        .all()
+    )
+    return [_serialize_donation_request(r) for r in requests_list]
+
+
+@app.patch("/donations/requests/{request_id}/accept")
+def accept_donation_request(
+    request_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    user_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    req = db.query(DonationRequest).filter(DonationRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request tidak ditemukan")
+    if req.donor_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Anda bukan donor")
+
+    req.status = "accepted"
+    item = db.query(DonationItem).filter(DonationItem.id == req.donation_item_id).first()
+    if item:
+        item.status = "Approved"
+    db.commit()
+    db.refresh(req)
+    return _serialize_donation_request(req)
+
+
+@app.patch("/donations/requests/{request_id}/reject")
+def reject_donation_request(
+    request_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    user_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    req = db.query(DonationRequest).filter(DonationRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request tidak ditemukan")
+    if req.donor_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Anda bukan donor")
+
+    req.status = "rejected"
+    db.commit()
+    db.refresh(req)
+    return _serialize_donation_request(req)
+
+
+@app.patch("/donations/requests/{request_id}/complete")
+def complete_donation_request(
+    request_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    user_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    req = db.query(DonationRequest).filter(DonationRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request tidak ditemukan")
+    if req.donor_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Anda bukan donor")
+
+    req.status = "completed"
+    item = db.query(DonationItem).filter(DonationItem.id == req.donation_item_id).first()
+    if item:
+        item.status = "Donated"
+    db.commit()
+    db.refresh(req)
+    return _serialize_donation_request(req)
 
 
 @app.get("/analytics")

@@ -22,6 +22,7 @@ const RecommendationsPage = lazy(() => import('./pages/RecommendationsPage'));
 const MarketplacePage = lazy(() => import('./pages/MarketplacePage'));
 const DonationPage = lazy(() => import('./pages/DonationPage'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const PersonalReportPage = lazy(() => import('./pages/PersonalReportPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ScannerPage = lazy(() => import('./pages/ScannerPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
@@ -96,7 +97,7 @@ function App() {
               <Route path="/marketplace" element={<MarketplacePage />} />
               <Route path="/donation" element={<DonationPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/report" element={<AnalyticsPage />} />
+              <Route path="/report" element={<PersonalReportPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>

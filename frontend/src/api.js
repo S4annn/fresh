@@ -185,6 +185,48 @@ export const createDonationItem = withDemoTracking('donation_create', (data) => 
 export const getAnalytics = withDemoTracking('analytics_view', () => apiFetch('/analytics'));
 export const getDashboard = withDemoTracking('analytics_view', () => apiFetch('/dashboard'));
 
+// ─── Marketplace: My Items + Reservations ───────────────────────────────────
+export const getMyMarketplaceItems = () => apiFetch('/marketplace/my');
+export const updateMarketplaceStatus = (id, status) =>
+  apiFetch(`/marketplace/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+export const deleteMarketplaceItem = (id) =>
+  apiFetch(`/marketplace/${id}`, { method: 'DELETE' });
+export const updateMarketplaceItem = (id, data) =>
+  apiFetch(`/marketplace/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const reserveMarketplaceItem = (id, payload) =>
+  apiFetch(`/marketplace/${id}/reserve`, { method: 'POST', body: JSON.stringify(payload || {}) });
+export const getMarketplaceReservations = (id) =>
+  apiFetch(`/marketplace/${id}/reservations`);
+export const getMyMarketplaceReservations = () =>
+  apiFetch('/marketplace/my-reservations');
+export const acceptMarketplaceReservation = (id) =>
+  apiFetch(`/marketplace/reservations/${id}/accept`, { method: 'PATCH' });
+export const rejectMarketplaceReservation = (id) =>
+  apiFetch(`/marketplace/reservations/${id}/reject`, { method: 'PATCH' });
+export const completeMarketplaceReservation = (id) =>
+  apiFetch(`/marketplace/reservations/${id}/complete`, { method: 'PATCH' });
+
+// ─── Donation: My Items + Requests ──────────────────────────────────────────
+export const getMyDonationItems = () => apiFetch('/donations/my');
+export const updateDonationStatus = (id, status) =>
+  apiFetch(`/donations/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+export const deleteDonationItem = (id) =>
+  apiFetch(`/donations/${id}`, { method: 'DELETE' });
+export const updateDonationItem = (id, data) =>
+  apiFetch(`/donations/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const requestDonationItem = (id, payload) =>
+  apiFetch(`/donations/${id}/request`, { method: 'POST', body: JSON.stringify(payload || {}) });
+export const getDonationRequests = (id) =>
+  apiFetch(`/donations/${id}/requests`);
+export const getMyDonationRequests = () =>
+  apiFetch('/donations/my-requests');
+export const acceptDonationRequest = (id) =>
+  apiFetch(`/donations/requests/${id}/accept`, { method: 'PATCH' });
+export const rejectDonationRequest = (id) =>
+  apiFetch(`/donations/requests/${id}/reject`, { method: 'PATCH' });
+export const completeDonationRequest = (id) =>
+  apiFetch(`/donations/requests/${id}/complete`, { method: 'PATCH' });
+
 // Subscription API with localStorage fallback for MVP.
 export async function getSubscription() {
   try {

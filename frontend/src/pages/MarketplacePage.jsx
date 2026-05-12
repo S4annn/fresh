@@ -16,18 +16,22 @@ import {
 import FreshMap from '../components/FreshMap';
 import FeatureGate from '../components/FeatureGate';
 import * as api from '../api';
+import { getCurrentUserId } from '../api';
 import { canCreateMarketplaceListing, getPlanLimit, incrementUsage, isUnlimited, useSubscription } from '../services/subscription';
 import {
   ArrowUpDown,
   BadgePercent,
+  CheckCircle,
   CheckCircle2,
   ChevronDown,
   Clock,
   Eye,
+  Inbox,
   List,
   Loader2,
   Map,
   MapPin,
+  MessageSquare,
   Navigation,
   Package,
   Plus,
@@ -37,8 +41,11 @@ import {
   SlidersHorizontal,
   Store,
   Target,
+  Trash2,
   User,
+  Users,
   X,
+  XCircle,
 } from 'lucide-react';
 
 const RADIUS_OPTIONS = [1, 3, 5, 10, 20, 50];
@@ -201,6 +208,8 @@ export default function MarketplacePage() {
   const { plan } = useSubscription();
   const location = useLocation();
   const prefillListing = location.state?.prefillListing;
+  const currentUserId = getCurrentUserId();
+  const [activeTab, setActiveTab] = useState('browse'); // 'browse' | 'mine'
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -218,6 +227,14 @@ export default function MarketplacePage() {
   const [selectedListingId, setSelectedListingId] = useState(null);
   const [limitMessage, setLimitMessage] = useState('');
   const [focusRequest, setFocusRequest] = useState(0);
+  const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
+  const [reserveTarget, setReserveTarget] = useState(null); // item to reserve
+  // My items state
+  const [myItems, setMyItems] = useState([]);
+  const [myReservations, setMyReservations] = useState([]); // reservations I made
+  const [myLoading, setMyLoading] = useState(false);
+  const [requestsByItem, setRequestsByItem] = useState({}); // {itemId: [reservations]}
+  const [openRequestsFor, setOpenRequestsFor] = useState(null); // itemId whose requests panel is open
   const [form, setForm] = useState({
     food_name: '',
     category: 'Fruit',
@@ -323,9 +340,11 @@ export default function MarketplacePage() {
 
   const visibleItems = useMemo(() => {
     const location = userLocation || DEFAULT_LOCATION;
+    // Exclude current user's own listings from the browse view.
+    const notMine = filteredItems.filter((it) => String(it.user_id ?? '') !== String(currentUserId));
     const radiusFiltered = nearbyOnly
-      ? filterNearbyListings(filteredItems, location, radiusKm)
-      : sortByNearest(filteredItems);
+      ? filterNearbyListings(notMine, location, radiusKm)
+      : sortByNearest(notMine);
 
     if (sortBy === 'nearest') return sortByNearest(radiusFiltered);
     if (sortBy === 'cheapest') {
@@ -339,7 +358,7 @@ export default function MarketplacePage() {
     }
 
     return radiusFiltered;
-  }, [filteredItems, nearbyOnly, radiusKm, sortBy, userLocation]);
+  }, [currentUserId, filteredItems, nearbyOnly, radiusKm, sortBy, userLocation]);
 
   const closestItem = useMemo(() => sortByNearest(filteredItems).find((item) => Number.isFinite(item.distance_km)), [filteredItems]);
   const nearestVisibleId = visibleItems[0]?.id ?? null;
@@ -365,15 +384,116 @@ export default function MarketplacePage() {
     scrollListingIntoView(id);
   }, [scrollListingIntoView]);
 
-  const handleReserve = useCallback((id) => {
-    setItems((prev) =>
-      prev.map((item) => item.id === id && item.status === 'Available'
-        ? { ...item, status: 'Reserved' }
-        : item
-      )
-    );
-    setSelectedListingId(id);
+  const showToast = useCallback((type, message) => {
+    setToast({ type, message });
+    window.setTimeout(() => setToast(null), 3500);
   }, []);
+
+  const loadMyItems = useCallback(async () => {
+    setMyLoading(true);
+    try {
+      const [mine, reservations] = await Promise.all([
+        api.getMyMarketplaceItems().catch(() => []),
+        api.getMyMarketplaceReservations().catch(() => []),
+      ]);
+      setMyItems(Array.isArray(mine) ? mine : []);
+      setMyReservations(Array.isArray(reservations) ? reservations : []);
+    } finally {
+      setMyLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'mine') loadMyItems();
+  }, [activeTab, loadMyItems]);
+
+  const openReserveModal = useCallback((item) => {
+    if (!item) return;
+    if (String(item.user_id) === String(currentUserId)) {
+      showToast('error', 'Anda tidak bisa reserve item sendiri.');
+      return;
+    }
+    if (item.status !== 'Available') {
+      showToast('error', `Item tidak tersedia (status: ${item.status}).`);
+      return;
+    }
+    setReserveTarget(item);
+  }, [currentUserId, showToast]);
+
+  const handleReserveSubmit = useCallback(async (payload) => {
+    if (!reserveTarget) return;
+    try {
+      await api.reserveMarketplaceItem(reserveTarget.id, payload);
+      showToast('success', 'Reservasi berhasil dikirim ke seller.');
+      setReserveTarget(null);
+      // Optimistic visual update on browse list.
+      setItems((prev) =>
+        prev.map((it) => (it.id === reserveTarget.id ? { ...it, status: 'Available' } : it))
+      );
+    } catch (err) {
+      const msg = err?.data?.detail || err?.message || 'Gagal membuat reservasi.';
+      showToast('error', msg);
+    }
+  }, [reserveTarget, showToast]);
+
+  const loadRequestsForItem = useCallback(async (itemId) => {
+    try {
+      const list = await api.getMarketplaceReservations(itemId);
+      setRequestsByItem((prev) => ({ ...prev, [itemId]: Array.isArray(list) ? list : [] }));
+    } catch (err) {
+      showToast('error', err?.data?.detail || 'Gagal memuat permintaan.');
+    }
+  }, [showToast]);
+
+  const toggleRequestsPanel = useCallback((itemId) => {
+    setOpenRequestsFor((prev) => {
+      const next = prev === itemId ? null : itemId;
+      if (next) loadRequestsForItem(next);
+      return next;
+    });
+  }, [loadRequestsForItem]);
+
+  const handleReservationAction = useCallback(async (reservationId, action, itemId) => {
+    try {
+      const actionFn = {
+        accept: api.acceptMarketplaceReservation,
+        reject: api.rejectMarketplaceReservation,
+        complete: api.completeMarketplaceReservation,
+      }[action];
+      if (!actionFn) return;
+      await actionFn(reservationId);
+      showToast('success', `Reservation ${action}ed.`);
+      await Promise.all([loadRequestsForItem(itemId), loadMyItems()]);
+    } catch (err) {
+      showToast('error', err?.data?.detail || `Gagal ${action} reservasi.`);
+    }
+  }, [loadMyItems, loadRequestsForItem, showToast]);
+
+  const handleMyItemStatusChange = useCallback(async (itemId, status) => {
+    try {
+      await api.updateMarketplaceStatus(itemId, status);
+      showToast('success', `Status diubah ke ${status}.`);
+      loadMyItems();
+    } catch (err) {
+      showToast('error', err?.data?.detail || 'Gagal mengubah status.');
+    }
+  }, [loadMyItems, showToast]);
+
+  const handleMyItemDelete = useCallback(async (itemId) => {
+    if (!window.confirm('Yakin ingin menghapus listing ini? Semua reservasi yang terkait juga akan dihapus.')) return;
+    try {
+      await api.deleteMarketplaceItem(itemId);
+      showToast('success', 'Listing dihapus.');
+      loadMyItems();
+    } catch (err) {
+      showToast('error', err?.data?.detail || 'Gagal menghapus listing.');
+    }
+  }, [loadMyItems, showToast]);
+
+  const handleReserve = useCallback((id) => {
+    const target = items.find((it) => it.id === id);
+    if (target) openReserveModal(target);
+  }, [items, openReserveModal]);
 
   const mapMarkers = useMemo(() =>
     visibleItems.map((item) => ({
@@ -409,7 +529,7 @@ export default function MarketplacePage() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!canCreateMarketplaceListing()) {
-      setLimitMessage('Marketplace listing limit reached. Upgrade your plan to create more listings.');
+      setLimitMessage('Batas listing marketplace tercapai. Upgrade paket Anda untuk menambah listing.');
       setShowForm(false);
       return;
     }
@@ -439,24 +559,46 @@ export default function MarketplacePage() {
       const normalized = normalizeMarketplaceItem(saved);
       setItems((prev) => [normalized, ...prev]);
       setSelectedListingId(normalized.id);
-    } catch {
-      setItems((prev) => [newItem, ...prev]);
-      setSelectedListingId(newItem.id);
+      incrementUsage('marketplace_listings');
+      showToast('success', 'Listing berhasil dibuat.');
+      setShowForm(false);
+      setForm({
+        food_name: '',
+        category: 'Fruit',
+        quantity: 1,
+        unit: 'buah',
+        location: '',
+        price: '',
+        original_price: '',
+        expiry_date: new Date().toISOString().slice(0, 10),
+        description: '',
+      });
+      // Refresh my items if we're on that tab
+      if (activeTab === 'mine') loadMyItems();
+    } catch (err) {
+      console.error('Create marketplace failed:', err);
+      const msg = err?.data?.detail || err?.message || 'Gagal membuat listing. Coba lagi.';
+      showToast('error', typeof msg === 'string' ? msg : 'Gagal membuat listing.');
     }
-    incrementUsage('marketplace_listings');
-    setShowForm(false);
-    setForm({
-      food_name: '',
-      category: 'Fruit',
-      quantity: 1,
-      unit: 'buah',
-      location: '',
-      price: '',
-      original_price: '',
-      expiry_date: new Date().toISOString().slice(0, 10),
-      description: '',
-    });
   }
+
+  const marketplaceLimit = getPlanLimit('max_marketplace_listings');
+
+  const pendingRequestsCount = useMemo(
+    () => Object.values(requestsByItem).reduce(
+      (acc, list) => acc + (Array.isArray(list) ? list.filter((r) => r.status === 'pending').length : 0),
+      0,
+    ),
+    [requestsByItem],
+  );
+
+  const mySummary = useMemo(() => {
+    const total = myItems.length;
+    const available = myItems.filter((i) => (i.status || '').toLowerCase() === 'available').length;
+    const reserved = myItems.filter((i) => (i.status || '').toLowerCase() === 'reserved').length;
+    const sold = myItems.filter((i) => (i.status || '').toLowerCase() === 'sold').length;
+    return { total, available, reserved, sold };
+  }, [myItems]);
 
   if (loading) {
     return (
@@ -468,8 +610,6 @@ export default function MarketplacePage() {
       </div>
     );
   }
-
-  const marketplaceLimit = getPlanLimit('max_marketplace_listings');
 
   return (
     <div className="space-y-5 pb-20 lg:pb-6 animate-fade-in">
@@ -485,23 +625,25 @@ export default function MarketplacePage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1">
-            {[
-              { value: 'split', icon: SlidersHorizontal, label: 'Split' },
-              { value: 'list', icon: List, label: 'List' },
-              { value: 'map', icon: Map, label: 'Map' },
-            ].map(({ value, icon: Icon, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setViewMode(value)}
-                title={label}
-                className={`rounded-lg p-2 transition-all ${viewMode === value ? 'bg-white text-emerald-600 shadow' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                <Icon className="h-4 w-4" />
-              </button>
-            ))}
-          </div>
+          {activeTab === 'browse' && (
+            <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1">
+              {[
+                { value: 'split', icon: SlidersHorizontal, label: 'Split' },
+                { value: 'list', icon: List, label: 'List' },
+                { value: 'map', icon: Map, label: 'Map' },
+              ].map(({ value, icon: Icon, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setViewMode(value)}
+                  title={label}
+                  className={`rounded-lg p-2 transition-all ${viewMode === value ? 'bg-white text-emerald-600 shadow' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              ))}
+            </div>
+          )}
           <button
             onClick={() => {
               setLimitMessage('');
@@ -519,6 +661,62 @@ export default function MarketplacePage() {
         </div>
       </div>
 
+      {/* Tab bar */}
+      <div className="inline-flex rounded-xl bg-gray-100 p-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('browse')}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'browse' ? 'bg-white text-emerald-700 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          <Search className="h-4 w-4" />
+          Browse Marketplace
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('mine')}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'mine' ? 'bg-white text-emerald-700 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          <Store className="h-4 w-4" />
+          See My Marketplace
+        </button>
+      </div>
+
+      {toast && (
+        <div
+          className={`fixed right-4 top-20 z-[100] max-w-sm rounded-xl px-4 py-3 text-sm font-semibold shadow-lg ${
+            toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      {activeTab === 'mine' ? (
+        <MyMarketplaceView
+          items={myItems}
+          reservations={myReservations}
+          requestsByItem={requestsByItem}
+          openRequestsFor={openRequestsFor}
+          loading={myLoading}
+          summary={mySummary}
+          onOpenRequests={toggleRequestsPanel}
+          onStatusChange={handleMyItemStatusChange}
+          onDelete={handleMyItemDelete}
+          onReservationAction={handleReservationAction}
+          onCreate={() => {
+            setLimitMessage('');
+            if (!canCreateMarketplaceListing()) {
+              setLimitMessage('Marketplace listing limit reached. Upgrade your plan to create more listings.');
+              return;
+            }
+            setShowForm(true);
+          }}
+          onReload={loadMyItems}
+        />
+      ) : (
+      <>
+
+      {/* Browse tab plan info */}
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="card border-pink-100 bg-pink-50/70">
           <p className="text-sm font-bold text-gray-800">Marketplace access: {plan.plan_name}</p>
@@ -730,6 +928,16 @@ export default function MarketplacePage() {
           onMarkerClick={handleMarkerClick}
           markerCount={mapMarkers.length}
           height={600}
+        />
+      )}
+      </>
+      )}
+
+      {reserveTarget && (
+        <ReserveModal
+          item={reserveTarget}
+          onClose={() => setReserveTarget(null)}
+          onSubmit={handleReserveSubmit}
         />
       )}
 
@@ -1086,6 +1294,387 @@ function EmptyState({ onUseLargerRadius, onShowAll }) {
         <button onClick={onShowAll} className="btn-primary py-2 text-sm">
           Show all listings
         </button>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── My Marketplace View ─────────────────────────────────────────────────────
+
+function MyMarketplaceView({
+  items,
+  reservations,
+  requestsByItem,
+  openRequestsFor,
+  loading,
+  summary,
+  onOpenRequests,
+  onStatusChange,
+  onDelete,
+  onReservationAction,
+  onCreate,
+  onReload,
+}) {
+  const pendingIncomingCount = Object.values(requestsByItem).reduce(
+    (acc, list) => acc + (Array.isArray(list) ? list.filter((r) => r.status === 'pending').length : 0),
+    0,
+  );
+  const activeReservations = reservations.filter((r) => r.status === 'pending' || r.status === 'accepted');
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <MyStatCard icon={Package} label="Total Listings" value={summary.total} color="text-emerald-600" bg="bg-emerald-50" />
+        <MyStatCard icon={CheckCircle} label="Available" value={summary.available} color="text-emerald-600" bg="bg-emerald-50" />
+        <MyStatCard icon={Clock} label="Reserved" value={summary.reserved} color="text-amber-600" bg="bg-amber-50" />
+        <MyStatCard icon={ShoppingBag} label="Sold" value={summary.sold} color="text-blue-600" bg="bg-blue-50" />
+        <MyStatCard icon={Inbox} label="Pending Requests" value={pendingIncomingCount} color="text-pink-600" bg="bg-pink-50" />
+      </div>
+
+      {activeReservations.length > 0 && (
+        <section className="card border-emerald-100 bg-emerald-50/40">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-gray-800">
+              <Users className="h-4 w-4 text-emerald-600" />
+              Reservasi yang Anda buat ({activeReservations.length})
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {activeReservations.map((r) => (
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-white p-3 text-sm">
+                <div>
+                  <p className="font-semibold text-gray-800">Item #{r.marketplace_item_id}</p>
+                  <p className="text-xs text-gray-500">
+                    Qty {r.quantity_requested} · Status <span className="font-semibold">{r.status}</span>
+                  </p>
+                </div>
+                <span className={`badge ${r.status === 'accepted' ? 'badge-info' : 'badge-warning'}`}>{r.status}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {items.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center">
+          <Store className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+          <p className="font-bold text-gray-700">Belum ada listing.</p>
+          <p className="mt-1 text-sm text-gray-400">Mulai jual surplus Anda ke komunitas F.R.E.S.H.</p>
+          <button onClick={onCreate} className="btn-primary mt-5 py-2 text-sm">
+            <Plus className="h-4 w-4" /> Create Listing
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item) => (
+            <MyMarketplaceItemCard
+              key={item.id}
+              item={item}
+              isRequestsOpen={openRequestsFor === item.id}
+              requests={requestsByItem[item.id] || []}
+              onOpenRequests={() => onOpenRequests(item.id)}
+              onStatusChange={(status) => onStatusChange(item.id, status)}
+              onDelete={() => onDelete(item.id)}
+              onReservationAction={(rid, action) => onReservationAction(rid, action, item.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MyStatCard({ icon: Icon, label, value, color, bg }) {
+  return (
+    <div className={`card ${bg} border-0`}>
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
+          <Icon className={`h-5 w-5 ${color}`} />
+        </div>
+        <div>
+          <p className="text-2xl font-extrabold text-gray-800">{value}</p>
+          <p className="text-xs text-gray-500">{label}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MyMarketplaceItemCard({
+  item,
+  isRequestsOpen,
+  requests,
+  onOpenRequests,
+  onStatusChange,
+  onDelete,
+  onReservationAction,
+}) {
+  const [actionOpen, setActionOpen] = useState(false);
+  const status = statusConfig[item.status] || statusConfig.Available;
+  const pendingCount = requests.filter((r) => r.status === 'pending').length;
+
+  return (
+    <article className="card p-0">
+      <div className="flex flex-wrap items-start gap-3 p-4">
+        <div className="flex h-16 w-16 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 text-emerald-700">
+          <span className="text-lg font-black">{item.category?.slice(0, 2).toUpperCase() || 'FO'}</span>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-base font-extrabold text-gray-800">{item.food_name}</h3>
+            <span className={`badge ${status.color} text-[10px]`}>{status.label}</span>
+            {pendingCount > 0 && (
+              <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-700">
+                {pendingCount} pending
+              </span>
+            )}
+          </div>
+          <div className="grid gap-1 text-xs text-gray-500 sm:grid-cols-2">
+            <span className="flex items-center gap-1"><Package className="h-3.5 w-3.5" />{item.quantity} {item.unit}</span>
+            <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{item.expiry_date || item.expiration_date}</span>
+            <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{item.location_name || item.location}</span>
+            <span className="flex items-center gap-1"><ShoppingBag className="h-3.5 w-3.5" />Rp{Number(item.price || 0).toLocaleString('id-ID')}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenRequests}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100"
+          >
+            <Inbox className="h-3.5 w-3.5" />
+            View Requests{requests.length ? ` (${requests.length})` : ''}
+          </button>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setActionOpen((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Actions <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+            {actionOpen && (
+              <div
+                className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg"
+                onMouseLeave={() => setActionOpen(false)}
+              >
+                <DropdownAction label="Mark Available" onClick={() => { setActionOpen(false); onStatusChange('Available'); }} />
+                <DropdownAction label="Mark Reserved" onClick={() => { setActionOpen(false); onStatusChange('Reserved'); }} />
+                <DropdownAction label="Mark Sold" onClick={() => { setActionOpen(false); onStatusChange('Sold'); }} />
+                <DropdownAction label="Mark Cancelled" onClick={() => { setActionOpen(false); onStatusChange('Cancelled'); }} />
+                <div className="border-t border-gray-100" />
+                <DropdownAction label="Delete" danger onClick={() => { setActionOpen(false); onDelete(); }} icon={Trash2} />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {isRequestsOpen && (
+        <div className="border-t border-gray-100 bg-gray-50/70 p-4">
+          {requests.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-500">Belum ada permintaan untuk listing ini.</p>
+          ) : (
+            <div className="space-y-2">
+              {requests.map((r) => (
+                <ReservationRequestRow
+                  key={r.id}
+                  reservation={r}
+                  onAction={(action) => onReservationAction(r.id, action)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function DropdownAction({ label, onClick, danger = false, icon: Icon }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold transition-colors ${danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-gray-50'}`}
+    >
+      {Icon && <Icon className="h-3.5 w-3.5" />} {label}
+    </button>
+  );
+}
+
+function ReservationRequestRow({ reservation, onAction }) {
+  const statusStyle = {
+    pending: 'badge-warning',
+    accepted: 'badge-info',
+    rejected: 'badge-danger',
+    completed: 'badge-safe',
+  }[reservation.status] || 'badge-info';
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-gray-800">
+            <User className="mr-1 inline h-3.5 w-3.5 text-gray-400" />
+            {reservation.requester_name || reservation.requester_user_id}
+          </p>
+          {reservation.requester_email && (
+            <p className="truncate text-xs text-gray-500">{reservation.requester_email}</p>
+          )}
+        </div>
+        <span className={`badge ${statusStyle} text-[10px]`}>{reservation.status}</span>
+      </div>
+
+      <div className="mb-2 grid gap-1 text-xs text-gray-500 sm:grid-cols-2">
+        <span>Qty: <strong className="text-gray-700">{reservation.quantity_requested}</strong></span>
+        <span>Dibuat: <strong className="text-gray-700">{(reservation.created_at || '').slice(0, 10)}</strong></span>
+      </div>
+
+      {reservation.message && (
+        <p className="mb-2 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">
+          <MessageSquare className="mr-1 inline h-3 w-3" /> {reservation.message}
+        </p>
+      )}
+
+      {reservation.status === 'pending' && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onAction('accept')}
+            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+          >
+            <CheckCircle className="h-3 w-3" /> Accept
+          </button>
+          <button
+            type="button"
+            onClick={() => onAction('reject')}
+            className="inline-flex items-center gap-1 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-600"
+          >
+            <XCircle className="h-3 w-3" /> Reject
+          </button>
+        </div>
+      )}
+
+      {reservation.status === 'accepted' && (
+        <button
+          type="button"
+          onClick={() => onAction('complete')}
+          className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
+        >
+          <CheckCircle className="h-3 w-3" /> Mark Completed
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Reserve Modal ───────────────────────────────────────────────────────────
+
+function ReserveModal({ item, onClose, onSubmit }) {
+  const [form, setForm] = useState({
+    requester_name: '',
+    requester_email: '',
+    quantity_requested: 1,
+    message: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        requester_name: form.requester_name,
+        requester_email: form.requester_email,
+        quantity_requested: Number(form.quantity_requested) || 1,
+        message: form.message,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-2xl animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-gray-100 p-5">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800">Reserve Item</h2>
+            <p className="text-xs text-gray-500">{item.food_name}</p>
+          </div>
+          <button onClick={onClose} className="btn-icon hover:bg-gray-100">
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3 p-5">
+          <div>
+            <label className="input-label">Nama Anda</label>
+            <input
+              value={form.requester_name}
+              onChange={(e) => setForm({ ...form, requester_name: e.target.value })}
+              className="input-field"
+              placeholder="Nama lengkap"
+            />
+          </div>
+          <div>
+            <label className="input-label">Email (opsional)</label>
+            <input
+              type="email"
+              value={form.requester_email}
+              onChange={(e) => setForm({ ...form, requester_email: e.target.value })}
+              className="input-field"
+              placeholder="email@example.com"
+            />
+          </div>
+          <div>
+            <label className="input-label">Jumlah ({item.unit})</label>
+            <input
+              type="number"
+              min="1"
+              max={item.quantity || 1}
+              value={form.quantity_requested}
+              onChange={(e) => setForm({ ...form, quantity_requested: e.target.value })}
+              className="input-field"
+              required
+            />
+          </div>
+          <div>
+            <label className="input-label">Pesan untuk seller</label>
+            <textarea
+              value={form.message}
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
+              className="input-field resize-none"
+              rows="3"
+              placeholder="Kapan bisa ambil, detail tambahan..."
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Batal</button>
+            <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-60">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
+              {submitting ? 'Mengirim...' : 'Kirim Reservasi'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

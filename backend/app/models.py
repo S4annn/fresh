@@ -136,6 +136,40 @@ class DonationItem(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class MarketplaceReservation(Base):
+    __tablename__ = "marketplace_reservations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    marketplace_item_id = Column(Integer, ForeignKey("marketplace_listings.id"), nullable=False)
+    seller_user_id = Column(String(100), index=True, nullable=False)
+    requester_user_id = Column(String(100), index=True, nullable=False)
+    requester_name = Column(String(150), default="")
+    requester_email = Column(String(150), default="")
+    message = Column(Text, default="")
+    quantity_requested = Column(Float, default=1)
+    status = Column(String(30), default="pending")  # pending, accepted, rejected, cancelled, completed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class DonationRequest(Base):
+    __tablename__ = "donation_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    donation_item_id = Column(Integer, ForeignKey("donation_items.id"), nullable=False)
+    donor_user_id = Column(String(100), index=True, nullable=False)
+    requester_user_id = Column(String(100), index=True, nullable=False)
+    requester_name = Column(String(150), default="")
+    requester_email = Column(String(150), default="")
+    organization_name = Column(String(150), default="")
+    message = Column(Text, default="")
+    quantity_requested = Column(Float, default=1)
+    pickup_time = Column(String(100), default="")
+    status = Column(String(30), default="pending")  # pending, accepted, rejected, cancelled, completed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class BusinessInventory(Base):
     __tablename__ = "business_inventory"
 
