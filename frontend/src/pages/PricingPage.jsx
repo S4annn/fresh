@@ -15,32 +15,32 @@ const planTheme = {
     color: 'from-gray-600 to-slate-700',
     border: 'border-gray-200',
     button: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-    badge: 'Starter',
+    badge: 'Pemula',
   },
   personal_plus: {
     icon: User,
     color: 'from-emerald-500 to-teal-600',
     border: 'border-emerald-300',
     button: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25',
-    badge: 'Popular',
+    badge: 'Populer',
   },
   business_pro: {
     icon: Building2,
     color: 'from-blue-500 to-indigo-600',
     border: 'border-blue-300',
     button: 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/25',
-    badge: 'Best for Business',
+    badge: 'Terbaik untuk Bisnis',
   },
 };
 
 const comparison = [
-  { feature: 'Inventory Items', free: '30 items', personal_plus: 'Unlimited', business_pro: 'Unlimited' },
-  { feature: 'AI Food Scanner', free: '5/month', personal_plus: '100/month', business_pro: 'Unlimited' },
-  { feature: 'Marketplace Listings', free: '2', personal_plus: '20', business_pro: 'Unlimited' },
-  { feature: 'Donation Listings', free: '5', personal_plus: 'Unlimited', business_pro: 'Unlimited + schedule' },
-  { feature: 'Analytics', free: 'Basic', personal_plus: 'Advanced', business_pro: 'Business' },
-  { feature: 'Multi-branch', free: '-', personal_plus: '-', business_pro: '5 branches' },
-  { feature: 'Sustainability Report', free: '-', personal_plus: '-', business_pro: 'Included' },
+  { feature: 'Item Inventaris', free: '30 item', personal_plus: 'Tanpa Batas', business_pro: 'Tanpa Batas' },
+  { feature: 'Pemindai Makanan AI', free: '5/bulan', personal_plus: '100/bulan', business_pro: 'Tanpa Batas' },
+  { feature: 'Listing Marketplace', free: '2', personal_plus: '20', business_pro: 'Tanpa Batas' },
+  { feature: 'Listing Donasi', free: '5', personal_plus: 'Tanpa Batas', business_pro: 'Tanpa Batas + jadwal' },
+  { feature: 'Analitik', free: 'Dasar', personal_plus: 'Lanjutan', business_pro: 'Bisnis' },
+  { feature: 'Multi-cabang', free: '-', personal_plus: '-', business_pro: '5 cabang' },
+  { feature: 'Laporan Keberlanjutan', free: '-', personal_plus: '-', business_pro: 'Termasuk' },
 ];
 
 function formatPrice(value) {
@@ -77,14 +77,14 @@ export default function PricingPage() {
       setRole('personal');
       setCurrentSubscription('free', 'personal', billingCycle);
       refreshSubscription();
-      showToast('Free Starter is now active.');
+      showToast('Free Starter sekarang aktif.');
       redirectAfterPlan('personal');
       return;
     }
 
     if (plan.plan_id === 'business_pro' && role !== 'business') {
       setRole('business');
-      showToast('Switched to Business account for Business Pro checkout.');
+      showToast('Beralih ke akun Bisnis untuk checkout Business Pro.');
     } else {
       setRole(plan.role);
     }
@@ -94,7 +94,7 @@ export default function PricingPage() {
   function handleCheckoutSuccess(nextSubscription) {
     refreshSubscription();
     setCheckoutPlanId(null);
-    showToast('Payment successful. Your plan has been upgraded.');
+    showToast('Pembayaran berhasil. Paket Anda telah ditingkatkan.');
     redirectAfterPlan(nextSubscription.role);
   }
 
@@ -117,9 +117,9 @@ export default function PricingPage() {
           </Link>
           <div className="flex items-center gap-4">
             <Link to={isAuthenticated ? (role === 'business' ? '/business/dashboard' : '/dashboard') : '/signin'} className="text-sm font-semibold text-gray-600 no-underline hover:text-emerald-600">
-              {isAuthenticated ? 'Dashboard' : 'Sign In'}
+              {isAuthenticated ? 'Dasbor' : 'Masuk'}
             </Link>
-            <Link to="/signup" className="btn-primary text-sm no-underline">Get Started</Link>
+            <Link to="/signup" className="btn-primary text-sm no-underline">Mulai</Link>
           </div>
         </div>
       </nav>
@@ -128,27 +128,27 @@ export default function PricingPage() {
         <div className="mb-12 text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-100/80 px-4 py-2">
             <Sparkles className="h-4 w-4 text-emerald-600" />
-            <span className="text-sm font-semibold text-emerald-700">Plan-based access is active</span>
+            <span className="text-sm font-semibold text-emerald-700">Akses berbasis paket aktif</span>
           </div>
           <h1 className="mb-4 text-4xl font-extrabold text-gray-900 sm:text-5xl">
-            Choose Your <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">F.R.E.S.H</span> Plan
+            Pilih Paket <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">F.R.E.S.H</span> Anda
           </h1>
           <p className="mx-auto mb-8 max-w-2xl text-lg text-gray-600">
-            Start free, then unlock more scans, analytics, marketplace capacity, and business workflows when you grow.
+            Mulai gratis, lalu buka lebih banyak pemindaian, analitik, kapasitas marketplace, dan alur kerja bisnis saat Anda berkembang.
           </p>
 
           <div className="inline-flex items-center gap-3 rounded-2xl bg-gray-100 p-1.5">
             <button onClick={() => setBillingCycle('monthly')} className={`rounded-xl px-5 py-2 text-sm font-semibold transition-all ${billingCycle === 'monthly' ? 'bg-white text-gray-800 shadow-md' : 'text-gray-500'}`}>
-              Monthly
+              Bulanan
             </button>
             <button onClick={() => setBillingCycle('yearly')} className={`flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold transition-all ${billingCycle === 'yearly' ? 'bg-white text-gray-800 shadow-md' : 'text-gray-500'}`}>
-              Yearly <span className="rounded-lg bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">Save 20%</span>
+              Tahunan <span className="rounded-lg bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">Hemat 20%</span>
             </button>
           </div>
 
           <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm">
             <Shield className="h-4 w-4 text-emerald-600" />
-            Current plan: <span className="font-bold text-gray-800">{currentPlan.plan_name}</span>
+            Paket saat ini: <span className="font-bold text-gray-800">{currentPlan.plan_name}</span>
           </div>
         </div>
 
@@ -162,7 +162,7 @@ export default function PricingPage() {
             return (
               <article key={plan.plan_id} className={`relative rounded-3xl border-2 bg-white p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${theme.border} ${plan.plan_id === 'business_pro' ? 'bg-gradient-to-br from-blue-50 to-indigo-50 shadow-xl shadow-blue-500/10' : ''}`}>
                 <div className="absolute right-5 top-5 flex items-center gap-2">
-                  {isCurrent && <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">Current Plan</span>}
+                  {isCurrent && <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">Paket Saat Ini</span>}
                   {theme.badge && !isCurrent && <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">{theme.badge}</span>}
                 </div>
 
@@ -176,10 +176,10 @@ export default function PricingPage() {
                 <div className="mb-6">
                   <p className="text-4xl font-extrabold text-gray-800">
                     {formatPrice(price)}
-                    <span className="text-base font-normal text-gray-500">/{billingCycle === 'yearly' ? 'year' : 'month'}</span>
+                    <span className="text-base font-normal text-gray-500">/{billingCycle === 'yearly' ? 'tahun' : 'bulan'}</span>
                   </p>
                   {billingCycle === 'yearly' && price > 0 && (
-                    <p className="mt-1 text-sm font-medium text-emerald-600">about {formatPrice(Math.round(price / 12))}/month</p>
+                    <p className="mt-1 text-sm font-medium text-emerald-600">sekitar {formatPrice(Math.round(price / 12))}/bulan</p>
                   )}
                 </div>
 
@@ -196,7 +196,7 @@ export default function PricingPage() {
 
                 {plan.plan_id === 'business_pro' && role === 'personal' && !isCurrent && (
                   <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
-                    This plan uses Business mode. We will switch your account before checkout.
+                    Paket ini menggunakan mode Bisnis. Kami akan mengalihkan akun Anda sebelum checkout.
                   </div>
                 )}
 
@@ -205,7 +205,7 @@ export default function PricingPage() {
                   disabled={isCurrent}
                   className={`flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:bg-emerald-100 disabled:text-emerald-700 ${theme.button}`}
                 >
-                  {isCurrent ? 'Current Plan' : plan.plan_id === 'free' ? 'Get Started Free' : plan.plan_id === 'personal_plus' ? 'Upgrade to Personal Plus' : 'Start Business Pro'}
+                  {isCurrent ? 'Paket Saat Ini' : plan.plan_id === 'free' ? 'Mulai Gratis' : plan.plan_id === 'personal_plus' ? 'Upgrade ke Personal Plus' : 'Mulai Business Pro'}
                   {!isCurrent && <ArrowRight className="h-4 w-4" />}
                 </button>
               </article>
@@ -214,13 +214,13 @@ export default function PricingPage() {
         </section>
 
         <section className="mb-16">
-          <h2 className="mb-8 text-center text-2xl font-extrabold text-gray-800">Plan Comparison</h2>
+          <h2 className="mb-8 text-center text-2xl font-extrabold text-gray-800">Perbandingan Paket</h2>
           <div className="card overflow-hidden p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b border-gray-100 bg-gray-50">
                   <tr>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-600">Feature</th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-600">Fitur</th>
                     <th className="px-6 py-4 text-center font-semibold text-gray-600">Free Starter</th>
                     <th className="px-6 py-4 text-center font-semibold text-emerald-600">Personal Plus</th>
                     <th className="px-6 py-4 text-center font-semibold text-blue-600">Business Pro</th>
@@ -245,16 +245,16 @@ export default function PricingPage() {
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15">
             <CreditCard className="h-7 w-7" />
           </div>
-          <h2 className="mb-3 text-3xl font-extrabold">Sandbox billing today. Payment-ready tomorrow.</h2>
+          <h2 className="mb-3 text-3xl font-extrabold">Billing sandbox hari ini. Siap pembayaran besok.</h2>
           <p className="mx-auto mb-7 max-w-2xl text-emerald-100">
-            This MVP uses dummy checkout and localStorage, with clear hooks ready for Midtrans or Xendit transaction sessions.
+            MVP ini menggunakan checkout dummy dan localStorage, dengan hook yang siap untuk sesi transaksi Midtrans atau Xendit.
           </p>
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
             <button onClick={() => handlePlanClick(PLANS.free)} className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-bold text-emerald-700 hover:bg-emerald-50">
-              Start Free <ArrowRight className="h-4 w-4" />
+              Mulai Gratis <ArrowRight className="h-4 w-4" />
             </button>
             <button onClick={() => handlePlanClick(PLANS.business_pro)} className="inline-flex items-center gap-2 rounded-xl bg-blue-500 px-6 py-3 font-bold text-white hover:bg-blue-600">
-              <Star className="h-4 w-4" /> Start Business Pro
+              <Star className="h-4 w-4" /> Mulai Business Pro
             </button>
           </div>
         </section>

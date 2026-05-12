@@ -61,7 +61,7 @@ export default function SignInPage() {
         sessionStorage.setItem("pending_verification_email", err.email);
         navigate(`/verify-otp?email=${encodeURIComponent(err.email)}`);
       } else {
-        setError(err.message || 'Sign in gagal. Periksa email dan password Anda.');
+        setError(err.message || 'Gagal masuk. Periksa email dan password Anda.');
       }
     } finally {
       setLoading(false);
@@ -72,7 +72,7 @@ export default function SignInPage() {
   const handleGoogleSignIn = async () => {
     setError('');
     if (!isFirebaseConfigured) {
-      setError('Firebase belum dikonfigurasi. Isi Firebase environment variables di file .env untuk menggunakan Google Sign In.');
+      setError('Firebase belum dikonfigurasi. Isi Firebase environment variables di file .env untuk menggunakan Masuk dengan Google.');
       return;
     }
     setLoading(true);
@@ -88,7 +88,7 @@ export default function SignInPage() {
       } else if (err.code === 'auth/popup-closed-by-user') {
         setError('Popup Google ditutup sebelum login selesai. Coba lagi.');
       } else {
-        setError(err.message || 'Google sign in gagal.');
+        setError(err.message || 'Masuk dengan Google gagal.');
       }
     } finally {
       setLoading(false);
@@ -112,24 +112,24 @@ export default function SignInPage() {
           <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-3xl flex items-center justify-center mx-auto mb-8">
             <Leaf className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-4xl font-extrabold text-white mb-4">Welcome Back to F.R.E.S.H</h2>
+          <h2 className="text-4xl font-extrabold text-white mb-4">Selamat Datang Kembali di F.R.E.S.H</h2>
           <p className="text-emerald-100 text-lg leading-relaxed">
             Lanjutkan misi Anda mengurangi limbah makanan. Setiap makanan yang diselamatkan membuat perbedaan.
           </p>
           <div className="flex items-center justify-center gap-6 mt-12">
             <div className="text-center">
               <p className="text-3xl font-bold text-white">40%</p>
-              <p className="text-sm text-emerald-200">Waste Reduced</p>
+              <p className="text-sm text-emerald-200">Limbah Dikurangi</p>
             </div>
             <div className="w-px h-12 bg-emerald-400/30" />
             <div className="text-center">
               <p className="text-3xl font-bold text-white">10K+</p>
-              <p className="text-sm text-emerald-200">Items Saved</p>
+              <p className="text-sm text-emerald-200">Makanan Diselamatkan</p>
             </div>
             <div className="w-px h-12 bg-emerald-400/30" />
             <div className="text-center">
               <p className="text-3xl font-bold text-white">500+</p>
-              <p className="text-sm text-emerald-200">Donations</p>
+              <p className="text-sm text-emerald-200">Donasi</p>
             </div>
           </div>
         </div>
@@ -146,12 +146,12 @@ export default function SignInPage() {
             <span className="text-xl font-extrabold text-gray-800">F.R.E.S.H</span>
           </div>
 
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Sign In</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Masuk</h1>
           <p className="text-gray-500 mb-6">Masuk dengan akun yang sudah terdaftar.</p>
 
           {/* Role Selection */}
           <div className="mb-6">
-            <p className="text-sm font-semibold text-gray-700 mb-3">I am signing in as:</p>
+            <p className="text-sm font-semibold text-gray-700 mb-3">Saya masuk sebagai:</p>
             <div className="grid grid-cols-2 gap-3">
               {/* Personal */}
               <button
@@ -167,7 +167,7 @@ export default function SignInPage() {
                 </div>
                 <div>
                   <p className={`font-bold text-sm ${selectedRole === 'personal' ? 'text-emerald-700' : 'text-gray-700'}`}>Personal</p>
-                  <p className="text-xs text-gray-400 leading-tight">For households & individuals</p>
+                  <p className="text-xs text-gray-400 leading-tight">Untuk rumah tangga & individu</p>
                 </div>
                 {selectedRole === 'personal' && (
                   <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center self-end">
@@ -191,8 +191,8 @@ export default function SignInPage() {
                   <Building2 className={`w-5 h-5 ${selectedRole === 'business' ? 'text-white' : 'text-gray-500'}`} />
                 </div>
                 <div>
-                  <p className={`font-bold text-sm ${selectedRole === 'business' ? 'text-blue-700' : 'text-gray-700'}`}>Business</p>
-                  <p className="text-xs text-gray-400 leading-tight">For restaurants, cafes & hotels</p>
+                  <p className={`font-bold text-sm ${selectedRole === 'business' ? 'text-blue-700' : 'text-gray-700'}`}>Bisnis</p>
+                  <p className="text-xs text-gray-400 leading-tight">Untuk restoran, kafe & hotel</p>
                 </div>
                 {selectedRole === 'business' && (
                   <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center self-end">
@@ -218,16 +218,16 @@ export default function SignInPage() {
             <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl mb-5 animate-fade-in">
               <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-amber-700 font-medium mb-1">Business Pro unlocks advanced business tools</p>
+                <p className="text-sm text-amber-700 font-medium mb-1">Business Pro membuka alat bisnis lanjutan</p>
                 <p className="text-xs text-amber-600">
-                  You can sign in to a business account, but inventory, orders, branches, and analytics require Business Pro.
+                  Anda bisa masuk ke akun bisnis, namun inventaris, pesanan, cabang, dan analitik memerlukan Business Pro.
                   <Link to="/pricing" className="font-semibold text-amber-700 hover:text-amber-800 underline ml-1">
-                    Upgrade your plan
+                    Tingkatkan paket Anda
                   </Link>
-                  {' '}to unlock the full workflow.
+                  {' '}untuk membuka alur kerja lengkap.
                 </p>
                 <p className="text-xs text-amber-500 mt-2">
-                  <strong>Demo Login:</strong> Try all business features for free (3 uses per feature)
+                  <strong>Login Demo:</strong> Coba semua fitur bisnis gratis (3 kali per fitur)
                 </p>
               </div>
             </div>
@@ -251,14 +251,14 @@ export default function SignInPage() {
               </div>
             </div>
             <div>
-              <label className="input-label">Password</label>
+              <label className="input-label">Kata Sandi</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Masukkan kata sandi Anda"
                   className="input-field pl-12 pr-12"
                   required
                   autoComplete="current-password"
@@ -280,7 +280,7 @@ export default function SignInPage() {
             >
               {loading
                 ? <Loader2 className="w-5 h-5 animate-spin" />
-                : `Sign In as ${selectedRole === 'business' ? 'Business' : 'Personal'}`}
+                : `Masuk sebagai ${selectedRole === 'business' ? 'Bisnis' : 'Personal'}`}
             </button>
           </form>
 
@@ -290,7 +290,7 @@ export default function SignInPage() {
               <div className="w-full border-t border-gray-200" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 text-gray-500">or continue with</span>
+              <span className="px-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 text-gray-500">atau lanjutkan dengan</span>
             </div>
           </div>
 
@@ -306,7 +306,7 @@ export default function SignInPage() {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            Sign In with Google
+            Masuk dengan Google
           </button>
 
           {/* Demo Login — clearly separated */}
@@ -314,13 +314,13 @@ export default function SignInPage() {
             <div className="flex items-start gap-2 mb-3">
               <Zap className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs text-amber-700 font-medium mb-1">Free Demo Mode</p>
+                <p className="text-xs text-amber-700 font-medium mb-1">Mode Demo Gratis</p>
                 <p className="text-xs text-amber-600">
-                  Try all features without signing up. Data is not permanently stored.
+                  Coba semua fitur tanpa mendaftar. Data tidak disimpan permanen.
                 </p>
                 <p className="text-xs text-amber-500 mt-1">
-                  <strong>Limit:</strong> 3 uses per feature for demo
-                  {selectedRole === 'business' ? ' • All business features included' : ' • Personal features only'}
+                  <strong>Batas:</strong> 3 kali pemakaian per fitur untuk demo
+                  {selectedRole === 'business' ? ' • Semua fitur bisnis termasuk' : ' • Hanya fitur personal'}
                 </p>
               </div>
             </div>
@@ -329,7 +329,7 @@ export default function SignInPage() {
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-100 border border-amber-300 rounded-xl font-semibold text-amber-800 hover:bg-amber-200 transition-colors text-sm"
             >
               <Zap className="w-4 h-4" />
-              Demo Login — {selectedRole === 'business' ? 'Business Mode' : 'Personal Mode'}
+              Login Demo — {selectedRole === 'business' ? 'Mode Bisnis' : 'Mode Personal'}
             </button>
           </div>
 
@@ -340,7 +340,7 @@ export default function SignInPage() {
             </Link>
           </p>
           <Link to="/" className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-3 no-underline">
-            ← Back to home
+            ← Kembali ke beranda
           </Link>
         </div>
       </div>

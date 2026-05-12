@@ -12,57 +12,57 @@ import {
 const features = [
   {
     icon: Scan,
-    title: 'AI Food Scanner',
-    description: 'Upload or scan food images and let AI identify ingredients, estimate shelf life, and suggest the best action.',
+    title: 'Pemindai Makanan AI',
+    description: 'Unggah atau pindai gambar makanan, AI akan mengenali bahan, memperkirakan masa simpan, dan menyarankan tindakan terbaik.',
     color: 'from-emerald-500 to-teal-600',
     bg: 'bg-emerald-50',
   },
   {
     icon: Brain,
-    title: 'AI Food Waste Prediction',
+    title: 'Prediksi Limbah Makanan AI',
     description: 'Prediksi risiko makanan terbuang menggunakan machine learning yang akurat.',
     color: 'from-violet-500 to-purple-600',
     bg: 'bg-violet-50',
   },
   {
     icon: Package,
-    title: 'Smart Inventory Tracking',
+    title: 'Pelacakan Inventaris Cerdas',
     description: 'Kelola stok makanan dengan mudah, pantau jumlah dan kondisi setiap saat.',
     color: 'from-blue-500 to-cyan-600',
     bg: 'bg-blue-50',
   },
   {
     icon: Bell,
-    title: 'Expiry Reminder',
+    title: 'Pengingat Kedaluwarsa',
     description: 'Dapatkan notifikasi otomatis ketika makanan mendekati tanggal kedaluwarsa.',
     color: 'from-amber-500 to-orange-600',
     bg: 'bg-amber-50',
   },
   {
     icon: Lightbulb,
-    title: 'Recipe Recommendation',
+    title: 'Rekomendasi Resep',
     description: 'AI merekomendasikan resep berdasarkan bahan makanan yang perlu segera digunakan.',
     color: 'from-emerald-500 to-teal-600',
     bg: 'bg-emerald-50',
   },
   {
     icon: ShoppingBag,
-    title: 'Marketplace for Surplus Food',
-    description: 'Jual makanan berlebih dengan harga diskon, kurangi waste dan hasilkan uang.',
+    title: 'Marketplace Makanan Berlebih',
+    description: 'Jual makanan berlebih dengan harga diskon, kurangi limbah dan hasilkan uang.',
     color: 'from-pink-500 to-rose-600',
     bg: 'bg-pink-50',
   },
   {
     icon: Heart,
-    title: 'Food Donation',
+    title: 'Donasi Makanan',
     description: 'Donasikan makanan berlebih untuk membantu komunitas yang membutuhkan.',
     color: 'from-red-500 to-rose-600',
     bg: 'bg-red-50',
   },
   {
     icon: BarChart3,
-    title: 'Analytics Dashboard',
-    description: 'Lihat data dan insight tentang pola konsumsi serta dampak positif Anda.',
+    title: 'Dasbor Analitik',
+    description: 'Lihat data dan wawasan tentang pola konsumsi serta dampak positif Anda.',
     color: 'from-teal-500 to-cyan-600',
     bg: 'bg-teal-50',
   },
@@ -71,26 +71,26 @@ const features = [
 const steps = [
   {
     step: '01',
-    title: 'Scan or Add Food',
-    description: 'Scan food images with AI or manually add items to your inventory.',
+    title: 'Pindai atau Tambah Makanan',
+    description: 'Pindai gambar makanan dengan AI atau tambahkan item secara manual ke inventaris.',
     icon: Scan,
   },
   {
     step: '02',
-    title: 'AI Identifies & Predicts',
-    description: 'AI identifies ingredients and predicts waste risk based on expiry and storage.',
+    title: 'AI Identifikasi & Prediksi',
+    description: 'AI mengenali bahan dan memprediksi risiko limbah berdasarkan kedaluwarsa dan penyimpanan.',
     icon: Brain,
   },
   {
     step: '03',
-    title: 'Get Smart Recommendations',
-    description: 'Receive recipe, storage, selling, or donation recommendations.',
+    title: 'Dapatkan Rekomendasi Cerdas',
+    description: 'Terima rekomendasi resep, penyimpanan, penjualan, atau donasi.',
     icon: Lightbulb,
   },
   {
     step: '04',
-    title: 'Track Your Impact',
-    description: 'Monitor food saved, money saved, and your sustainability contribution.',
+    title: 'Pantau Dampak Anda',
+    description: 'Pantau makanan yang diselamatkan, uang yang dihemat, dan kontribusi keberlanjutan Anda.',
     icon: BarChart3,
   },
 ];
@@ -98,7 +98,7 @@ const steps = [
 const impacts = [
   {
     icon: TrendingDown,
-    title: 'Reduce Household Waste',
+    title: 'Kurangi Limbah Rumah Tangga',
     description: 'Kurangi limbah rumah tangga hingga 40% dengan manajemen stok cerdas.',
     stat: '40%',
     color: 'text-emerald-600',
@@ -106,7 +106,7 @@ const impacts = [
   },
   {
     icon: Shield,
-    title: 'Save Money',
+    title: 'Hemat Uang',
     description: 'Hemat pengeluaran belanja bulanan dengan mengurangi pembelian berlebih.',
     stat: 'Rp350K+',
     color: 'text-blue-600',
@@ -114,7 +114,7 @@ const impacts = [
   },
   {
     icon: Sparkles,
-    title: 'Support Sustainability',
+    title: 'Dukung Keberlanjutan',
     description: 'Kurangi emisi karbon dan dukung gaya hidup berkelanjutan.',
     stat: '12.5 kg',
     color: 'text-teal-600',
@@ -122,7 +122,7 @@ const impacts = [
   },
   {
     icon: Users,
-    title: 'Help Communities',
+    title: 'Bantu Komunitas',
     description: 'Bantu komunitas yang membutuhkan melalui donasi makanan berlebih.',
     stat: '50+',
     color: 'text-purple-600',
@@ -168,11 +168,11 @@ export default function LandingPage() {
 
             {/* Desktop Menu */}
             <div className="hidden lg:flex items-center gap-8">
-              <a href="#features" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Features</a>
-              <a href="#how-it-works" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">How It Works</a>
-              <a href="#for-you" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">For You</a>
-              <a href="#impact" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Impact</a>
-              <Link to="/pricing" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Pricing</Link>
+              <a href="#features" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Fitur</a>
+              <a href="#how-it-works" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Cara Kerja</a>
+              <a href="#for-you" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Untuk Anda</a>
+              <a href="#impact" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Dampak</a>
+              <Link to="/pricing" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Harga</Link>
               <Link to="/marketplace" className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors no-underline">Marketplace</Link>
               <ThemeToggle compact />
             </div>
@@ -180,11 +180,11 @@ export default function LandingPage() {
             {/* Auth Buttons */}
             <div className="hidden lg:flex items-center gap-3">
               {isAuthenticated ? (
-                <Link to="/dashboard" className="btn-primary text-sm no-underline">Dashboard</Link>
+                <Link to="/dashboard" className="btn-primary text-sm no-underline">Dasbor</Link>
               ) : (
                 <>
-                  <Link to="/signin" className="text-sm font-semibold text-gray-700 hover:text-emerald-600 px-4 py-2.5 transition-colors no-underline">Sign In</Link>
-                  <Link to="/signup" className="btn-primary text-sm no-underline">Get Started</Link>
+                  <Link to="/signin" className="text-sm font-semibold text-gray-700 hover:text-emerald-600 px-4 py-2.5 transition-colors no-underline">Masuk</Link>
+                  <Link to="/signup" className="btn-primary text-sm no-underline">Mulai Gratis</Link>
                 </>
               )}
             </div>
@@ -200,13 +200,13 @@ export default function LandingPage() {
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white/95 backdrop-blur-xl border-t border-emerald-100/50 animate-fade-in">
             <div className="px-4 py-4 space-y-2">
-              <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 font-medium hover:bg-emerald-50 rounded-xl no-underline">Features</a>
-              <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 font-medium hover:bg-emerald-50 rounded-xl no-underline">How It Works</a>
-              <a href="#impact" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 font-medium hover:bg-emerald-50 rounded-xl no-underline">Impact</a>
+              <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 font-medium hover:bg-emerald-50 rounded-xl no-underline">Fitur</a>
+              <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 font-medium hover:bg-emerald-50 rounded-xl no-underline">Cara Kerja</a>
+              <a href="#impact" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 font-medium hover:bg-emerald-50 rounded-xl no-underline">Dampak</a>
               <ThemeToggle className="w-full" />
               <div className="pt-2 border-t border-gray-100 flex gap-3">
-                <Link to="/signin" onClick={() => setMobileMenuOpen(false)} className="flex-1 btn-secondary text-sm text-center no-underline">Sign In</Link>
-                <Link to="/signup" onClick={() => setMobileMenuOpen(false)} className="flex-1 btn-primary text-sm text-center no-underline">Get Started</Link>
+                <Link to="/signin" onClick={() => setMobileMenuOpen(false)} className="flex-1 btn-secondary text-sm text-center no-underline">Masuk</Link>
+                <Link to="/signup" onClick={() => setMobileMenuOpen(false)} className="flex-1 btn-primary text-sm text-center no-underline">Mulai Gratis</Link>
               </div>
             </div>
           </div>
@@ -226,16 +226,16 @@ export default function LandingPage() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 dark:bg-emerald-500 backdrop-blur-sm rounded-full mb-8 animate-fade-in">
               <Sparkles className="w-4 h-4 text-white" />
-              <span className="text-sm font-semibold text-white">AI-Powered Food Management Platform</span>
+              <span className="text-sm font-semibold text-white">Platform Manajemen Makanan Berbasis AI</span>
             </div>
 
             {/* Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-gray-900 leading-[1.1] mb-6 animate-slide-up">
-              Reduce Food Waste with{' '}
+              Kurangi Limbah Makanan dengan{' '}
               <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 bg-clip-text text-transparent">
-                AI-Powered
+                Manajemen Makanan
               </span>{' '}
-              Smart Food Management
+              Cerdas Berbasis AI
             </h1>
 
             {/* Subheadline */}
@@ -250,7 +250,7 @@ export default function LandingPage() {
                 to={isAuthenticated ? '/dashboard' : '/signup'}
                 className="btn-primary text-base px-8 py-4 no-underline w-full sm:w-auto"
               >
-                Start Managing Food
+                Mulai Kelola Makanan
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
@@ -263,7 +263,7 @@ export default function LandingPage() {
                 }}
               >
                 <Play className="w-5 h-5" />
-                View Demo
+                Lihat Demo
               </Link>
             </div>
 
@@ -271,17 +271,17 @@ export default function LandingPage() {
             <div className="flex items-center justify-center gap-8 sm:gap-16 mt-16 animate-slide-up animate-delay-300">
               <div className="text-center">
                 <p className="text-2xl sm:text-3xl font-extrabold gradient-text">40%</p>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">Waste Reduced</p>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">Limbah Dikurangi</p>
               </div>
               <div className="w-px h-10 bg-gray-200" />
               <div className="text-center">
                 <p className="text-2xl sm:text-3xl font-extrabold gradient-text">10K+</p>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">Food Items Saved</p>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">Makanan Diselamatkan</p>
               </div>
               <div className="w-px h-10 bg-gray-200" />
               <div className="text-center">
                 <p className="text-2xl sm:text-3xl font-extrabold gradient-text">500+</p>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">Donations Made</p>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">Donasi Dilakukan</p>
               </div>
             </div>
           </div>
@@ -294,11 +294,11 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 rounded-full mb-4">
               <Sparkles className="w-4 h-4 text-white" />
-              <span className="text-sm font-semibold text-white">Powerful Features</span>
+              <span className="text-sm font-semibold text-white">Fitur Andalan</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4">
-              Everything You Need to{' '}
-              <span className="gradient-text">Fight Food Waste</span>
+              Semua yang Anda Butuhkan untuk{' '}
+              <span className="gradient-text">Mengurangi Limbah Makanan</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Platform lengkap dengan teknologi AI untuk membantu Anda mengelola makanan secara cerdas dan berkelanjutan.
@@ -331,10 +331,10 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 rounded-full mb-4">
               <CheckCircle2 className="w-4 h-4 text-white" />
-              <span className="text-sm font-semibold text-white">Simple Process</span>
+              <span className="text-sm font-semibold text-white">Proses Sederhana</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4">
-              How <span className="gradient-text">F.R.E.S.H</span> Works
+              Cara Kerja <span className="gradient-text">F.R.E.S.H</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Empat langkah sederhana untuk mulai mengurangi limbah makanan dengan bantuan AI.
@@ -368,13 +368,13 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 rounded-full mb-4">
               <Sparkles className="w-4 h-4 text-white" />
-              <span className="text-sm font-semibold text-white">Choose How You Use F.R.E.S.H</span>
+              <span className="text-sm font-semibold text-white">Pilih Cara Anda Menggunakan F.R.E.S.H</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4">
-              Built for <span className="gradient-text">Everyone</span>
+              Dibuat untuk <span className="gradient-text">Semua</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Whether you're managing your home fridge or running a restaurant, F.R.E.S.H has the right experience for you.
+              Baik untuk mengelola kulkas di rumah atau menjalankan restoran, F.R.E.S.H punya pengalaman yang pas untuk Anda.
             </p>
           </div>
 
@@ -384,10 +384,10 @@ export default function LandingPage() {
               <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform">
                 <User className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-extrabold text-gray-800 mb-2">For Personal</h3>
-              <p className="text-gray-500 mb-6">Manage your home food stock and save money</p>
+              <h3 className="text-2xl font-extrabold text-gray-800 mb-2">Untuk Personal</h3>
+              <p className="text-gray-500 mb-6">Kelola stok makanan rumah dan hemat pengeluaran Anda</p>
               <ul className="space-y-3 mb-8">
-                {['Manage home food stock', 'Get expiry reminders', 'Save grocery money', 'Find recipe ideas', 'Donate surplus food'].map((item, i) => (
+                {['Kelola stok makanan rumah', 'Dapatkan pengingat kedaluwarsa', 'Hemat uang belanja', 'Temukan ide resep', 'Donasikan makanan berlebih'].map((item, i) => (
                   <li key={i} className="flex items-center gap-3 text-gray-700">
                     <div className="w-5 h-5 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -397,7 +397,7 @@ export default function LandingPage() {
                 ))}
               </ul>
               <button onClick={() => handleUseAs('personal')} className="w-full btn-primary py-3.5 text-base">
-                <User className="w-5 h-5" /> Use as Personal <ArrowRight className="w-5 h-5" />
+                <User className="w-5 h-5" /> Gunakan sebagai Personal <ArrowRight className="w-5 h-5" />
               </button>
             </div>
 
@@ -407,10 +407,10 @@ export default function LandingPage() {
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
                 <Building2 className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-extrabold text-gray-800 mb-2">For Business</h3>
-              <p className="text-gray-500 mb-6">Manage inventory and branches professionally</p>
+              <h3 className="text-2xl font-extrabold text-gray-800 mb-2">Untuk Bisnis</h3>
+              <p className="text-gray-500 mb-6">Kelola inventaris dan cabang secara profesional</p>
               <ul className="space-y-3 mb-8">
-                {['Manage inventory and branches', 'Predict stock waste risk', 'Sell surplus food', 'Schedule donations', 'Track sustainability impact'].map((item, i) => (
+                {['Kelola inventaris dan cabang', 'Prediksi risiko limbah stok', 'Jual makanan berlebih', 'Jadwalkan donasi', 'Pantau dampak keberlanjutan'].map((item, i) => (
                   <li key={i} className="flex items-center gap-3 text-gray-700">
                     <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-blue-600" />
@@ -420,14 +420,14 @@ export default function LandingPage() {
                 ))}
               </ul>
               <button onClick={() => handleUseAs('business')} className="w-full py-3.5 text-base rounded-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25">
-                <Building2 className="w-5 h-5" /> Use as Business <ArrowRight className="w-5 h-5" />
+                <Building2 className="w-5 h-5" /> Gunakan sebagai Bisnis <ArrowRight className="w-5 h-5" />
               </button>
             </div>
           </div>
 
           <div className="text-center mt-8">
             <Link to="/pricing" className="inline-flex items-center gap-2 text-emerald-600 font-semibold hover:text-emerald-700 no-underline">
-              View all plans & pricing <ArrowRight className="w-4 h-4" />
+              Lihat semua paket & harga <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
@@ -438,21 +438,21 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 rounded-full mb-4">
               <Shield className="w-4 h-4 text-white" />
-              <span className="text-sm font-semibold text-white">Plan-based access</span>
+              <span className="text-sm font-semibold text-white">Akses berbasis paket</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">
-              Start free, upgrade when you grow
+              Mulai gratis, tingkatkan saat Anda berkembang
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              F.R.E.S.H keeps basic food-saving workflows free, then unlocks higher limits and business tools when your needs grow.
+              F.R.E.S.H menjaga alur kerja dasar hemat makanan tetap gratis, lalu membuka batas lebih tinggi dan alat bisnis saat kebutuhan Anda berkembang.
             </p>
           </div>
 
           <div className="grid gap-5 md:grid-cols-3">
             {[
-              { title: 'Free Starter', desc: 'Free for personal basic use: inventory, reminders, marketplace browsing, and donation listings.', icon: User, color: 'emerald' },
-              { title: 'Personal Plus', desc: 'For households that need unlimited inventory, smarter recommendations, and advanced analytics.', icon: Heart, color: 'teal' },
-              { title: 'Business Pro', desc: 'For restaurants, hotels, cafes, catering, bakeries, and grocery teams managing surplus at scale.', icon: Building2, color: 'blue' },
+              { title: 'Free Starter', desc: 'Gratis untuk kebutuhan personal dasar: inventaris, pengingat, menjelajahi marketplace, dan listing donasi.', icon: User, color: 'emerald' },
+              { title: 'Personal Plus', desc: 'Untuk rumah tangga yang butuh inventaris tanpa batas, rekomendasi lebih cerdas, dan analitik lanjutan.', icon: Heart, color: 'teal' },
+              { title: 'Business Pro', desc: 'Untuk restoran, hotel, kafe, katering, bakery, dan tim grocery yang mengelola surplus dalam skala besar.', icon: Building2, color: 'blue' },
             ].map(({ title, desc, icon: Icon, color }) => (
               <div key={title} className="rounded-2xl border border-gray-100 bg-gray-50/70 p-6">
                 <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${color === 'blue' ? 'bg-blue-600' : 'bg-emerald-600'} text-white`}>
@@ -466,13 +466,13 @@ export default function LandingPage() {
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <button onClick={() => handleUseAs('personal')} className="btn-primary">
-              Start Free <ArrowRight className="w-4 h-4" />
+              Mulai Gratis <ArrowRight className="w-4 h-4" />
             </button>
             <Link to="/pricing" className="btn-secondary no-underline">
-              View Pricing
+              Lihat Harga
             </Link>
             <button onClick={() => handleUseAs('business')} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-bold text-white hover:bg-blue-700">
-              Start Business Pro <ArrowRight className="w-4 h-4" />
+              Mulai Business Pro <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -487,10 +487,10 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 rounded-full mb-4">
               <Sparkles className="w-4 h-4 text-emerald-300" />
-              <span className="text-sm font-semibold text-emerald-300">Real Impact</span>
+              <span className="text-sm font-semibold text-emerald-300">Dampak Nyata</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-4">
-              Making a <span className="text-emerald-300">Real Difference</span>
+              Membuat <span className="text-emerald-300">Perbedaan Nyata</span>
             </h2>
             <p className="text-lg text-emerald-200/80 max-w-2xl mx-auto">
               Setiap makanan yang diselamatkan berkontribusi pada perubahan yang lebih besar.
@@ -522,18 +522,18 @@ export default function LandingPage() {
       <section className="py-20 lg:py-32">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-6">
-            Ready to Reduce <span className="gradient-text">Food Waste</span>?
+            Siap Mengurangi <span className="gradient-text">Limbah Makanan</span>?
           </h2>
           <p className="text-lg text-gray-600 mb-10 max-w-2xl mx-auto">
             Bergabunglah sekarang dan mulai mengelola makanan dengan lebih cerdas. Gratis untuk memulai.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to="/signup" className="btn-primary text-base px-10 py-4 no-underline">
-              Get Started Free
+              Mulai Gratis
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link to="/signin" className="btn-secondary text-base px-10 py-4 no-underline">
-              Sign In
+              Masuk
             </Link>
           </div>
         </div>
@@ -558,29 +558,29 @@ export default function LandingPage() {
 
             {/* Quick Links */}
             <div>
-              <h4 className="text-white font-bold mb-4">Quick Links</h4>
+              <h4 className="text-white font-bold mb-4">Tautan Cepat</h4>
               <ul className="space-y-2 list-none p-0 m-0">
-                <li><a href="#features" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Features</a></li>
-                <li><a href="#how-it-works" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">How It Works</a></li>
-                <li><a href="#impact" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Impact</a></li>
+                <li><a href="#features" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Fitur</a></li>
+                <li><a href="#how-it-works" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Cara Kerja</a></li>
+                <li><a href="#impact" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Dampak</a></li>
                 <li><Link to="/marketplace" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Marketplace</Link></li>
               </ul>
             </div>
 
             {/* Product */}
             <div>
-              <h4 className="text-white font-bold mb-4">Product</h4>
+              <h4 className="text-white font-bold mb-4">Produk</h4>
               <ul className="space-y-2 list-none p-0 m-0">
-                <li><Link to="/dashboard" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Dashboard</Link></li>
-                <li><Link to="/inventory" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Inventory</Link></li>
-                <li><Link to="/predict" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">AI Prediction</Link></li>
-                <li><Link to="/donation" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Donation</Link></li>
+                <li><Link to="/dashboard" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Dasbor</Link></li>
+                <li><Link to="/inventory" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Inventaris</Link></li>
+                <li><Link to="/predict" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Prediksi AI</Link></li>
+                <li><Link to="/donation" className="text-sm hover:text-emerald-400 transition-colors no-underline text-gray-400">Donasi</Link></li>
               </ul>
             </div>
 
             {/* Contact */}
             <div>
-              <h4 className="text-white font-bold mb-4">Contact</h4>
+              <h4 className="text-white font-bold mb-4">Kontak</h4>
               <ul className="space-y-2 list-none p-0 m-0">
                 <li className="text-sm">hello@fresh.app</li>
                 <li className="text-sm">Jakarta, Indonesia</li>
@@ -590,7 +590,7 @@ export default function LandingPage() {
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center">
-            <p className="text-sm">© {new Date().getFullYear()} F.R.E.S.H — Food Resource Efficiency & Smart Handling. All rights reserved.</p>
+            <p className="text-sm">© {new Date().getFullYear()} F.R.E.S.H — Food Resource Efficiency & Smart Handling. Semua hak dilindungi.</p>
           </div>
         </div>
       </footer>

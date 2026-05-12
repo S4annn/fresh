@@ -232,13 +232,13 @@ export default function SettingsPage() {
       <div className="card">
         <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
           <CreditCard className="w-5 h-5 text-emerald-600" />
-          Billing & Subscription
+          Tagihan & Langganan
         </h2>
 
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 mb-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Current plan</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Paket saat ini</p>
               <h3 className="text-2xl font-extrabold text-gray-900">{plan.plan_name}</h3>
               <p className="text-sm text-gray-600 mt-1">
                 {subscription.status} · {subscription.billing_cycle} · Started {subscription.started_at}
@@ -269,13 +269,13 @@ export default function SettingsPage() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <button onClick={() => navigate('/pricing')} className="btn-primary">
-            Manage Plan
+            Kelola Paket
           </button>
           <button onClick={() => navigate('/pricing')} className="btn-secondary">
-            Upgrade
+            Tingkatkan
           </button>
           <button onClick={handleCancelSubscription} className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-100 sm:col-span-2">
-            Cancel Subscription
+            Batalkan Langganan
           </button>
         </div>
 

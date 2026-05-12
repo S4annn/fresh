@@ -34,7 +34,7 @@ export default function PlanUsageCard({ business = false }) {
             <CreditCard className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Current Plan</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Paket Saat Ini</p>
             <h2 className="text-2xl font-extrabold text-gray-900">{plan.plan_name}</h2>
             <p className="mt-1 text-sm text-gray-600">
               {subscription.status} · {subscription.billing_cycle} billing

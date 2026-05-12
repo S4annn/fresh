@@ -200,12 +200,12 @@ export default function SignUpPage() {
           <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-3xl flex items-center justify-center mx-auto mb-8">
             <Leaf className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-4xl font-extrabold text-white mb-4">Join F.R.E.S.H Today</h2>
+          <h2 className="text-4xl font-extrabold text-white mb-4">Bergabung dengan F.R.E.S.H Hari Ini</h2>
           <p className="text-emerald-100 text-lg leading-relaxed mb-10">
             Mulai langkah pertama Anda untuk mengurangi limbah makanan.
           </p>
           <div className="space-y-3 text-left">
-            {['AI-powered food waste prediction', 'Smart inventory management', 'Recipe recommendations', 'Community marketplace & donations', 'Business analytics & reports'].map((item, i) => (
+            {['Prediksi limbah makanan berbasis AI', 'Manajemen inventaris cerdas', 'Rekomendasi resep', 'Marketplace komunitas & donasi', 'Analitik & laporan bisnis'].map((item, i) => (
               <div key={i} className="flex items-center gap-3">
                 <div className="w-6 h-6 bg-emerald-400/30 rounded-full flex items-center justify-center flex-shrink-0">
                   <svg className="w-3.5 h-3.5 text-emerald-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
@@ -227,16 +227,16 @@ export default function SignUpPage() {
             <span className="text-xl font-extrabold text-gray-800">F.R.E.S.H</span>
           </div>
 
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Create Account</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Buat Akun</h1>
           <p className="text-gray-500 mb-5">Daftar dan mulai kelola makanan secara cerdas.</p>
 
           {/* Role Selection */}
           <div className="mb-5">
-            <p className="text-sm font-semibold text-gray-700 mb-3">I want to use F.R.E.S.H as:</p>
+            <p className="text-sm font-semibold text-gray-700 mb-3">Saya ingin menggunakan F.R.E.S.H sebagai:</p>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { key: 'personal', label: 'Personal', sub: 'Households & individuals', icon: User, color: 'emerald' },
-                { key: 'business', label: 'Business', sub: 'Restaurants, cafes & hotels', icon: Building2, color: 'blue' },
+                { key: 'personal', label: 'Personal', sub: 'Rumah tangga & individu', icon: User, color: 'emerald' },
+                { key: 'business', label: 'Bisnis', sub: 'Restoran, kafe & hotel', icon: Building2, color: 'blue' },
               ].map(({ key, label, sub, icon: Icon, color }) => (
                 <button
                   key={key}
@@ -276,10 +276,10 @@ export default function SignUpPage() {
           <form onSubmit={handleSubmit} className="space-y-3">
             {/* Common Fields */}
             <div>
-              <label className="input-label">Full Name</label>
+              <label className="input-label">Nama Lengkap</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input type="text" value={form.full_name} onChange={(e) => f('full_name', e.target.value)} placeholder="Enter your full name" className="input-field pl-12" required />
+                <input type="text" value={form.full_name} onChange={(e) => f('full_name', e.target.value)} placeholder="Masukkan nama lengkap Anda" className="input-field pl-12" required />
               </div>
             </div>
 
@@ -287,15 +287,15 @@ export default function SignUpPage() {
             {selectedRole === 'business' && (
               <>
                 <div>
-                  <label className="input-label">Business Name</label>
+                  <label className="input-label">Nama Bisnis</label>
                   <div className="relative">
                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input type="text" value={form.business_name} onChange={(e) => f('business_name', e.target.value)} placeholder="e.g. Cafe Segar Jakarta" className="input-field pl-12" required />
+                    <input type="text" value={form.business_name} onChange={(e) => f('business_name', e.target.value)} placeholder="misalnya Kafe Segar Jakarta" className="input-field pl-12" required />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="input-label">Business Type</label>
+                    <label className="input-label">Jenis Bisnis</label>
                     <div className="relative">
                       <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <select value={form.business_type} onChange={(e) => f('business_type', e.target.value)} className="input-field pl-10 appearance-none">
@@ -304,7 +304,7 @@ export default function SignUpPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="input-label">Contact Number</label>
+                    <label className="input-label">Nomor Kontak</label>
                     <div className="relative">
                       <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input type="tel" value={form.contact_number} onChange={(e) => f('contact_number', e.target.value)} placeholder="+62 812..." className="input-field pl-10" />
@@ -312,10 +312,10 @@ export default function SignUpPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="input-label">Business Location</label>
+                  <label className="input-label">Lokasi Bisnis</label>
                   <div className="relative">
                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="text" value={form.business_location} onChange={(e) => f('business_location', e.target.value)} placeholder="e.g. Jakarta Selatan" className="input-field pl-10" />
+                    <input type="text" value={form.business_location} onChange={(e) => f('business_location', e.target.value)} placeholder="misalnya Jakarta Selatan" className="input-field pl-10" />
                   </div>
                 </div>
               </>
@@ -334,29 +334,29 @@ export default function SignUpPage() {
                 <label className="input-label">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => f('password', e.target.value)} placeholder="Min. 6 chars" className="input-field pl-12 pr-10" required />
+                  <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => f('password', e.target.value)} placeholder="Min. 6 karakter" className="input-field pl-12 pr-10" required />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 bg-transparent border-none p-0 cursor-pointer">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
               <div>
-                <label className="input-label">Confirm Password</label>
+                <label className="input-label">Konfirmasi Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input type={showPassword ? 'text' : 'password'} value={form.confirm_password} onChange={(e) => f('confirm_password', e.target.value)} placeholder="Repeat password" className="input-field pl-12" required />
+                  <input type={showPassword ? 'text' : 'password'} value={form.confirm_password} onChange={(e) => f('confirm_password', e.target.value)} placeholder="Ulangi password" className="input-field pl-12" required />
                 </div>
               </div>
             </div>
 
             <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 text-base mt-1">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : `Create ${selectedRole === 'business' ? 'Business' : 'Personal'} Account`}
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : `Buat Akun ${selectedRole === 'business' ? 'Bisnis' : 'Personal'}`}
             </button>
           </form>
 
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-            <div className="relative flex justify-center text-sm"><span className="px-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 text-gray-500">or sign up with</span></div>
+            <div className="relative flex justify-center text-sm"><span className="px-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 text-gray-500">atau daftar dengan</span></div>
           </div>
 
           <button onClick={handleGoogleSignUp} className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200">
@@ -366,14 +366,14 @@ export default function SignUpPage() {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            Sign Up with Google
+            Daftar dengan Google
           </button>
 
           <p className="text-center text-sm text-gray-500 mt-5">
-            Already have an account?{' '}
-            <Link to="/signin" className="font-semibold text-emerald-600 hover:text-emerald-700 no-underline">Sign In</Link>
+            Sudah punya akun?{' '}
+            <Link to="/signin" className="font-semibold text-emerald-600 hover:text-emerald-700 no-underline">Masuk</Link>
           </p>
-          <Link to="/" className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-3 no-underline">← Back to home</Link>
+          <Link to="/" className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-3 no-underline">← Kembali ke beranda</Link>
         </div>
       </div>
     </div>

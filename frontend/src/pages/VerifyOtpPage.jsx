@@ -72,7 +72,7 @@ export default function VerifyOtpPage() {
     e.preventDefault();
     const otpValue = otp.join('');
     if (otpValue.length < 6) {
-      setError('Please enter all 6 digits');
+      setError('Masukkan 6 digit OTP');
       return;
     }
 
@@ -103,7 +103,7 @@ export default function VerifyOtpPage() {
       }, 1000);
       
     } catch (err) {
-      setError(err.data?.detail || err.message || 'Invalid OTP. Please try again.');
+      setError(err.data?.detail || err.message || 'OTP salah. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -118,11 +118,11 @@ export default function VerifyOtpPage() {
     
     try {
       await resendOtp(email);
-      setSuccess('New OTP has been sent to your email.');
+      setSuccess('OTP baru telah dikirim ke email Anda.');
       setCountdown(60);
       setCanResend(false);
     } catch (err) {
-      setError(err.data?.detail || err.message || 'Failed to resend OTP.');
+      setError(err.data?.detail || err.message || 'Gagal mengirim ulang OTP.');
     } finally {
       setLoading(false);
     }
@@ -139,9 +139,9 @@ export default function VerifyOtpPage() {
           </div>
         </div>
         
-        <h1 className="text-3xl font-extrabold text-center text-gray-900 mb-2">Verify your email</h1>
+        <h1 className="text-3xl font-extrabold text-center text-gray-900 mb-2">Verifikasi Email Anda</h1>
         <p className="text-center text-gray-500 mb-8">
-          We sent a 6-digit code to <br/>
+          Kami mengirim kode 6 digit ke <br/>
           <span className="font-semibold text-emerald-600">{email}</span>
         </p>
 
@@ -180,7 +180,7 @@ export default function VerifyOtpPage() {
             disabled={loading}
             className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verify OTP'}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verifikasi OTP'}
           </button>
         </form>
 
@@ -192,13 +192,13 @@ export default function VerifyOtpPage() {
             className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${!canResend ? '' : 'animate-pulse'}`} />
-            {canResend ? 'Resend OTP' : `Resend OTP in ${countdown}s`}
+            {canResend ? 'Kirim Ulang OTP' : `Kirim ulang dalam ${countdown}d`}
           </button>
         </div>
 
         <div className="mt-6 pt-6 border-t border-gray-100 text-center">
           <Link to="/signup" className="text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors">
-            ← Back to Sign Up
+            ← Kembali ke Pendaftaran
           </Link>
         </div>
       </div>
