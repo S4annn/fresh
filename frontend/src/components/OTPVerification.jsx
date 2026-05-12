@@ -13,7 +13,8 @@ export default function OTPVerification({
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
   const [isExpired, setIsExpired] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(initialMessage || '');
+  const [info, setInfo] = useState(initialMessage || ''); // OTP display message
+  const [verified, setVerified] = useState(false); // true only after successful verification
   const [verifying, setVerifying] = useState(false);
   const inputRefs = useRef([]);
 
@@ -86,7 +87,6 @@ export default function OTPVerification({
 
     setVerifying(true);
     setError('');
-    setSuccess('');
 
     try {
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -105,10 +105,11 @@ export default function OTPVerification({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || 'Verifikasi OTP gagal');
+        throw new Error(data.detail || 'Kode OTP salah. Silakan coba lagi.');
       }
 
-      setSuccess('Verifikasi berhasil! Anda akan dialihkan ke dashboard.');
+      setVerified(true);
+      setInfo('Verifikasi berhasil! Anda akan dialihkan ke dashboard.');
       
       // Auto-login with the returned token
       if (data.access_token) {
@@ -122,7 +123,9 @@ export default function OTPVerification({
       }
 
     } catch (err) {
-      setError(err.message || 'Verifikasi OTP gagal. Silakan coba lagi.');
+      setError(err.message || 'Kode OTP salah. Silakan coba lagi.');
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
     } finally {
       setVerifying(false);
     }
@@ -133,11 +136,10 @@ export default function OTPVerification({
     if (loading) return;
     
     setError('');
-    setSuccess('');
     
     try {
       await onResendOTP(email);
-      setSuccess('Kode OTP baru telah dikirim ke email Anda.');
+      setInfo('Kode OTP baru telah dikirim.');
       setTimeLeft(600); // Reset timer
       setIsExpired(false);
       setOtp(['', '', '', '', '', '']);
@@ -183,10 +185,10 @@ export default function OTPVerification({
           </div>
         )}
 
-        {success && (
+        {info && (
           <div className="flex items-start gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl mb-6">
             <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-green-700">{success}</p>
+            <p className="text-sm text-green-700">{info}</p>
           </div>
         )}
 
@@ -222,7 +224,7 @@ export default function OTPVerification({
         <div className="space-y-3">
           <button
             onClick={handleVerify}
-            disabled={verifying || success || otp.join('').length !== 6 || isExpired}
+            disabled={verifying || verified || otp.join('').length !== 6 || isExpired}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             {verifying ? (
