@@ -111,17 +111,24 @@ export default function OTPVerification({
       }
 
       setVerified(true);
-      setInfo('Verifikasi berhasil! Anda akan dialihkan ke dashboard.');
+      setInfo('Verifikasi berhasil! Mengalihkan ke dashboard...');
       
-      // Auto-login with the returned token
+      // Save auth token and user data for session persistence
       if (data.access_token) {
+        localStorage.setItem('fresh_auth_token', data.access_token);
         localStorage.setItem('fresh_token', data.access_token);
+        localStorage.setItem('fresh_session_user', JSON.stringify(data.user));
         localStorage.setItem('fresh_current_user', JSON.stringify(data.user));
+        if (data.user?.uid) localStorage.setItem('fresh_user_id', data.user.uid);
+        if (data.user?.role) localStorage.setItem('fresh_user_role', data.user.role);
         
         // Redirect to dashboard after short delay
         setTimeout(() => {
           onSuccess(data.user);
-        }, 1500);
+        }, 1000);
+      } else {
+        // No token returned - still call onSuccess with user data
+        onSuccess(data.user);
       }
 
     } catch (err) {

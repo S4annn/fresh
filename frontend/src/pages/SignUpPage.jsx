@@ -134,8 +134,13 @@ export default function SignUpPage() {
   };
 
   const handleOTPSuccess = (user) => {
-    // Navigate to dashboard after successful OTP verification
-    navigate(getRedirectPath(user.role));
+    // Set role in context
+    const userRole = user?.role || selectedRole;
+    setRole(userRole);
+    
+    // Force page reload to pick up new auth state from localStorage
+    const dashboardPath = userRole === 'business' ? '/business/dashboard' : '/dashboard';
+    window.location.href = dashboardPath;
   };
 
   const handleBackToRegistration = () => {
