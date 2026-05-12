@@ -167,7 +167,6 @@ export default function AIAssistantWidget() {
           className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/40 hover:scale-105 active:scale-95 transition-transform flex items-center justify-center group"
         >
           <Bot className="w-7 h-7" />
-          <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 ring-2 ring-white animate-pulse" />
           <span className="sr-only">Chat dengan F.R.E.S.H Assistant</span>
         </button>
       )}
