@@ -12,7 +12,7 @@ from .schemas import TokenData
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "fresh-secret-key-2024")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 10080
 
 from .security import verify_password as sec_verify_password, hash_password as get_password_hash
 

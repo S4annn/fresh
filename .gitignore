@@ -33,3 +33,16 @@ Thumbs.db
 *.log
 .idea/
 .vscode/
+
+# Logs
+*.log
+
+# Database files
+*.db
+
+# Environment files (contain secrets)
+backend/.env
+frontend/.env
+
+# Exported data
+fresh_users_export.json

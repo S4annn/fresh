@@ -29,7 +29,35 @@ export default function SettingsPage() {
   });
 
   function handleSave() {
+    const token = localStorage.getItem('fresh_auth_token');
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    
+    // Save language preference
     setLanguage(prefs.language);
+    
+    // Save display name to backend if changed
+    if (prefs.name && prefs.name !== user?.name && token) {
+      fetch(`${API_BASE_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: prefs.name }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.user) {
+            // Update local session with new name
+            const session = JSON.parse(localStorage.getItem('fresh_session_user') || '{}');
+            session.name = data.user.name;
+            localStorage.setItem('fresh_session_user', JSON.stringify(session));
+            localStorage.setItem('fresh_current_user', JSON.stringify(session));
+          }
+        })
+        .catch(() => {});
+    }
+    
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }

@@ -286,7 +286,7 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     db.commit()
     
     # Create access token
-    access_token_expires = timedelta(minutes=30)
+    access_token_expires = timedelta(days=7)
     access_token = create_access_token(
         data={"sub": str(user.id), "uid": user.uid}, 
         expires_delta=access_token_expires
@@ -298,7 +298,7 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "expires_in": 1800,  # 30 minutes in seconds
+        "expires_in": 604800,  # 7 days in seconds
         "user": user,
     }
 
@@ -343,7 +343,7 @@ def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
     db.refresh(user)
     
     # Create access token
-    access_token_expires = timedelta(minutes=30)
+    access_token_expires = timedelta(days=7)
     access_token = create_access_token(
         data={"sub": str(user.id), "uid": user.uid},
         expires_delta=access_token_expires
@@ -429,6 +429,44 @@ def debug_users_endpoint(db: Session = Depends(get_db)):
 def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     """Get current user information."""
     return current_user
+
+
+@app.put("/auth/profile")
+def update_user_profile(
+    payload: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Update user profile (display name, contact info)."""
+    allowed_fields = {"name", "business_name", "business_type", "business_location", "contact_number"}
+    
+    updated = False
+    for field in allowed_fields:
+        if field in payload and payload[field] is not None:
+            setattr(current_user, field, payload[field])
+            updated = True
+    
+    if not updated:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return {
+        "message": "Profile updated successfully",
+        "user": {
+            "id": current_user.id,
+            "uid": current_user.uid,
+            "name": current_user.name,
+            "email": current_user.email,
+            "role": current_user.role,
+            "provider": current_user.provider,
+            "business_name": current_user.business_name,
+            "business_type": current_user.business_type,
+            "business_location": current_user.business_location,
+            "contact_number": current_user.contact_number,
+        }
+    }
 
 
 @app.post("/auth/logout")

@@ -134,7 +134,11 @@ function ensureRealUserSubscription(role = 'personal') {
 function persistRealSession(user) {
   localStorage.removeItem(TOKEN_KEY);
   saveSession(user);
-  ensureRealUserSubscription(user.role || 'personal');
+  // Only reset subscription if it was a demo subscription
+  const subscription = getCurrentSubscription();
+  if (subscription?.is_demo || subscription?.plan_id === 'demo') {
+    setCurrentSubscription('free', user.role || 'personal', 'monthly');
+  }
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -295,15 +299,26 @@ export function AuthProvider({ children }) {
 
       // Save session and update context
       saveSession(sessionUser);
+      
+      // Fetch subscription from backend (persisted in database)
       try {
-        saveSubscription(await fetchSubscriptionForUser(sessionUser, data.access_token));
+        const subData = await fetchSubscriptionForUser(sessionUser, data.access_token);
+        saveSubscription(subData);
       } catch {
+        // Don't override with free — just ensure something exists
         ensureSubscriptionForRole(sessionUser.role);
       }
+      
       setUser(sessionUser);
       return sessionUser;
 
     } catch (error) {
+      // Re-throw errors with proper messages
+      if (error.message.includes('Email not verified') || 
+          error.message.includes('tidak ditemukan') ||
+          error.message.includes('Login gagal')) {
+        throw error;
+      }
       console.error('Login error:', error);
       throw new Error('Login gagal. Periksa koneksi internet dan coba lagi.');
     }

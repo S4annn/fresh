@@ -1,165 +1,125 @@
 """
 OTP Service for F.R.E.S.H. Registration
-Handles OTP generation, storage, and verification
+Stores OTPs in database (survives server restarts).
+User data is kept in memory temporarily until verification completes.
 """
 
 import random
 import string
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-from sqlalchemy.orm import Session
+from typing import Dict, Any
 
-from .models import User
-
-
-class OTPService:
-    """Service for managing OTP codes"""
-    
-    def __init__(self):
-        # In-memory storage for OTP codes (for demo)
-        # In production, use Redis or database
-        self.otp_storage: Dict[str, Dict[str, Any]] = {}
-        self.otp_expiry_minutes = 10  # OTP expires in 10 minutes
-    
-    def generate_otp(self, length: int = 6) -> str:
-        """Generate random OTP code"""
-        return ''.join(random.choices(string.digits, k=length))
-    
-    def store_otp(self, email: str, otp: str, user_data: Dict[str, Any]) -> None:
-        """Store OTP with user data and expiry"""
-        expiry_time = datetime.utcnow() + timedelta(minutes=self.otp_expiry_minutes)
-        
-        self.otp_storage[email.lower()] = {
-            'otp': otp,
-            'user_data': user_data,
-            'created_at': datetime.utcnow(),
-            'expires_at': expiry_time,
-            'attempts': 0,
-            'max_attempts': 3
-        }
-    
-    def verify_otp(self, email: str, otp: str) -> Dict[str, Any]:
-        """Verify OTP and return result"""
-        email_lower = email.lower()
-        
-        if email_lower not in self.otp_storage:
-            return {
-                'success': False,
-                'message': 'OTP tidak ditemukan. Silakan registrasi ulang.'
-            }
-        
-        otp_data = self.otp_storage[email_lower]
-        
-        # Check expiry
-        if datetime.utcnow() > otp_data['expires_at']:
-            del self.otp_storage[email_lower]
-            return {
-                'success': False,
-                'message': 'OTP telah kadaluarsa. Silakan registrasi ulang.'
-            }
-        
-        # Check attempts
-        if otp_data['attempts'] >= otp_data['max_attempts']:
-            del self.otp_storage[email_lower]
-            return {
-                'success': False,
-                'message': 'Terlalu banyak percobaan. Silakan registrasi ulang.'
-            }
-        
-        # Verify OTP
-        if otp_data['otp'] == otp:
-            user_data = otp_data['user_data']
-            del self.otp_storage[email_lower]
-            return {
-                'success': True,
-                'message': 'OTP valid. Registrasi berhasil.',
-                'user_data': user_data
-            }
-        else:
-            otp_data['attempts'] += 1
-            remaining_attempts = otp_data['max_attempts'] - otp_data['attempts']
-            
-            if remaining_attempts <= 0:
-                del self.otp_storage[email_lower]
-                return {
-                    'success': False,
-                    'message': 'OTP salah dan percobaan habis. Silakan registrasi ulang.'
-                }
-            
-            return {
-                'success': False,
-                'message': f'OTP salah. Sisa percobaan: {remaining_attempts}'
-            }
-    
-    def resend_otp(self, email: str) -> Dict[str, Any]:
-        """Resend OTP for existing registration"""
-        email_lower = email.lower()
-        
-        if email_lower not in self.otp_storage:
-            return {
-                'success': False,
-                'message': 'Email tidak ditemukan. Silakan registrasi ulang.'
-            }
-        
-        otp_data = self.otp_storage[email_lower]
-        
-        # Check if recent resend (prevent spam)
-        time_since_last = datetime.utcnow() - otp_data['created_at']
-        if time_since_last.total_seconds() < 60:  # 1 minute cooldown
-            return {
-                'success': False,
-                'message': 'Tunggu 1 menit sebelum meminta OTP baru.'
-            }
-        
-        # Generate new OTP
-        new_otp = self.generate_otp()
-        self.otp_storage[email_lower]['otp'] = new_otp
-        self.otp_storage[email_lower]['created_at'] = datetime.utcnow()
-        self.otp_storage[email_lower]['expires_at'] = datetime.utcnow() + timedelta(minutes=self.otp_expiry_minutes)
-        self.otp_storage[email_lower]['attempts'] = 0
-        
-        return {
-            'success': True,
-            'message': 'OTP baru telah dikirim ke email Anda.',
-            'otp': new_otp  # For demo - remove in production
-        }
-    
-    def cleanup_expired(self) -> int:
-        """Clean up expired OTP codes"""
-        current_time = datetime.utcnow()
-        expired_emails = []
-        
-        for email, otp_data in self.otp_storage.items():
-            if current_time > otp_data['expires_at']:
-                expired_emails.append(email)
-        
-        for email in expired_emails:
-            del self.otp_storage[email]
-        
-        return len(expired_emails)
+from .database import SessionLocal
+from .otp import create_otp_record, validate_otp
 
 
-# Global OTP service instance
-otp_service = OTPService()
+# Temporary storage for pre-registration user data (keyed by email).
+# This is acceptable because user_data only needs to survive until OTP is verified
+# (typically within 10 minutes). If server restarts, user just re-registers.
+_pending_registrations: Dict[str, Dict[str, Any]] = {}
 
 
 def generate_and_store_otp(email: str, user_data: Dict[str, Any]) -> str:
-    """Generate and store OTP for user registration"""
-    otp = otp_service.generate_otp()
-    otp_service.store_otp(email, otp, user_data)
-    return otp
+    """Generate OTP, store in database, and keep user_data in memory."""
+    email_lower = email.lower()
+    
+    # Store user data temporarily
+    _pending_registrations[email_lower] = {
+        'user_data': user_data,
+        'created_at': datetime.utcnow(),
+    }
+    
+    # Create OTP in database
+    db = SessionLocal()
+    try:
+        otp = create_otp_record(db, email_lower, purpose="register")
+        return otp
+    finally:
+        db.close()
 
 
 def verify_user_otp(email: str, otp: str) -> Dict[str, Any]:
-    """Verify user OTP"""
-    return otp_service.verify_otp(email, otp)
+    """Verify OTP from database and return user_data if valid."""
+    email_lower = email.lower()
+    
+    # Validate OTP against database
+    db = SessionLocal()
+    try:
+        result = validate_otp(db, email_lower, otp, purpose="register")
+    finally:
+        db.close()
+    
+    if result["status"] == "error":
+        return {
+            'success': False,
+            'message': result['message']
+        }
+    
+    # OTP valid - retrieve user data
+    pending = _pending_registrations.get(email_lower)
+    if not pending:
+        return {
+            'success': False,
+            'message': 'Data registrasi tidak ditemukan. Silakan registrasi ulang.'
+        }
+    
+    user_data = pending['user_data']
+    
+    # Clean up
+    del _pending_registrations[email_lower]
+    
+    return {
+        'success': True,
+        'message': 'OTP valid. Registrasi berhasil.',
+        'user_data': user_data
+    }
 
 
 def resend_user_otp(email: str) -> Dict[str, Any]:
-    """Resend OTP to user"""
-    return otp_service.resend_otp(email)
+    """Resend OTP - generates new OTP in database."""
+    email_lower = email.lower()
+    
+    # Check if there's pending registration data
+    if email_lower not in _pending_registrations:
+        return {
+            'success': False,
+            'message': 'Email tidak ditemukan. Silakan registrasi ulang.'
+        }
+    
+    pending = _pending_registrations[email_lower]
+    
+    # Check cooldown (1 minute)
+    time_since = datetime.utcnow() - pending['created_at']
+    if time_since.total_seconds() < 60:
+        return {
+            'success': False,
+            'message': 'Tunggu 1 menit sebelum meminta OTP baru.'
+        }
+    
+    # Generate new OTP in database
+    db = SessionLocal()
+    try:
+        new_otp = create_otp_record(db, email_lower, purpose="register")
+    finally:
+        db.close()
+    
+    # Update timestamp
+    _pending_registrations[email_lower]['created_at'] = datetime.utcnow()
+    
+    return {
+        'success': True,
+        'message': 'OTP baru telah dikirim.',
+        'otp': new_otp
+    }
 
 
-def cleanup_expired_otps() -> int:
-    """Clean up expired OTP codes"""
-    return otp_service.cleanup_expired()
+def cleanup_expired_registrations() -> int:
+    """Clean up expired pending registrations (older than 15 minutes)."""
+    now = datetime.utcnow()
+    expired = [
+        email for email, data in _pending_registrations.items()
+        if (now - data['created_at']).total_seconds() > 900  # 15 minutes
+    ]
+    for email in expired:
+        del _pending_registrations[email]
+    return len(expired)
