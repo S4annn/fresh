@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { DUMMY_BUSINESS_INVENTORY, DUMMY_BRANCHES, BUSINESS_TYPES } from '../../data/businessDummyData';
 import { FOOD_CATEGORIES, UNITS } from '../../data/dummyData';
 import { useAuth } from '../../context/AuthContext';
+import * as api from '../../api';
 import {
   Package, Plus, Search, Edit3, Trash2, X, Save, ChevronDown, AlertTriangle, CheckCircle2, Flame,
 } from 'lucide-react';
@@ -10,8 +11,9 @@ const today = new Date().toISOString().slice(0, 10);
 
 export default function BusinessInventoryPage() {
   const { isDemoMode } = useAuth();
-  const branches = isDemoMode ? DUMMY_BRANCHES : [];
-  const [inventory, setInventory] = useState(() => isDemoMode ? DUMMY_BUSINESS_INVENTORY : []);
+  const [branches, setBranches] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,8 +29,33 @@ export default function BusinessInventoryPage() {
   });
 
   useEffect(() => {
-    setInventory(isDemoMode ? DUMMY_BUSINESS_INVENTORY : []);
+    loadInventory();
   }, [isDemoMode]);
+
+  async function loadInventory() {
+    setLoading(true);
+    try {
+      const [inventoryData, branchData] = await Promise.all([
+        api.getBusinessInventory(),
+        api.getBranches(),
+      ]);
+      setInventory(Array.isArray(inventoryData) ? inventoryData : []);
+      setBranches(Array.isArray(branchData) ? branchData : []);
+    } catch {
+      setInventory(isDemoMode ? DUMMY_BUSINESS_INVENTORY : []);
+      setBranches(isDemoMode ? DUMMY_BRANCHES : []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function riskOf(item) {
+    return item.risk_level || item.risk_label || 'Safe';
+  }
+
+  function expiryOf(item) {
+    return item.expiry_date || item.expiration_date;
+  }
 
   const filtered = useMemo(() => inventory.filter((item) => {
     const q = searchQuery.toLowerCase();
@@ -36,7 +63,7 @@ export default function BusinessInventoryPage() {
       (item.item_name.toLowerCase().includes(q) || item.batch_code.toLowerCase().includes(q)) &&
       (filterBranch === 'All' || item.branch === filterBranch) &&
       (filterCategory === 'All' || item.category === filterCategory) &&
-      (filterRisk === 'All' || item.risk_level === filterRisk)
+      (filterRisk === 'All' || riskOf(item) === filterRisk)
     );
   }), [inventory, searchQuery, filterBranch, filterCategory, filterRisk]);
 
@@ -46,32 +73,58 @@ export default function BusinessInventoryPage() {
     setShowForm(false);
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     const daysToExpiry = Math.ceil((new Date(form.expiry_date) - new Date()) / 86400000);
     const risk_level = daysToExpiry <= 1 ? 'High Risk' : daysToExpiry <= 3 ? 'Warning' : 'Safe';
     const estimated_loss = risk_level !== 'Safe' ? Number(form.cost_per_unit || 0) * Number(form.quantity || 0) : 0;
-    const newItem = { ...form, quantity: Number(form.quantity), cost_per_unit: Number(form.cost_per_unit), selling_price: Number(form.selling_price), risk_level, risk_score: Math.max(0, 100 - daysToExpiry * 12), estimated_loss, suggested_action: risk_level === 'High Risk' ? 'Prioritize for today. Apply discount or donate.' : risk_level === 'Warning' ? 'Plan usage within 2 days.' : 'Stock is safe.' };
+    const newItem = { ...form, quantity: Number(form.quantity), cost_per_unit: Number(form.cost_per_unit), selling_price: Number(form.selling_price), risk_level, risk_label: risk_level, risk_score: Math.max(0, 100 - daysToExpiry * 12), estimated_loss, suggested_action: risk_level === 'High Risk' ? 'Prioritize for today. Apply discount or donate.' : risk_level === 'Warning' ? 'Plan usage within 2 days.' : 'Stock is safe.' };
     if (editingItem) {
-      setInventory(inventory.map((i) => i.id === editingItem.id ? { ...i, ...newItem } : i));
+      try {
+        const saved = await api.updateBusinessInventory(editingItem.id, newItem);
+        setInventory(inventory.map((i) => i.id === editingItem.id ? saved : i));
+      } catch {
+        setInventory(inventory.map((i) => i.id === editingItem.id ? { ...i, ...newItem } : i));
+      }
     } else {
-      setInventory([...inventory, { ...newItem, id: 'bi' + Date.now() }]);
+      try {
+        const saved = await api.createBusinessInventory(newItem);
+        setInventory([saved, ...inventory]);
+      } catch {
+        setInventory([...inventory, { ...newItem, id: 'bi' + Date.now() }]);
+      }
     }
     resetForm();
   }
 
   function handleEdit(item) {
-    setForm({ item_name: item.item_name, category: item.category, batch_code: item.batch_code, quantity: item.quantity, unit: item.unit, supplier: item.supplier, purchase_date: item.purchase_date, expiry_date: item.expiry_date, branch: item.branch, storage_area: item.storage_area, cost_per_unit: item.cost_per_unit, selling_price: item.selling_price, status: item.status });
+    setForm({ item_name: item.item_name, category: item.category, batch_code: item.batch_code, quantity: item.quantity, unit: item.unit, supplier: item.supplier, purchase_date: item.purchase_date, expiry_date: expiryOf(item), branch: item.branch, storage_area: item.storage_area, cost_per_unit: item.cost_per_unit, selling_price: item.selling_price, status: item.status });
     setEditingItem(item);
     setShowForm(true);
   }
 
-  function handleDelete(id) {
+  async function handleDelete(id) {
     if (!window.confirm('Delete this item?')) return;
-    setInventory(inventory.filter((i) => i.id !== id));
+    try {
+      await api.deleteBusinessInventory(id);
+      setInventory(inventory.filter((i) => i.id !== id));
+    } catch {
+      setInventory(inventory.filter((i) => i.id !== id));
+    }
   }
 
   const branchNames = ['All', ...branches.map((b) => b.branch_name)];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Loading business inventory...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in">
@@ -121,7 +174,9 @@ export default function BusinessInventoryPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((item) => {
-                const daysLeft = Math.ceil((new Date(item.expiry_date) - new Date()) / 86400000);
+                const riskStatus = riskOf(item);
+                const expiryDate = expiryOf(item);
+                const daysLeft = Math.ceil((new Date(expiryDate) - new Date()) / 86400000);
                 return (
                   <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-4 py-3">
@@ -129,17 +184,17 @@ export default function BusinessInventoryPage() {
                       <p className="text-xs text-gray-400">{item.category} · {item.supplier}</p>
                     </td>
                     <td className="px-4 py-3"><span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{item.batch_code}</span></td>
-                    <td className="px-4 py-3 text-xs text-gray-600 max-w-[120px] truncate">{item.branch.split(' ').slice(-2).join(' ')}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600 max-w-[120px] truncate">{(item.branch || '').split(' ').slice(-2).join(' ')}</td>
                     <td className="px-4 py-3">{item.quantity} {item.unit}</td>
                     <td className="px-4 py-3">
-                      <p className="text-sm">{item.expiry_date}</p>
+                      <p className="text-sm">{expiryDate}</p>
                       <p className={`text-xs ${daysLeft <= 1 ? 'text-red-500' : daysLeft <= 3 ? 'text-amber-500' : 'text-gray-400'}`}>
                         {daysLeft <= 0 ? 'Expired' : `${daysLeft}d left`}
                       </p>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`badge ${item.risk_level === 'Safe' ? 'badge-safe' : item.risk_level === 'Warning' ? 'badge-warning' : 'badge-danger'}`}>
-                        {item.risk_level}
+                      <span className={`badge ${riskStatus === 'Safe' ? 'badge-safe' : riskStatus === 'Warning' ? 'badge-warning' : 'badge-danger'}`}>
+                        {riskStatus}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -208,6 +263,7 @@ export default function BusinessInventoryPage() {
                 <div>
                   <label className="input-label">Branch</label>
                   <select value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })} className="input-field">
+                    {branches.length === 0 && <option value="">Main branch</option>}
                     {branches.map((b) => <option key={b.id} value={b.branch_name}>{b.branch_name}</option>)}
                   </select>
                 </div>

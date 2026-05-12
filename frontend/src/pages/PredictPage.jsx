@@ -1,23 +1,37 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FOOD_CATEGORIES, STORAGE_TYPES, localPredictRisk } from '../data/dummyData';
 import { useLanguage } from '../context/LanguageContext';
 import * as api from '../api';
 import {
   Brain, Sparkles, AlertTriangle, CheckCircle2, Shield, TrendingUp,
-  Loader2, ChevronDown, BarChart3, Zap,
+  Loader2, ChevronDown, BarChart3, Zap, ShoppingBag, Heart,
 } from 'lucide-react';
+
+function getDaysUntil(date) {
+  const expiry = new Date(date);
+  if (Number.isNaN(expiry.getTime())) return 5;
+  return Math.max(0, Math.ceil((expiry - new Date()) / 86400000));
+}
+
+function buildInitialForm(prefillFood) {
+  return {
+    food_name: prefillFood?.food_name || prefillFood?.name || '',
+    category: prefillFood?.category || 'Dairy',
+    quantity: prefillFood?.quantity || 1,
+    days_to_expiry: prefillFood ? getDaysUntil(prefillFood.expiry_date || prefillFood.expiration_date) : 5,
+    storage_type: prefillFood?.storage_type || prefillFood?.storage_condition || 'Refrigerated',
+    usage_frequency: 'normal',
+    temperature: '',
+  };
+}
 
 export default function PredictPage() {
   const { t, tv } = useLanguage();
-  const [form, setForm] = useState({
-    food_name: '',
-    category: 'Dairy',
-    quantity: 1,
-    days_to_expiry: 5,
-    storage_type: 'Refrigerated',
-    usage_frequency: 'normal',
-    temperature: '',
-  });
+  const location = useLocation();
+  const navigate = useNavigate();
+  const prefillFood = location.state?.prefillFood || location.state?.prefillInventory;
+  const [form, setForm] = useState(() => buildInitialForm(prefillFood));
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -215,6 +229,24 @@ export default function PredictPage() {
                 </h3>
                 <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl p-4 border border-violet-100">
                   <p className="text-violet-700 font-medium">{result.suggested_action}</p>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/marketplace', { state: { prefillListing: { ...prefillFood, ...form, risk_label: result.risk_label } } })}
+                    className="btn-secondary justify-center"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    Sell
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/donation', { state: { prefillDonation: { ...prefillFood, ...form, risk_label: result.risk_label } } })}
+                    className="btn-secondary justify-center"
+                  >
+                    <Heart className="w-4 h-4" />
+                    Donate
+                  </button>
                 </div>
               </div>
 

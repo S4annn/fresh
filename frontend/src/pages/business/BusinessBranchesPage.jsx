@@ -1,23 +1,63 @@
 import React, { useEffect, useState } from 'react';
 import { DUMMY_BRANCHES } from '../../data/businessDummyData';
 import { useAuth } from '../../context/AuthContext';
+import * as api from '../../api';
 import { GitBranch, Plus, X, Save, MapPin, User, Phone, Package, AlertTriangle, TrendingDown, ShoppingBag } from 'lucide-react';
 
 export default function BusinessBranchesPage() {
   const { isDemoMode } = useAuth();
-  const [branches, setBranches] = useState(() => isDemoMode ? DUMMY_BRANCHES : []);
+  const [branches, setBranches] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ branch_name: '', location: '', latitude: '', longitude: '', manager_name: '', contact: '' });
 
   useEffect(() => {
-    setBranches(isDemoMode ? DUMMY_BRANCHES : []);
+    loadBranches();
   }, [isDemoMode]);
 
-  function handleSubmit(e) {
+  async function loadBranches() {
+    setLoading(true);
+    try {
+      const data = await api.getBranches();
+      setBranches(Array.isArray(data) ? data : []);
+    } catch {
+      setBranches(isDemoMode ? DUMMY_BRANCHES : []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    setBranches([...branches, { ...form, id: 'br' + Date.now(), total_inventory: 0, high_risk_items: 0, waste_prevented: 0, marketplace_listings: 0, status: 'Active' }]);
+    const newBranch = {
+      ...form,
+      latitude: Number(form.latitude || -6.2088),
+      longitude: Number(form.longitude || 106.8456),
+      total_inventory: 0,
+      high_risk_items: 0,
+      waste_prevented: 0,
+      marketplace_listings: 0,
+      status: 'Active',
+    };
+    try {
+      const saved = await api.createBranch(newBranch);
+      setBranches([saved, ...branches]);
+    } catch {
+      setBranches([...branches, { ...newBranch, id: 'br' + Date.now() }]);
+    }
     setForm({ branch_name: '', location: '', latitude: '', longitude: '', manager_name: '', contact: '' });
     setShowForm(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Loading branches...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

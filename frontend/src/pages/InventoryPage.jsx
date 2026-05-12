@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DUMMY_FOODS, FOOD_CATEGORIES, STORAGE_TYPES, UNITS } from '../data/dummyData';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -7,7 +8,7 @@ import DemoUsageIndicator, { DemoLimitWarning } from '../components/DemoUsageInd
 import * as api from '../api';
 import {
   Package, Plus, Search, Filter, Edit3, Trash2, X, Save, AlertTriangle,
-  CheckCircle2, Clock, ChevronDown,
+  CheckCircle2, Clock, ChevronDown, Brain, ShoppingBag, Heart,
 } from 'lucide-react';
 
 const today = new Date().toISOString().slice(0, 10);
@@ -22,6 +23,7 @@ export default function InventoryPage() {
   const { isDemoMode } = useAuth();
   const { t, tv } = useLanguage();
   const { plan } = useSubscription();
+  const navigate = useNavigate();
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -47,17 +49,12 @@ export default function InventoryPage() {
 
   async function loadFoods() {
     setLoading(true);
-    if (!isDemoMode) {
-      setFoods([]);
-      setLoading(false);
-      return;
-    }
-
     try {
       const data = await api.getFoods();
-      setFoods(Array.isArray(data) && data.length > 0 ? data : DUMMY_FOODS);
+      const nextFoods = Array.isArray(data) ? data : [];
+      setFoods(nextFoods.length > 0 || !isDemoMode ? nextFoods : DUMMY_FOODS);
     } catch {
-      setFoods(DUMMY_FOODS);
+      setFoods(isDemoMode ? DUMMY_FOODS : []);
     } finally {
       setLoading(false);
     }
@@ -65,9 +62,11 @@ export default function InventoryPage() {
 
   const filteredFoods = useMemo(() => {
     return foods.filter((food) => {
-      const matchesSearch = food.food_name.toLowerCase().includes(searchQuery.toLowerCase());
+      const foodName = food.food_name || food.name || '';
+      const riskStatus = food.risk_level || food.risk_label || 'Safe';
+      const matchesSearch = foodName.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = filterCategory === 'All' || food.category === filterCategory;
-      const matchesStatus = filterStatus === 'All' || food.risk_level === filterStatus;
+      const matchesStatus = filterStatus === 'All' || riskStatus === filterStatus;
       return matchesSearch && matchesCategory && matchesStatus;
     });
   }, [foods, searchQuery, filterCategory, filterStatus]);
@@ -89,7 +88,7 @@ export default function InventoryPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!editingFood && !canAddInventory()) {
+    if (!editingFood && !canAddInventory(foods.length)) {
       setLimitMessage('Free plan supports up to 30 inventory items. Upgrade to Personal Plus for unlimited inventory.');
       setShowForm(false);
       return;
@@ -105,17 +104,6 @@ export default function InventoryPage() {
       risk_score: Math.min(100, riskScore),
       recommendation: riskLevel === 'High Risk' ? 'Segera gunakan atau donasikan.' : riskLevel === 'Warning' ? 'Rencanakan penggunaan segera.' : 'Stok aman.',
     };
-
-    if (!isDemoMode) {
-      if (editingFood) {
-        setFoods(foods.map((f) => f.id === editingFood.id ? { ...f, ...newFood } : f));
-      } else {
-        setFoods([...foods, { ...newFood, id: 'f' + Date.now() }]);
-        incrementUsage('inventory_items');
-      }
-      resetForm();
-      return;
-    }
 
     if (editingFood) {
       try {
@@ -137,6 +125,15 @@ export default function InventoryPage() {
     resetForm();
   }
 
+  async function handleMarkFinished(food) {
+    try {
+      await api.updateFood(food.id, { is_finished: true });
+      await loadFoods();
+    } catch {
+      setFoods(foods.filter((f) => f.id !== food.id));
+    }
+  }
+
   async function handleDelete(id) {
     if (!window.confirm(t('deleteConfirm', 'Yakin ingin menghapus item ini?'))) return;
     try {
@@ -149,13 +146,13 @@ export default function InventoryPage() {
 
   function handleEdit(food) {
     setForm({
-      food_name: food.food_name,
+      food_name: food.food_name || food.name || '',
       category: food.category,
       quantity: food.quantity,
       unit: food.unit,
       purchase_date: food.purchase_date,
-      expiry_date: food.expiry_date,
-      storage_type: food.storage_type,
+      expiry_date: food.expiry_date || food.expiration_date,
+      storage_type: food.storage_type || food.storage_condition,
       notes: food.notes || '',
     });
     setEditingFood(food);
@@ -163,7 +160,7 @@ export default function InventoryPage() {
   }
 
   const inventoryLimit = getPlanLimit('max_inventory_items');
-  const isInventoryLimitReached = !canAddInventory();
+  const isInventoryLimitReached = !canAddInventory(foods.length);
 
   if (loading) {
     return (
@@ -350,38 +347,66 @@ export default function InventoryPage() {
             </thead>
             <tbody>
               {filteredFoods.map((food) => {
-                const daysLeft = Math.ceil((new Date(food.expiry_date) - new Date()) / 86400000);
+                const expiryDate = food.expiry_date || food.expiration_date;
+                const riskStatus = food.risk_level || food.risk_label || 'Safe';
+                const foodName = food.food_name || food.name || 'Food item';
+                const storageType = food.storage_type || food.storage_condition || 'Room Temperature';
+                const daysLeft = Math.ceil((new Date(expiryDate) - new Date()) / 86400000);
                 return (
                   <tr key={food.id}>
                     <td>
                       <div>
-                        <p className="font-semibold text-gray-800">{food.food_name}</p>
+                        <p className="font-semibold text-gray-800">{foodName}</p>
                         {food.notes && <p className="text-xs text-gray-400 mt-0.5">{food.notes}</p>}
                       </div>
                     </td>
                     <td><span className="badge badge-info">{tv(food.category)}</span></td>
                     <td>{food.quantity} {food.unit}</td>
-                    <td className="text-sm">{tv(food.storage_type)}</td>
+                    <td className="text-sm">{tv(storageType)}</td>
                     <td className="text-sm">{food.purchase_date}</td>
                     <td>
                       <div>
-                        <p className="text-sm">{food.expiry_date}</p>
+                        <p className="text-sm">{expiryDate}</p>
                         <p className={`text-xs ${daysLeft <= 1 ? 'text-red-500' : daysLeft <= 3 ? 'text-amber-500' : 'text-gray-400'}`}>
                           {daysLeft <= 0 ? t('expired', 'Expired') : `${daysLeft} ${t('daysLeft', 'days left')}`}
                         </p>
                       </div>
                     </td>
                     <td>
-                      <span className={`badge ${food.risk_level === 'Safe' ? 'badge-safe' : food.risk_level === 'Warning' ? 'badge-warning' : 'badge-danger'}`}>
-                        {tv(food.risk_level)}
+                      <span className={`badge ${riskStatus === 'Safe' ? 'badge-safe' : riskStatus === 'Warning' ? 'badge-warning' : 'badge-danger'}`}>
+                        {tv(riskStatus)}
                       </span>
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => handleEdit(food)} className="btn-icon bg-blue-50 hover:bg-blue-100 text-blue-600">
+                        <button
+                          onClick={() => navigate('/predict', { state: { prefillFood: food } })}
+                          title="Predict risk"
+                          className="btn-icon bg-violet-50 hover:bg-violet-100 text-violet-600"
+                        >
+                          <Brain className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => navigate('/marketplace', { state: { prefillListing: food } })}
+                          title="Sell surplus"
+                          className="btn-icon bg-emerald-50 hover:bg-emerald-100 text-emerald-600"
+                        >
+                          <ShoppingBag className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => navigate('/donation', { state: { prefillDonation: food } })}
+                          title="Donate"
+                          className="btn-icon bg-rose-50 hover:bg-rose-100 text-rose-600"
+                        >
+                          <Heart className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleMarkFinished(food)} title="Mark finished" className="btn-icon bg-gray-50 hover:bg-gray-100 text-gray-600">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleEdit(food)} title="Edit" className="btn-icon bg-blue-50 hover:bg-blue-100 text-blue-600">
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(food.id)} className="btn-icon bg-red-50 hover:bg-red-100 text-red-600">
+                        <button onClick={() => handleDelete(food.id)} title="Delete" className="btn-icon bg-red-50 hover:bg-red-100 text-red-600">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

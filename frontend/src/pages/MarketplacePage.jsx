@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { DUMMY_MARKETPLACE_NEARBY, FOOD_CATEGORIES, UNITS } from '../data/dummyData';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -198,6 +199,8 @@ function MapView({
 export default function MarketplacePage() {
   const { isDemoMode } = useAuth();
   const { plan } = useSubscription();
+  const location = useLocation();
+  const prefillListing = location.state?.prefillListing;
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -253,18 +256,12 @@ export default function MarketplacePage() {
 
   const loadItems = useCallback(async () => {
     setLoading(true);
-    if (!isDemoMode) {
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-
     try {
       const data = await api.getMarketplaceItems();
       const normalized = normalizeMarketplaceItems(Array.isArray(data) ? data : []);
-      setItems(normalized.length ? normalized : normalizeMarketplaceItems(DUMMY_MARKETPLACE_NEARBY));
+      setItems(normalized.length || !isDemoMode ? normalized : normalizeMarketplaceItems(DUMMY_MARKETPLACE_NEARBY));
     } catch {
-      setItems(normalizeMarketplaceItems(DUMMY_MARKETPLACE_NEARBY));
+      setItems(isDemoMode ? normalizeMarketplaceItems(DUMMY_MARKETPLACE_NEARBY) : []);
     } finally {
       setLoading(false);
     }
@@ -279,6 +276,23 @@ export default function MarketplacePage() {
       requestUserLocation({ silent: true });
     }
   }, [requestUserLocation]);
+
+  useEffect(() => {
+    if (!prefillListing) return;
+    setForm({
+      food_name: prefillListing.food_name || prefillListing.name || '',
+      category: prefillListing.category || 'Fruit',
+      quantity: prefillListing.quantity || 1,
+      unit: prefillListing.unit || 'buah',
+      location: userLocation?.name || '',
+      price: '',
+      original_price: '',
+      expiry_date: prefillListing.expiry_date || prefillListing.expiration_date || new Date().toISOString().slice(0, 10),
+      description: prefillListing.notes || prefillListing.recommendation || '',
+      food_id: prefillListing.id,
+    });
+    setShowForm(true);
+  }, [prefillListing, userLocation?.name]);
 
   const itemsWithDistance = useMemo(() => {
     const lat = userLocation?.lat ?? DEFAULT_LOCATION.lat;
@@ -414,9 +428,22 @@ export default function MarketplacePage() {
       location: form.location || userLocationName,
     });
 
-    setItems((prev) => [newItem, ...prev]);
+    try {
+      const saved = await api.createMarketplaceItem({
+        ...newItem,
+        food_id: form.food_id,
+        title: newItem.food_name,
+        type: 'sale',
+        location: newItem.location_name,
+      });
+      const normalized = normalizeMarketplaceItem(saved);
+      setItems((prev) => [normalized, ...prev]);
+      setSelectedListingId(normalized.id);
+    } catch {
+      setItems((prev) => [newItem, ...prev]);
+      setSelectedListingId(newItem.id);
+    }
     incrementUsage('marketplace_listings');
-    setSelectedListingId(newItem.id);
     setShowForm(false);
     setForm({
       food_name: '',
@@ -429,17 +456,6 @@ export default function MarketplacePage() {
       expiry_date: new Date().toISOString().slice(0, 10),
       description: '',
     });
-
-    try {
-      await api.createMarketplaceItem({
-        ...newItem,
-        title: newItem.food_name,
-        type: 'sale',
-        location: newItem.location_name,
-      });
-    } catch {
-      // Local optimistic item keeps the marketplace usable while the backend is offline.
-    }
   }
 
   if (loading) {

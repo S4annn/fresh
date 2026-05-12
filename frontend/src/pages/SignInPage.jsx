@@ -26,7 +26,6 @@ export default function SignInPage() {
   const canAccessBusiness = canAccessBusinessFeature();
   const isBusinessSelected = selectedRole === 'business';
   const isBusinessDisabled = isBusinessSelected && !canAccessBusiness;
-  const isSigninDisabled = isBusinessSelected && !canAccessBusiness; // For signin buttons only
 
   function handleRoleSelect(r) {
     setSelectedRole(r);
@@ -54,9 +53,9 @@ export default function SignInPage() {
     setLoading(true);
     try {
       const sessionUser = await signInLocal({ email: email.trim(), password });
-      // Override role from form selection (user may switch role on sign-in page)
-      setRole(selectedRole);
-      navigate(getRedirectPath(selectedRole));
+      const nextRole = sessionUser.role || selectedRole;
+      setRole(nextRole);
+      navigate(getRedirectPath(nextRole));
     } catch (err) {
       setError(err.message || 'Sign in gagal. Periksa email dan password Anda.');
     } finally {
@@ -214,13 +213,13 @@ export default function SignInPage() {
             <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl mb-5 animate-fade-in">
               <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-amber-700 font-medium mb-1">Business Pro Required for Account Sign In</p>
+                <p className="text-sm text-amber-700 font-medium mb-1">Business Pro unlocks advanced business tools</p>
                 <p className="text-xs text-amber-600">
-                  Real account sign in requires Business Pro subscription. 
+                  You can sign in to a business account, but inventory, orders, branches, and analytics require Business Pro.
                   <Link to="/pricing" className="font-semibold text-amber-700 hover:text-amber-800 underline ml-1">
                     Upgrade your plan
                   </Link>
-                  {' '}to create a business account.
+                  {' '}to unlock the full workflow.
                 </p>
                 <p className="text-xs text-amber-500 mt-2">
                   <strong>Demo Login:</strong> Try all business features for free (3 uses per feature)
@@ -271,7 +270,7 @@ export default function SignInPage() {
 
             <button
               type="submit"
-              disabled={loading || isSigninDisabled}
+              disabled={loading}
               className="btn-primary w-full py-3.5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading
@@ -293,7 +292,7 @@ export default function SignInPage() {
           {/* Google Sign In */}
           <button
             onClick={handleGoogleSignIn}
-            disabled={loading || isSigninDisabled}
+            disabled={loading}
             className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DUMMY_FOODS } from '../data/dummyData';
 import { useAuth } from '../context/AuthContext';
+import * as api from '../api';
 import {
   Bell, AlertTriangle, Clock, Lightbulb, ShoppingBag, Heart,
   CheckCircle2, X, Flame, ChefHat, Package, Trash2, BellOff,
@@ -13,7 +14,10 @@ function generateNotifications(foods, includeStaticTips = true) {
   const today  = new Date();
 
   foods.forEach((food) => {
-    const daysLeft = Math.ceil((new Date(food.expiry_date) - today) / 86400000);
+    const expiryDate = food.expiry_date || food.expiration_date;
+    const foodName = food.food_name || food.name || 'Food item';
+    const riskStatus = food.risk_level || food.risk_label || 'Safe';
+    const daysLeft = Math.ceil((new Date(expiryDate) - today) / 86400000);
 
     if (daysLeft <= 0) {
       notifs.push({
@@ -22,7 +26,7 @@ function generateNotifications(foods, includeStaticTips = true) {
         icon:     Flame,
         iconBg:   'bg-red-100',
         iconColor:'text-red-600',
-        title:    `${food.food_name} has expired`,
+        title:    `${foodName} has expired`,
         body:     'This item has passed its expiry date. Check if it\'s still safe or dispose of it properly.',
         time:     'Today',
         read:     false,
@@ -36,7 +40,7 @@ function generateNotifications(foods, includeStaticTips = true) {
         icon:     AlertTriangle,
         iconBg:   'bg-red-100',
         iconColor:'text-red-600',
-        title:    `${food.food_name} expires tomorrow`,
+        title:    `${foodName} expires tomorrow`,
         body:     `Use it today! ${food.recommendation || 'Cook, donate, or sell before it goes to waste.'}`,
         time:     'Today',
         read:     false,
@@ -53,7 +57,7 @@ function generateNotifications(foods, includeStaticTips = true) {
         icon:     Clock,
         iconBg:   'bg-amber-100',
         iconColor:'text-amber-600',
-        title:    `${food.food_name} expires in ${daysLeft} days`,
+        title:    `${foodName} expires in ${daysLeft} days`,
         body:     `Plan to use this soon. ${food.recommendation || 'Consider cooking or listing in marketplace.'}`,
         time:     `${daysLeft}d left`,
         read:     false,
@@ -65,15 +69,15 @@ function generateNotifications(foods, includeStaticTips = true) {
       });
     }
 
-    if (food.risk_level === 'High Risk' && daysLeft > 0) {
+    if (riskStatus === 'High Risk' && daysLeft > 0) {
       notifs.push({
         id:       `risk-${food.id}`,
         type:     'high_risk',
         icon:     Flame,
         iconBg:   'bg-orange-100',
         iconColor:'text-orange-600',
-        title:    `High risk: ${food.food_name}`,
-        body:     `AI predicts ${food.food_name} has a high chance of going to waste. Take action now.`,
+        title:    `High risk: ${foodName}`,
+        body:     `AI predicts ${foodName} has a high chance of going to waste. Take action now.`,
         time:     'AI Alert',
         read:     false,
         actions:  [{ label: 'Predict Risk', path: '/predict', style: 'violet' }],
@@ -143,7 +147,19 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState('all'); // all | unread | expiry | tips
 
   useEffect(() => {
-    setNotifications(isDemoMode ? generateNotifications(DUMMY_FOODS, true) : []);
+    let active = true;
+    async function loadNotifications() {
+      try {
+        const foods = await api.getFoods();
+        if (!active) return;
+        const usableFoods = Array.isArray(foods) && foods.length > 0 ? foods : (isDemoMode ? DUMMY_FOODS : []);
+        setNotifications(generateNotifications(usableFoods, true));
+      } catch {
+        if (active) setNotifications(isDemoMode ? generateNotifications(DUMMY_FOODS, true) : []);
+      }
+    }
+    loadNotifications();
+    return () => { active = false; };
   }, [isDemoMode]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -282,7 +298,7 @@ export default function NotificationsPage() {
                     {notif.food && (
                       <div className="flex items-center gap-2 mb-3 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
                         <Package className="w-3.5 h-3.5" />
-                        <span>{notif.food.quantity} {notif.food.unit} · {notif.food.category} · {notif.food.storage_type}</span>
+                        <span>{notif.food.quantity} {notif.food.unit} · {notif.food.category} · {notif.food.storage_type || notif.food.storage_condition}</span>
                       </div>
                     )}
 
@@ -292,7 +308,18 @@ export default function NotificationsPage() {
                         {notif.actions.map((action, i) => (
                           <button
                             key={i}
-                            onClick={(e) => { e.stopPropagation(); markRead(notif.id); navigate(action.path); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markRead(notif.id);
+                              const state = action.path.includes('marketplace')
+                                ? { prefillListing: notif.food }
+                                : action.path.includes('donation')
+                                  ? { prefillDonation: notif.food }
+                                  : action.path.includes('predict')
+                                    ? { prefillFood: notif.food }
+                                    : undefined;
+                              navigate(action.path, state ? { state } : undefined);
+                            }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${ACTION_STYLES[action.style] || ACTION_STYLES.gray}`}
                           >
                             {action.label}

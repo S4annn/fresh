@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -6,6 +6,7 @@ import PlanUsageCard from '../../components/PlanUsageCard';
 import FeatureGate from '../../components/FeatureGate';
 import { DemoBanner } from '../../components/DemoUsageIndicator';
 import { DUMMY_BUSINESS_INVENTORY, DUMMY_BRANCHES, DUMMY_ORDERS, DUMMY_BUSINESS_ANALYTICS } from '../../data/businessDummyData';
+import * as api from '../../api';
 import {
   Package, AlertTriangle, TrendingDown, ShoppingBag, GitBranch, BarChart3,
   Plus, Brain, Heart, ClipboardList, ArrowRight, Sparkles, Flame,
@@ -15,20 +16,60 @@ import {
 export default function BusinessDashboardPage() {
   const { user, isDemoMode } = useAuth();
   const { t, tv } = useLanguage();
-  const inventory = isDemoMode ? DUMMY_BUSINESS_INVENTORY : [];
-  const branches = isDemoMode ? DUMMY_BRANCHES : [];
-  const orders = isDemoMode ? DUMMY_ORDERS : [];
-  const analytics = isDemoMode
-    ? DUMMY_BUSINESS_ANALYTICS
-    : {
-      estimated_loss_prevented: 0,
-      surplus_listings: 0,
-      monthly_waste_reduction: 0,
-    };
+  const [inventory, setInventory] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [analytics, setAnalytics] = useState({
+    estimated_loss_prevented: 0,
+    surplus_listings: 0,
+    monthly_waste_reduction: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
-  const highRisk = inventory.filter((i) => i.risk_level === 'High Risk').length;
-  const warning = inventory.filter((i) => i.risk_level === 'Warning').length;
-  const safe = inventory.filter((i) => i.risk_level === 'Safe').length;
+  useEffect(() => {
+    let active = true;
+    async function loadBusinessData() {
+      setLoading(true);
+      try {
+        const [inventoryData, branchData, orderData, analyticsData] = await Promise.all([
+          api.getBusinessInventory(),
+          api.getBranches(),
+          api.getBusinessOrders(),
+          api.getBusinessAnalytics(),
+        ]);
+        if (!active) return;
+        setInventory(Array.isArray(inventoryData) ? inventoryData : []);
+        setBranches(Array.isArray(branchData) ? branchData : []);
+        setOrders(Array.isArray(orderData) ? orderData : []);
+        setAnalytics({
+          estimated_loss_prevented: 0,
+          surplus_listings: 0,
+          monthly_waste_reduction: 0,
+          ...(analyticsData || {}),
+        });
+      } catch {
+        if (!active) return;
+        setInventory(isDemoMode ? DUMMY_BUSINESS_INVENTORY : []);
+        setBranches(isDemoMode ? DUMMY_BRANCHES : []);
+        setOrders(isDemoMode ? DUMMY_ORDERS : []);
+        setAnalytics(isDemoMode ? DUMMY_BUSINESS_ANALYTICS : {
+          estimated_loss_prevented: 0,
+          surplus_listings: 0,
+          monthly_waste_reduction: 0,
+        });
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    loadBusinessData();
+    return () => { active = false; };
+  }, [isDemoMode]);
+
+  const riskOf = (item) => item.risk_level || item.risk_label || 'Safe';
+  const expiryOf = (item) => item.expiry_date || item.expiration_date;
+  const highRisk = inventory.filter((i) => riskOf(i) === 'High Risk').length;
+  const warning = inventory.filter((i) => riskOf(i) === 'Warning').length;
+  const safe = inventory.filter((i) => riskOf(i) === 'Safe').length;
   const totalLoss = inventory.reduce((sum, i) => sum + (i.estimated_loss || 0), 0);
 
   const hour = new Date().getHours();
@@ -51,6 +92,17 @@ export default function BusinessDashboardPage() {
     { label: t('viewOrders', 'View Orders'), icon: ClipboardList, path: '/business/orders', color: 'from-amber-500 to-orange-500' },
     { label: t('analytics', 'Analytics'), icon: BarChart3, path: '/business/analytics', color: 'from-violet-500 to-purple-500' },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Loading business dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in">
@@ -218,20 +270,20 @@ export default function BusinessDashboardPage() {
             </Link>
           </div>
           <div className="space-y-3">
-            {inventory.filter((i) => i.risk_level !== 'Safe').slice(0, 4).map((item) => (
-              <div key={item.id} className={`flex items-center gap-3 p-3 rounded-xl ${item.risk_level === 'High Risk' ? 'bg-red-50 border border-red-100' : 'bg-amber-50 border border-amber-100'}`}>
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${item.risk_level === 'High Risk' ? 'bg-red-100' : 'bg-amber-100'}`}>
+            {inventory.filter((i) => riskOf(i) !== 'Safe').slice(0, 4).map((item) => (
+              <div key={item.id} className={`flex items-center gap-3 p-3 rounded-xl ${riskOf(item) === 'High Risk' ? 'bg-red-50 border border-red-100' : 'bg-amber-50 border border-amber-100'}`}>
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${riskOf(item) === 'High Risk' ? 'bg-red-100' : 'bg-amber-100'}`}>
                   {item.category === 'Protein' ? '🍗' : item.category === 'Dairy' ? '🥛' : item.category === 'Vegetable' ? '🥬' : item.category === 'Bakery' ? '🍞' : '📦'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-800 text-sm truncate">{item.item_name}</p>
                   <p className="text-xs text-gray-500">Batch {item.batch_code} · {item.branch.split(' ').slice(-1)[0]}</p>
-                  <p className={`text-xs font-medium ${item.risk_level === 'High Risk' ? 'text-red-600' : 'text-amber-600'}`}>
-                    Exp: {item.expiry_date} · Loss: Rp{item.estimated_loss?.toLocaleString()}
+                  <p className={`text-xs font-medium ${riskOf(item) === 'High Risk' ? 'text-red-600' : 'text-amber-600'}`}>
+                    Exp: {expiryOf(item)} · Loss: Rp{item.estimated_loss?.toLocaleString()}
                   </p>
                 </div>
-                <span className={`badge ${item.risk_level === 'High Risk' ? 'badge-danger' : 'badge-warning'} text-xs`}>
-                  {tv(item.risk_level)}
+                <span className={`badge ${riskOf(item) === 'High Risk' ? 'badge-danger' : 'badge-warning'} text-xs`}>
+                  {tv(riskOf(item))}
                 </span>
               </div>
             ))}

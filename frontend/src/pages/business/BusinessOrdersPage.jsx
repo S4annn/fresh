@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { DUMMY_ORDERS } from '../../data/businessDummyData';
 import { useAuth } from '../../context/AuthContext';
+import * as api from '../../api';
 import { ClipboardList, CheckCircle2, Clock, XCircle, Package, User, MapPin, DollarSign, ChevronDown } from 'lucide-react';
 
 const statusConfig = {
@@ -12,15 +13,33 @@ const statusConfig = {
 
 export default function BusinessOrdersPage() {
   const { isDemoMode } = useAuth();
-  const [orders, setOrders] = useState(() => isDemoMode ? DUMMY_ORDERS : []);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('All');
 
   useEffect(() => {
-    setOrders(isDemoMode ? DUMMY_ORDERS : []);
+    loadOrders();
   }, [isDemoMode]);
 
-  function updateStatus(id, newStatus) {
-    setOrders(orders.map((o) => o.id === id ? { ...o, status: newStatus } : o));
+  async function loadOrders() {
+    setLoading(true);
+    try {
+      const data = await api.getBusinessOrders();
+      setOrders(Array.isArray(data) ? data : []);
+    } catch {
+      setOrders(isDemoMode ? DUMMY_ORDERS : []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updateStatus(id, newStatus) {
+    try {
+      const saved = await api.updateBusinessOrderStatus(id, newStatus);
+      setOrders(orders.map((o) => o.id === id ? saved : o));
+    } catch {
+      setOrders(orders.map((o) => o.id === id ? { ...o, status: newStatus } : o));
+    }
   }
 
   const filtered = filterStatus === 'All' ? orders : orders.filter((o) => o.status === filterStatus);
@@ -31,6 +50,17 @@ export default function BusinessOrdersPage() {
     Completed: orders.filter((o) => o.status === 'Completed').length,
     Cancelled: orders.filter((o) => o.status === 'Cancelled').length,
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Loading orders...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in">

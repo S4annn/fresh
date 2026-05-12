@@ -16,15 +16,62 @@ export function getUserRole() {
   return localStorage.getItem('fresh_user_role') || 'personal';
 }
 
+function parseStoredJson(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || 'null');
+  } catch {
+    return null;
+  }
+}
+
+function getStoredUser() {
+  return (
+    parseStoredJson('fresh_session_user') ||
+    parseStoredJson('fresh_current_user') ||
+    parseStoredJson('fresh_demo_user')
+  );
+}
+
+export function getCurrentUserId() {
+  const user = getStoredUser();
+  return user?.uid || user?.id || localStorage.getItem('fresh_user_id') || 'demo-user';
+}
+
+export function withActor(data = {}) {
+  return {
+    ...data,
+    user_id: data.user_id || getCurrentUserId(),
+    role: data.role || getUserRole(),
+  };
+}
+
+export function withBusinessActor(data = {}) {
+  return {
+    ...data,
+    business_id: data.business_id || getCurrentUserId(),
+  };
+}
+
+function normalizeSubscriptionResponse(response) {
+  if (!response) return response;
+  if (response.subscription) {
+    return { ...response.subscription, message: response.message };
+  }
+  return response;
+}
+
 function getFreshHeaders() {
   const subscription = getLocalSubscription();
-  const demoUser = JSON.parse(localStorage.getItem('fresh_demo_user') || 'null');
-  return {
-    'X-Fresh-User-Id': demoUser?.uid || demoUser?.id || localStorage.getItem('fresh_user_id') || 'demo-user',
-    'X-Fresh-Role': localStorage.getItem('fresh_user_role') || subscription.role || 'personal',
+  const user = getStoredUser();
+  const token = localStorage.getItem('fresh_auth_token');
+  const headers = {
+    'X-Fresh-User-Id': getCurrentUserId(),
+    'X-Fresh-Role': getUserRole() || subscription.role || 'personal',
     'X-Fresh-Plan-Id': subscription.plan_id || 'free',
-    'X-Fresh-Demo': demoUser?.provider === 'demo' ? 'true' : 'false',
+    'X-Fresh-Demo': user?.provider === 'demo' || subscription.is_demo ? 'true' : 'false',
   };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 // Demo tracking wrapper
@@ -85,30 +132,30 @@ async function apiFetchMultipart(path, formData) {
 }
 
 // ─── Personal Food API ───────────────────────────────────────────────────────
-export const getFoods = withDemoTracking('inventory_add', () => apiFetch('/foods'));
-export const createFood = withDemoTracking('inventory_add', (data) => apiFetch('/foods', { method: 'POST', body: JSON.stringify(data) }));
-export const updateFood = withDemoTracking('inventory_add', (id, data) => apiFetch(`/foods/${id}`, { method: 'PUT', body: JSON.stringify(data) }));
-export const deleteFood = withDemoTracking('inventory_add', (id) => apiFetch(`/foods/${id}`, { method: 'DELETE' }));
-export const predictRisk = withDemoTracking('predict_risk', (data) => apiFetch('/predict-risk', { method: 'POST', body: JSON.stringify(data) }));
+export const getFoods = () => apiFetch('/foods');
+export const createFood = withDemoTracking('inventory_add', (data) => apiFetch('/foods', { method: 'POST', body: JSON.stringify(withActor(data)) }));
+export const updateFood = (id, data) => apiFetch(`/foods/${id}`, { method: 'PUT', body: JSON.stringify(withActor(data)) });
+export const deleteFood = (id) => apiFetch(`/foods/${id}`, { method: 'DELETE' });
+export const predictRisk = withDemoTracking('predict_risk', (data) => apiFetch('/predict-risk', { method: 'POST', body: JSON.stringify({ ...data, role: data.role || getUserRole() }) }));
 export const getRecommendations = withDemoTracking('recommendations', () => apiFetch('/recommendations'));
-export const getMarketplaceItems = withDemoTracking('marketplace_create', (params = {}) => {
+export const getMarketplaceItems = (params = {}) => {
   const query = new URLSearchParams();
   if (params.lat !== undefined && params.lat !== null) query.set('lat', params.lat);
   if (params.lng !== undefined && params.lng !== null) query.set('lng', params.lng);
   if (params.radius !== undefined && params.radius !== null) query.set('radius', params.radius);
   const suffix = query.toString() ? `?${query.toString()}` : '';
   return apiFetch(`/marketplace/listings${suffix}`);
-});
-export const createMarketplaceItem = withDemoTracking('marketplace_create', (data) => apiFetch('/marketplace/listings', { method: 'POST', body: JSON.stringify(data) }));
-export const getDonationItems = withDemoTracking('donation_create', () => apiFetch('/donations'));
-export const createDonationItem = withDemoTracking('donation_create', (data) => apiFetch('/donations', { method: 'POST', body: JSON.stringify(data) }));
+};
+export const createMarketplaceItem = withDemoTracking('marketplace_create', (data) => apiFetch('/marketplace/listings', { method: 'POST', body: JSON.stringify(withActor(data)) }));
+export const getDonationItems = () => apiFetch('/donations');
+export const createDonationItem = withDemoTracking('donation_create', (data) => apiFetch('/donations', { method: 'POST', body: JSON.stringify(withActor(data)) }));
 export const getAnalytics = withDemoTracking('analytics_view', () => apiFetch('/analytics'));
 export const getDashboard = withDemoTracking('analytics_view', () => apiFetch('/dashboard'));
 
 // Subscription API with localStorage fallback for MVP.
 export async function getSubscription() {
   try {
-    return saveSubscription(await apiFetch('/subscription'));
+    return saveSubscription(normalizeSubscriptionResponse(await apiFetch('/subscription')));
   } catch {
     return getLocalSubscription();
   }
@@ -116,10 +163,10 @@ export async function getSubscription() {
 
 export async function upgradeSubscription(planId, role, billingCycle = 'monthly') {
   try {
-    return saveSubscription(await apiFetch('/subscription/upgrade', {
+    return saveSubscription(normalizeSubscriptionResponse(await apiFetch('/subscription/upgrade', {
       method: 'POST',
-      body: JSON.stringify({ plan_id: planId, role, billing_cycle: billingCycle }),
-    }));
+      body: JSON.stringify({ user_id: getCurrentUserId(), plan_id: planId, role, billing_cycle: billingCycle }),
+    })));
   } catch {
     return upgradeLocalPlan(planId, role, billingCycle);
   }
@@ -127,7 +174,10 @@ export async function upgradeSubscription(planId, role, billingCycle = 'monthly'
 
 export async function cancelSubscription() {
   try {
-    return saveSubscription(await apiFetch('/subscription/cancel', { method: 'POST', body: JSON.stringify({}) }));
+    return saveSubscription(normalizeSubscriptionResponse(await apiFetch('/subscription/cancel', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: getCurrentUserId() }),
+    })));
   } catch {
     return downgradePlan('free');
   }
@@ -143,10 +193,10 @@ export async function getSubscriptionUsage() {
 
 export async function incrementSubscriptionUsage(type) {
   try {
-    return saveSubscription(await apiFetch('/subscription/usage/increment', {
+    return saveSubscription(normalizeSubscriptionResponse(await apiFetch('/subscription/usage/increment', {
       method: 'POST',
-      body: JSON.stringify({ type }),
-    }));
+      body: JSON.stringify({ user_id: getCurrentUserId(), type }),
+    })));
   } catch {
     return incrementLocalUsage(type);
   }
@@ -264,14 +314,14 @@ function localFoodClassifier(filename) {
 
 // ─── Business Inventory API ───────────────────────────────────────────────────
 export const getBusinessInventory = withDemoTracking('business_inventory', () => apiFetch('/business/inventory'));
-export const createBusinessInventory = withDemoTracking('business_inventory', (data) => apiFetch('/business/inventory', { method: 'POST', body: JSON.stringify(data) }));
-export const updateBusinessInventory = withDemoTracking('business_inventory', (id, data) => apiFetch(`/business/inventory/${id}`, { method: 'PUT', body: JSON.stringify(data) }));
+export const createBusinessInventory = withDemoTracking('business_inventory', (data) => apiFetch('/business/inventory', { method: 'POST', body: JSON.stringify(withBusinessActor(data)) }));
+export const updateBusinessInventory = withDemoTracking('business_inventory', (id, data) => apiFetch(`/business/inventory/${id}`, { method: 'PUT', body: JSON.stringify(withBusinessActor(data)) }));
 export const deleteBusinessInventory = withDemoTracking('business_inventory', (id) => apiFetch(`/business/inventory/${id}`, { method: 'DELETE' }));
 export const getBusinessAnalytics = withDemoTracking('business_analytics', () => apiFetch('/business/analytics'));
 export const getBusinessOrders = withDemoTracking('business_orders', () => apiFetch('/business/orders'));
 export const updateBusinessOrderStatus = withDemoTracking('business_orders', (id, status) => apiFetch(`/business/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }));
 export const getBranches = withDemoTracking('business_branches', () => apiFetch('/business/branches'));
-export const createBranch = withDemoTracking('business_branches', (data) => apiFetch('/business/branches', { method: 'POST', body: JSON.stringify(data) }));
+export const createBranch = withDemoTracking('business_branches', (data) => apiFetch('/business/branches', { method: 'POST', body: JSON.stringify(withBusinessActor(data)) }));
 
 // ─── Location API ─────────────────────────────────────────────────────────────
 export async function getNearbyMarketplaceItems(lat, lng) { return apiFetch(`/marketplace/listings?lat=${lat}&lng=${lng}`); }

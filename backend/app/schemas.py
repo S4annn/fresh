@@ -243,6 +243,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+    user: Optional[UserResponse] = None
 
 
 class TokenData(BaseModel):
@@ -335,11 +336,16 @@ class BusinessInventoryCreate(BaseModel):
     supplier: str = ""
     purchase_date: Optional[date] = None
     expiration_date: Optional[date] = None
+    expiry_date: Optional[date] = None
     branch: str = ""
     storage_area: str = ""
     cost_per_unit: float = 0
     selling_price: float = 0
     estimated_loss: float = 0
+    risk_label: Optional[str] = None
+    risk_score: Optional[float] = None
+    suggested_action: Optional[str] = None
+    status: Optional[str] = None
 
 
 class BusinessInventoryUpdate(BaseModel):

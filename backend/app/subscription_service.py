@@ -17,18 +17,12 @@ def get_user_subscription(db: Session, user_id: str) -> Optional[Subscription]:
 
 def create_default_subscription(db: Session, user_id: str, role: str = "personal") -> Subscription:
     """Create default subscription for user"""
-    if role == "business":
-        plan_id = "business_pro"
-        plan_name = "Business Pro"
-    else:
-        plan_id = "free"
-        plan_name = "Free Starter"
-    
     subscription = Subscription(
         user_id=user_id,
-        plan_id=plan_id,
-        plan_name=plan_name,
+        plan_id="free",
+        plan_name="Free Starter",
         status="active",
+        billing_cycle="monthly",
         started_at=datetime.utcnow()
     )
     
@@ -48,7 +42,7 @@ def get_or_create_subscription(db: Session, user_id: str, role: str = "personal"
     return subscription
 
 
-def upgrade_subscription(db: Session, user_id: str, plan_id: str) -> Subscription:
+def upgrade_subscription(db: Session, user_id: str, plan_id: str, billing_cycle: str = "monthly") -> Subscription:
     """Upgrade user subscription plan"""
     subscription = get_user_subscription(db, user_id)
     
@@ -58,8 +52,8 @@ def upgrade_subscription(db: Session, user_id: str, plan_id: str) -> Subscriptio
     # Plan configurations
     plan_configs = {
         "free": {"name": "Free Starter", "expires_days": None},
-        "personal_plus": {"name": "Personal Plus", "expires_days": 365},
-        "business_pro": {"name": "Business Pro", "expires_days": 365},
+        "personal_plus": {"name": "Personal Plus", "expires_days": 365 if billing_cycle == "yearly" else 30},
+        "business_pro": {"name": "Business Pro", "expires_days": 365 if billing_cycle == "yearly" else 30},
     }
     
     config = plan_configs.get(plan_id, plan_configs["free"])
@@ -67,14 +61,13 @@ def upgrade_subscription(db: Session, user_id: str, plan_id: str) -> Subscriptio
     subscription.plan_id = plan_id
     subscription.plan_name = config["name"]
     subscription.status = "active"
+    subscription.billing_cycle = billing_cycle if plan_id != "free" else "monthly"
     subscription.updated_at = datetime.utcnow()
     
     if config["expires_days"]:
         subscription.expires_at = datetime.utcnow() + timedelta(days=config["expires_days"])
-        subscription.billing_cycle = "yearly"
     else:
         subscription.expires_at = None
-        subscription.billing_cycle = None
     
     db.commit()
     db.refresh(subscription)
@@ -85,11 +78,17 @@ def cancel_subscription(db: Session, user_id: str) -> Subscription:
     """Cancel user subscription"""
     subscription = get_user_subscription(db, user_id)
     
-    if subscription:
-        subscription.status = "cancelled"
+    if not subscription:
+        subscription = create_default_subscription(db, user_id)
+    else:
+        subscription.plan_id = "free"
+        subscription.plan_name = "Free Starter"
+        subscription.status = "active"
+        subscription.billing_cycle = "monthly"
+        subscription.expires_at = None
         subscription.updated_at = datetime.utcnow()
-        db.commit()
-        db.refresh(subscription)
+    db.commit()
+    db.refresh(subscription)
     
     return subscription
 
@@ -97,6 +96,11 @@ def cancel_subscription(db: Session, user_id: str) -> Subscription:
 def increment_usage(db: Session, user_id: str, usage_type: str) -> Subscription:
     """Increment subscription usage counter"""
     subscription = get_or_create_subscription(db, user_id)
+    usage_type = {
+        "inventory_items": "inventory_items_count",
+        "marketplace_listings": "marketplace_listings_count",
+        "donation_listings": "donation_listings_count",
+    }.get(usage_type, usage_type)
     
     if usage_type == "ai_scans_this_month":
         subscription.ai_scans_this_month += 1
@@ -122,20 +126,35 @@ def get_subscription_limits(db: Session, user_id: str) -> Dict[str, Any]:
         "free": {
             "max_inventory_items": 30,
             "max_ai_scans_per_month": 5,
-            "max_marketplace_listings": 3,
-            "max_donation_listings": 2,
+            "max_marketplace_listings": 2,
+            "max_donation_listings": 5,
+            "analytics_level": "basic",
+            "business_features": False,
+            "multi_branch": False,
+            "sustainability_report": False,
+            "max_branches": 0,
         },
         "personal_plus": {
-            "max_inventory_items": 200,
-            "max_ai_scans_per_month": 50,
+            "max_inventory_items": "unlimited",
+            "max_ai_scans_per_month": 100,
             "max_marketplace_listings": 20,
-            "max_donation_listings": 15,
+            "max_donation_listings": "unlimited",
+            "analytics_level": "advanced",
+            "business_features": False,
+            "multi_branch": False,
+            "sustainability_report": False,
+            "max_branches": 0,
         },
         "business_pro": {
-            "max_inventory_items": 1000,
-            "max_ai_scans_per_month": 200,
-            "max_marketplace_listings": 100,
-            "max_donation_listings": 50,
+            "max_inventory_items": "unlimited",
+            "max_ai_scans_per_month": "unlimited",
+            "max_marketplace_listings": "unlimited",
+            "max_donation_listings": "unlimited",
+            "analytics_level": "business",
+            "business_features": True,
+            "multi_branch": True,
+            "sustainability_report": True,
+            "max_branches": 5,
         },
     }
     
@@ -148,9 +167,13 @@ def get_subscription_limits(db: Session, user_id: str) -> Dict[str, Any]:
         "limits": limits,
         "usage": {
             "ai_scans_this_month": subscription.ai_scans_this_month,
+            "inventory_items": subscription.inventory_items_count,
+            "marketplace_listings": subscription.marketplace_listings_count,
+            "donation_listings": subscription.donation_listings_count,
             "inventory_items_count": subscription.inventory_items_count,
             "marketplace_listings_count": subscription.marketplace_listings_count,
             "donation_listings_count": subscription.donation_listings_count,
+            "branches": 0,
         },
         "expires_at": subscription.expires_at.isoformat() if subscription.expires_at else None,
     }

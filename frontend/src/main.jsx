@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -7,30 +7,31 @@ import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { ThemeProvider } from './context/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import BusinessLayout from './layouts/BusinessLayout';
-import LandingPage from './pages/LandingPage';
-import SignInPage from './pages/SignInPage';
-import SignUpPage from './pages/SignUpPage';
-import PricingPage from './pages/PricingPage';
-import DashboardPage from './pages/DashboardPage';
-import InventoryPage from './pages/InventoryPage';
-import PredictPage from './pages/PredictPage';
-import RecommendationsPage from './pages/RecommendationsPage';
-import MarketplacePage from './pages/MarketplacePage';
-import DonationPage from './pages/DonationPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import SettingsPage from './pages/SettingsPage';
-import ScannerPage from './pages/ScannerPage';
-import NotFoundPage from './pages/NotFoundPage';
-import MapTestPage from './pages/MapTestPage';
-import NotificationsPage from './pages/NotificationsPage';
-import BusinessProRequiredPage from './pages/BusinessProRequiredPage';
-import BusinessDashboardPage from './pages/business/BusinessDashboardPage';
-import BusinessInventoryPage from './pages/business/BusinessInventoryPage';
-import BusinessOrdersPage from './pages/business/BusinessOrdersPage';
-import BusinessBranchesPage from './pages/business/BusinessBranchesPage';
-import BusinessAnalyticsPage from './pages/business/BusinessAnalyticsPage';
 import { canAccessBusinessFeature, useSubscription } from './services/subscription';
 import './index.css';
+
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const SignInPage = lazy(() => import('./pages/SignInPage'));
+const SignUpPage = lazy(() => import('./pages/SignUpPage'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const InventoryPage = lazy(() => import('./pages/InventoryPage'));
+const PredictPage = lazy(() => import('./pages/PredictPage'));
+const RecommendationsPage = lazy(() => import('./pages/RecommendationsPage'));
+const MarketplacePage = lazy(() => import('./pages/MarketplacePage'));
+const DonationPage = lazy(() => import('./pages/DonationPage'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ScannerPage = lazy(() => import('./pages/ScannerPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const MapTestPage = lazy(() => import('./pages/MapTestPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const BusinessProRequiredPage = lazy(() => import('./pages/BusinessProRequiredPage'));
+const BusinessDashboardPage = lazy(() => import('./pages/business/BusinessDashboardPage'));
+const BusinessInventoryPage = lazy(() => import('./pages/business/BusinessInventoryPage'));
+const BusinessOrdersPage = lazy(() => import('./pages/business/BusinessOrdersPage'));
+const BusinessBranchesPage = lazy(() => import('./pages/business/BusinessBranchesPage'));
+const BusinessAnalyticsPage = lazy(() => import('./pages/business/BusinessAnalyticsPage'));
 
 function LoadingScreen() {
   const { t } = useLanguage();
@@ -75,7 +76,8 @@ function App() {
         <LanguageProvider>
           <ThemeProvider>
             <BrowserRouter>
-              <Routes>
+              <Suspense fallback={<LoadingScreen />}>
+                <Routes>
             {/* Public */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/pricing" element={<PricingPage />} />
@@ -118,7 +120,8 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
             {/* Map Test */}
             <Route path="/map-test" element={<MapTestPage />} />
-              </Routes>
+                </Routes>
+              </Suspense>
             </BrowserRouter>
           </ThemeProvider>
         </LanguageProvider>

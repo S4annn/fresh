@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const { user, isDemoMode } = useAuth();
   const { t, tv } = useLanguage();
   const [foods, setFoods] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,24 +25,29 @@ export default function DashboardPage() {
   async function loadData() {
     setLoading(true);
     try {
-      // Use API with demo tracking
-      const foodsData = await api.getFoods();
-      setFoods(foodsData || []);
+      const [foodsData, recommendationData] = await Promise.all([
+        api.getFoods(),
+        api.getRecommendations(),
+      ]);
+      setFoods(Array.isArray(foodsData) ? foodsData : []);
+      setRecommendations(Array.isArray(recommendationData) ? recommendationData : []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      // Fallback to dummy data for demo
-      setFoods(DUMMY_FOODS);
+      setFoods(isDemoMode ? DUMMY_FOODS : []);
+      setRecommendations(isDemoMode ? DUMMY_RECOMMENDATIONS : []);
     } finally {
       setLoading(false);
     }
   }
 
   const totalItems = foods.length;
-  const highRisk = foods.filter((f) => f.risk_level === 'High Risk').length;
-  const warning = foods.filter((f) => f.risk_level === 'Warning').length;
-  const safe = foods.filter((f) => f.risk_level === 'Safe').length;
+  const getRisk = (food) => food.risk_level || food.risk_label || 'Safe';
+  const getExpiry = (food) => food.expiry_date || food.expiration_date;
+  const highRisk = foods.filter((f) => getRisk(f) === 'High Risk').length;
+  const warning = foods.filter((f) => getRisk(f) === 'Warning').length;
+  const safe = foods.filter((f) => getRisk(f) === 'Safe').length;
   const expiringSoon = foods.filter((f) => {
-    const days = Math.ceil((new Date(f.expiry_date) - new Date()) / 86400000);
+    const days = Math.ceil((new Date(getExpiry(f)) - new Date()) / 86400000);
     return days <= 2 && days >= 0;
   }).length;
 
@@ -61,11 +67,11 @@ export default function DashboardPage() {
 
   const recentFoods = foods.slice(0, 5);
   const expiryAlerts = foods
-    .filter((f) => f.risk_level !== 'Safe')
-    .sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date))
+    .filter((f) => getRisk(f) !== 'Safe')
+    .sort((a, b) => new Date(getExpiry(a)) - new Date(getExpiry(b)))
     .slice(0, 4);
 
-  const topRecommendations = isDemoMode ? DUMMY_RECOMMENDATIONS.slice(0, 3) : [];
+  const topRecommendations = recommendations.slice(0, 3);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? t('goodMorning', 'Good Morning') : hour < 17 ? t('goodAfternoon', 'Good Afternoon') : t('goodEvening', 'Good Evening');
@@ -221,21 +227,22 @@ export default function DashboardPage() {
           {expiryAlerts.length > 0 ? (
             <div className="space-y-3">
               {expiryAlerts.map((food) => {
-                const daysLeft = Math.ceil((new Date(food.expiry_date) - new Date()) / 86400000);
-                const isHighRisk = food.risk_level === 'High Risk';
+                const daysLeft = Math.ceil((new Date(getExpiry(food)) - new Date()) / 86400000);
+                const riskStatus = getRisk(food);
+                const isHighRisk = riskStatus === 'High Risk';
                 return (
                   <div key={food.id} className={`flex items-center gap-4 p-3 rounded-xl ${isHighRisk ? 'bg-red-50 border border-red-100' : 'bg-amber-50 border border-amber-100'}`}>
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${isHighRisk ? 'bg-red-100' : 'bg-amber-100'}`}>
                       {food.category === 'Fruit' ? '🍎' : food.category === 'Meat' ? '🍗' : food.category === 'Vegetable' ? '🥬' : food.category === 'Dairy' ? '🥛' : '🍽️'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm truncate">{food.food_name}</p>
+                      <p className="font-semibold text-gray-800 text-sm truncate">{food.food_name || food.name}</p>
                       <p className={`text-xs ${isHighRisk ? 'text-red-600' : 'text-amber-600'}`}>
                         {daysLeft <= 0 ? t('expiredBang', 'Expired!') : `${t('expiresIn', 'Expires in')} ${daysLeft} ${daysLeft !== 1 ? t('days', 'days') : t('day', 'day')}`}
                       </p>
                     </div>
                     <span className={`badge ${isHighRisk ? 'badge-danger' : 'badge-warning'}`}>
-                      {tv(food.risk_level)}
+                      {tv(riskStatus)}
                     </span>
                   </div>
                 );
@@ -306,16 +313,16 @@ export default function DashboardPage() {
             <tbody>
               {recentFoods.map((food) => (
                 <tr key={food.id}>
-                  <td className="font-semibold text-gray-800">{food.food_name}</td>
+                  <td className="font-semibold text-gray-800">{food.food_name || food.name}</td>
                   <td>{tv(food.category)}</td>
                   <td>{food.quantity} {food.unit}</td>
-                  <td>{food.expiry_date}</td>
+                  <td>{getExpiry(food)}</td>
                   <td>
                     <span className={`badge ${
-                      food.risk_level === 'Safe' ? 'badge-safe' :
-                      food.risk_level === 'Warning' ? 'badge-warning' : 'badge-danger'
+                      getRisk(food) === 'Safe' ? 'badge-safe' :
+                      getRisk(food) === 'Warning' ? 'badge-warning' : 'badge-danger'
                     }`}>
-                      {tv(food.risk_level)}
+                      {tv(getRisk(food))}
                     </span>
                   </td>
                 </tr>

@@ -25,6 +25,32 @@ const EMPTY_ANALYTICS = {
   monthly_savings: [],
 };
 
+const RISK_COLORS = {
+  Safe: '#10b981',
+  Warning: '#f59e0b',
+  'High Risk': '#ef4444',
+};
+
+function normalizeAnalytics(result, fallback = EMPTY_ANALYTICS) {
+  const riskDistribution = result?.risk_distribution || fallback.risk_distribution || [];
+  return {
+    ...fallback,
+    total_items: result?.total_items ?? result?.total_food_items ?? fallback.total_items ?? 0,
+    total_waste_prevented: result?.total_waste_prevented ?? result?.estimated_waste_prevented_kg ?? fallback.total_waste_prevented ?? 0,
+    total_donations: result?.total_donations ?? fallback.total_donations ?? 0,
+    total_marketplace: result?.total_marketplace ?? result?.total_marketplace_listings ?? fallback.total_marketplace ?? 0,
+    money_saved: result?.money_saved ?? result?.estimated_money_saved ?? fallback.money_saved ?? 0,
+    co2_reduced: result?.co2_reduced ?? result?.estimated_co2e_reduced ?? fallback.co2_reduced ?? 0,
+    risk_distribution: riskDistribution.map((item) => ({
+      ...item,
+      color: item.color || RISK_COLORS[item.name] || '#64748b',
+    })),
+    category_distribution: result?.category_distribution || fallback.category_distribution || [],
+    weekly_waste: result?.weekly_waste || fallback.weekly_waste || [],
+    monthly_savings: result?.monthly_savings || fallback.monthly_savings || [],
+  };
+}
+
 export default function AnalyticsPage() {
   const { isDemoMode } = useAuth();
   const { plan } = useSubscription();
@@ -37,17 +63,11 @@ export default function AnalyticsPage() {
 
   async function loadAnalytics() {
     setLoading(true);
-    if (!isDemoMode) {
-      setData(EMPTY_ANALYTICS);
-      setLoading(false);
-      return;
-    }
-
     try {
       const result = await apiModule.getAnalytics();
-      setData(result);
+      setData(normalizeAnalytics(result, isDemoMode ? DUMMY_ANALYTICS : EMPTY_ANALYTICS));
     } catch {
-      setData(DUMMY_ANALYTICS);
+      setData(isDemoMode ? normalizeAnalytics(DUMMY_ANALYTICS, DUMMY_ANALYTICS) : EMPTY_ANALYTICS);
     } finally {
       setLoading(false);
     }

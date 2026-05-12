@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -9,7 +10,7 @@ from .models import User, UserSession
 from .schemas import TokenData
 
 # Configuration
-SECRET_KEY = "fresh-secret-key-2024"  # Move to .env in production
+SECRET_KEY = os.getenv("SECRET_KEY", "fresh-secret-key-2024")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, isConfigured } from '../firebase';
-import { createDemoSubscription, saveSubscription } from '../services/subscription';
+import { createDemoSubscription, ensureSubscriptionForRole, saveSubscription } from '../services/subscription';
 
 const AuthContext = createContext(null);
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const TOKEN_KEY = 'fresh_auth_token';
 
 // ─── Local account store (persisted in localStorage) ─────────────────────────
 // Schema: { [email]: { uid, name, email, password, role, provider: 'local', createdAt } }
@@ -28,6 +30,9 @@ function saveAccounts(accounts) {
 
 function saveSession(user) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  localStorage.setItem('fresh_current_user', JSON.stringify(user));
+  if (user?.uid) localStorage.setItem('fresh_user_id', user.uid);
+  if (user?.role) localStorage.setItem('fresh_user_role', user.role);
 }
 
 function loadSession() {
@@ -41,8 +46,55 @@ function loadSession() {
 
 function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem('fresh_current_user');
+  localStorage.removeItem('fresh_user_id');
+  localStorage.removeItem(TOKEN_KEY);
   // Keep legacy key clean too
   localStorage.removeItem('fresh_demo_user');
+}
+
+async function fetchCurrentUser(accessToken) {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    throw new Error('Gagal mengambil data user setelah login.');
+  }
+
+  return response.json();
+}
+
+async function fetchSubscriptionForUser(user, accessToken) {
+  const response = await fetch(`${API_BASE_URL}/subscription`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'X-Fresh-User-Id': user.uid,
+      'X-Fresh-Role': user.role || 'personal',
+      'X-Fresh-Demo': 'false',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Gagal mengambil data subscription.');
+  }
+
+  return response.json();
+}
+
+function buildSessionUser(data) {
+  return {
+    uid: data.uid,
+    name: data.name,
+    email: data.email,
+    role: data.role || 'personal',
+    provider: data.provider || 'local',
+    business_name: data.business_name,
+    business_type: data.business_type,
+    business_location: data.business_location,
+    contact_number: data.contact_number,
+    createdAt: data.created_at || new Date().toISOString(),
+  };
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -98,8 +150,6 @@ export function AuthProvider({ children }) {
 
     try {
       // Call backend API to register user
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-      
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
@@ -127,21 +177,31 @@ export function AuthProvider({ children }) {
         throw new Error(data.detail || 'Registrasi gagal. Silakan coba lagi.');
       }
 
-      // Auto sign-in after successful registration
-      const sessionUser = {
-        uid: data.uid,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        provider: 'local',
-        business_name: data.business_name,
-        business_type: data.business_type,
-        business_location: data.business_location,
-        contact_number: data.contact_number,
-        createdAt: new Date().toISOString(),
-      };
+      // Auto sign-in after successful registration so real accounts get a token.
+      const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.toLowerCase().trim(),
+          password,
+        }),
+      });
+
+      const loginData = await loginResponse.json();
+      if (!loginResponse.ok) {
+        throw new Error(loginData.detail || 'Pendaftaran berhasil, tapi auto-login gagal. Silakan sign in.');
+      }
+
+      localStorage.setItem(TOKEN_KEY, loginData.access_token);
+      const userData = loginData.user || await fetchCurrentUser(loginData.access_token);
+      const sessionUser = buildSessionUser(userData || data);
 
       saveSession(sessionUser);
+      try {
+        saveSubscription(await fetchSubscriptionForUser(sessionUser, loginData.access_token));
+      } catch {
+        ensureSubscriptionForRole(sessionUser.role);
+      }
       setUser(sessionUser);
       return sessionUser;
 
@@ -165,8 +225,6 @@ export function AuthProvider({ children }) {
 
     try {
       // Call backend API to authenticate user
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-      
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -188,22 +246,17 @@ export function AuthProvider({ children }) {
         throw new Error(data.detail || 'Login gagal. Silakan coba lagi.');
       }
 
-      // Create session user from backend response
-      const sessionUser = {
-        uid: data.user.uid,
-        name: data.user.name,
-        email: data.user.email,
-        role: data.user.role,
-        provider: data.user.provider,
-        business_name: data.user.business_name,
-        business_type: data.user.business_type,
-        business_location: data.user.business_location,
-        contact_number: data.user.contact_number,
-        createdAt: new Date().toISOString(),
-      };
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+      const userData = data.user || await fetchCurrentUser(data.access_token);
+      const sessionUser = buildSessionUser(userData);
 
       // Save session and update context
       saveSession(sessionUser);
+      try {
+        saveSubscription(await fetchSubscriptionForUser(sessionUser, data.access_token));
+      } catch {
+        ensureSubscriptionForRole(sessionUser.role);
+      }
       setUser(sessionUser);
       return sessionUser;
 

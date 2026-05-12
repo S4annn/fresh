@@ -16,13 +16,13 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fresh.db")
 # Determine database type for logging
 if DATABASE_URL.startswith("postgresql"):
     DB_TYPE = "PostgreSQL"
-    print(f"🐘 Using {DB_TYPE} database: Railway")
+    print(f"Using {DB_TYPE} database: Railway")
 elif DATABASE_URL.startswith("sqlite"):
     DB_TYPE = "SQLite"
-    print(f"🗄️ Using {DB_TYPE} database: Local fallback")
+    print(f"Using {DB_TYPE} database: Local fallback")
 else:
     DB_TYPE = "Unknown"
-    print(f"❓ Using {DB_TYPE} database")
+    print(f"Using {DB_TYPE} database")
 
 # Create engine with appropriate settings
 if DATABASE_URL.startswith("postgresql"):
@@ -56,9 +56,9 @@ def get_db():
 
 def create_db_and_tables():
     """Create database tables"""
-    print(f"🔧 Creating database tables for {DB_TYPE}...")
+    print(f"Creating database tables for {DB_TYPE}...")
     Base.metadata.create_all(bind=engine)
-    print(f"✅ Database tables created successfully for {DB_TYPE}")
+    print(f"Database tables created successfully for {DB_TYPE}")
 
 
 def get_database_info():

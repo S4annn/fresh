@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { DUMMY_BUSINESS_ANALYTICS } from '../../data/businessDummyData';
 import { useAuth } from '../../context/AuthContext';
+import * as api from '../../api';
 import { BarChart3, TrendingDown, DollarSign, Leaf, GitBranch, ShoppingBag, Heart, Sparkles } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line } from 'recharts';
 
@@ -18,9 +19,60 @@ const EMPTY_BUSINESS_ANALYTICS = {
   category_waste: [],
 };
 
+const RISK_COLORS = {
+  Safe: '#10b981',
+  Warning: '#f59e0b',
+  'High Risk': '#ef4444',
+};
+
+function normalizeBusinessAnalytics(result, fallback = EMPTY_BUSINESS_ANALYTICS) {
+  const riskDistribution = result?.risk_distribution || [
+    { name: 'Safe', value: Math.max(0, (result?.total_stock_items || 0) - (result?.high_risk_items || 0)) },
+    { name: 'Warning', value: 0 },
+    { name: 'High Risk', value: result?.high_risk_items || 0 },
+  ];
+  const branchPerformance = result?.branch_performance || result?.branch_comparison?.map((branch) => ({
+    name: branch.branch,
+    waste_prevented: branch.waste_prevented,
+    surplus_sold: branch.marketplace_listings,
+    donations: 0,
+  }));
+
+  return {
+    ...fallback,
+    ...(result || {}),
+    sustainability_score: result?.sustainability_score ?? fallback.sustainability_score ?? 0,
+    risk_distribution: riskDistribution.map((item) => ({
+      ...item,
+      color: item.color || RISK_COLORS[item.name] || '#64748b',
+    })),
+    branch_performance: branchPerformance || fallback.branch_performance || [],
+    monthly_loss_prevention: result?.monthly_loss_prevention || fallback.monthly_loss_prevention || [],
+    category_waste: result?.category_waste || fallback.category_waste || [],
+  };
+}
+
 export default function BusinessAnalyticsPage() {
   const { isDemoMode } = useAuth();
-  const data = isDemoMode ? DUMMY_BUSINESS_ANALYTICS : EMPTY_BUSINESS_ANALYTICS;
+  const [data, setData] = useState(EMPTY_BUSINESS_ANALYTICS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    async function loadAnalytics() {
+      setLoading(true);
+      try {
+        const result = await api.getBusinessAnalytics();
+        if (active) setData(normalizeBusinessAnalytics(result, isDemoMode ? DUMMY_BUSINESS_ANALYTICS : EMPTY_BUSINESS_ANALYTICS));
+      } catch {
+        if (active) setData(isDemoMode ? normalizeBusinessAnalytics(DUMMY_BUSINESS_ANALYTICS, DUMMY_BUSINESS_ANALYTICS) : EMPTY_BUSINESS_ANALYTICS);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    loadAnalytics();
+    return () => { active = false; };
+  }, [isDemoMode]);
 
   const kpis = [
     { title: 'Total Stock Items', value: data.total_stock_items, icon: BarChart3, bg: 'bg-blue-50', text: 'text-blue-600' },
@@ -30,6 +82,17 @@ export default function BusinessAnalyticsPage() {
     { title: 'Active Branches', value: data.total_branches, icon: GitBranch, bg: 'bg-violet-50', text: 'text-violet-600' },
     { title: 'Sustainability Score', value: `${data.sustainability_score}/100`, icon: Leaf, bg: 'bg-teal-50', text: 'text-teal-600' },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Loading business analytics...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in">

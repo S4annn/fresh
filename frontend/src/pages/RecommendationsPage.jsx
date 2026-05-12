@@ -20,6 +20,7 @@ export default function RecommendationsPage() {
   const { isDemoMode } = useAuth();
   const { t, tv } = useLanguage();
   const [recommendations, setRecommendations] = useState([]);
+  const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
 
@@ -29,17 +30,13 @@ export default function RecommendationsPage() {
 
   async function loadRecommendations() {
     setLoading(true);
-    if (!isDemoMode) {
-      setRecommendations([]);
-      setLoading(false);
-      return;
-    }
-
     try {
-      const data = await api.getRecommendations();
-      setRecommendations(Array.isArray(data) && data.length > 0 ? data : DUMMY_RECOMMENDATIONS);
+      const [data, foodsData] = await Promise.all([api.getRecommendations(), api.getFoods()]);
+      setRecommendations(Array.isArray(data) && (data.length > 0 || !isDemoMode) ? data : DUMMY_RECOMMENDATIONS);
+      setFoods(Array.isArray(foodsData) && (foodsData.length > 0 || !isDemoMode) ? foodsData : DUMMY_FOODS);
     } catch {
-      setRecommendations(DUMMY_RECOMMENDATIONS);
+      setRecommendations(isDemoMode ? DUMMY_RECOMMENDATIONS : []);
+      setFoods(isDemoMode ? DUMMY_FOODS : []);
     } finally {
       setLoading(false);
     }
@@ -47,13 +44,11 @@ export default function RecommendationsPage() {
 
   const filtered = activeFilter === 'all' ? recommendations : recommendations.filter((r) => r.urgency === activeFilter || r.action === activeFilter);
 
-  const priorityFoods = isDemoMode
-    ? DUMMY_FOODS
-      .filter((f) => f.risk_level !== 'Safe')
-      .sort((a, b) => a.risk_score > b.risk_score ? -1 : 1)
-      .slice(0, 5)
-    : [];
-  const tips = isDemoMode ? WASTE_TIPS : [];
+  const priorityFoods = foods
+    .filter((f) => (f.risk_level || f.risk_label) !== 'Safe')
+    .sort((a, b) => Number(b.risk_score || 0) - Number(a.risk_score || 0))
+    .slice(0, 5);
+  const tips = WASTE_TIPS;
 
   if (loading) {
     return (
@@ -87,13 +82,13 @@ export default function RecommendationsPage() {
           <div className="flex gap-3 overflow-x-auto pb-2">
             {priorityFoods.map((food) => (
             <div key={food.id} className="flex-shrink-0 bg-white rounded-xl p-4 border border-amber-100 min-w-[160px]">
-              <span className={`badge ${food.risk_level === 'High Risk' ? 'badge-danger' : 'badge-warning'} mb-2`}>
-                {tv(food.risk_level)}
+              <span className={`badge ${(food.risk_level || food.risk_label) === 'High Risk' ? 'badge-danger' : 'badge-warning'} mb-2`}>
+                {tv(food.risk_level || food.risk_label)}
               </span>
-              <p className="font-bold text-gray-800 text-sm">{food.food_name}</p>
+              <p className="font-bold text-gray-800 text-sm">{food.food_name || food.name}</p>
               <p className="text-xs text-gray-500 mt-1">{food.quantity} {food.unit}</p>
-              <p className={`text-xs mt-1 ${food.risk_level === 'High Risk' ? 'text-red-500' : 'text-amber-500'}`}>
-                {t('expiry', 'Expires')}: {food.expiry_date}
+              <p className={`text-xs mt-1 ${(food.risk_level || food.risk_label) === 'High Risk' ? 'text-red-500' : 'text-amber-500'}`}>
+                {t('expiry', 'Expires')}: {food.expiry_date || food.expiration_date}
               </p>
             </div>
             ))}
@@ -159,12 +154,12 @@ export default function RecommendationsPage() {
 
               <div className="flex gap-2 mt-4">
                 {rec.action === 'sell_marketplace' && (
-                  <Link to="/marketplace" className="btn-ghost text-xs flex-1 no-underline">
+                  <Link to="/marketplace" state={{ prefillListing: rec }} className="btn-ghost text-xs flex-1 no-underline">
                     <ShoppingBag className="w-3 h-3" /> Marketplace
                   </Link>
                 )}
                 {rec.urgency === 'high' && (
-                  <Link to="/donation" className="btn-ghost text-xs flex-1 no-underline">
+                  <Link to="/donation" state={{ prefillDonation: rec }} className="btn-ghost text-xs flex-1 no-underline">
                     <Heart className="w-3 h-3" /> {t('donate', 'Donate')}
                   </Link>
                 )}

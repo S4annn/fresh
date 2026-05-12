@@ -2,17 +2,18 @@
 Admin authentication for database access
 """
 
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import timedelta
+import os
 
-from .auth import SECRET_KEY, ALGORITHM, create_access_token, verify_token
+from jose import JWTError, jwt
+
+from .auth import SECRET_KEY, ALGORITHM, create_access_token
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
 
-# Admin credentials (move to environment variables in production)
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "fresh_admin_2024"  # Change this!
+# Admin credentials
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "fresh_admin_2024")
 
 # Security
 security = HTTPBearer()
@@ -27,23 +28,15 @@ def create_admin_token(username: str) -> str:
     token_data = {
         "sub": username,
         "scope": "admin",
-        "exp": datetime.utcnow() + expires_delta
     }
-    return create_access_token(data=token_data)
+    return create_access_token(data=token_data, expires_delta=expires_delta)
 
 def verify_admin_token(token: str) -> bool:
     """Verify admin token"""
     try:
-        payload = verify_token(token)
-        if payload is None:
-            return False
-        
-        # Check if token has admin scope
-        # For now, we'll check if username is admin
-        # In production, implement proper role-based access
-        return True
-        
-    except Exception:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload.get("scope") == "admin" and payload.get("sub") == ADMIN_USERNAME
+    except JWTError:
         return False
 
 def get_current_admin(

@@ -49,6 +49,12 @@ from .auth import (
     verify_token,
 )
 from .admin_auth import get_current_admin
+from .subscription_service import (
+    cancel_subscription as cancel_user_subscription,
+    get_or_create_subscription,
+    increment_usage as increment_user_usage,
+    upgrade_subscription as upgrade_user_subscription,
+)
 from .vision_model import (
     ARTIFACTS_DIR,
     LABELS_PATH,
@@ -147,6 +153,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     # Create new user
     try:
         db_user = create_user(db, user.model_dump())
+        get_or_create_subscription(db, db_user.uid, db_user.role)
         return db_user
     except Exception as e:
         raise HTTPException(
@@ -156,7 +163,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @app.get("/users")
-def get_all_users(db: Session = Depends(get_db)):
+def get_all_users(current_admin: str = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Get all users (for debugging purposes)."""
     try:
         users = db.query(User).all()
@@ -215,7 +222,8 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "expires_in": 1800  # 30 minutes in seconds
+        "expires_in": 1800,  # 30 minutes in seconds
+        "user": user,
     }
 
 
@@ -259,7 +267,8 @@ def admin_login(username: str, password: str, db: Session = Depends(get_db)):
             "token_type": "bearer",
             "expires_in": 3600  # 1 hour
         }
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -389,29 +398,54 @@ def _plan_limits(plan_id: str) -> dict[str, Any]:
     return PLAN_LIMITS.get(plan_id, PLAN_LIMITS["free"])
 
 
-def _subscription_from_headers(
-    x_fresh_demo: str | None,
-    x_fresh_role: str | None,
-    x_fresh_plan_id: str | None,
-    x_fresh_user_id: str | None,
-) -> dict[str, Any]:
-    # MVP only: demo accounts may preview Business Pro flows without payment.
-    # In production, replace this with authenticated user/session claims.
-    is_demo_account = (x_fresh_demo or "").lower() == "true" and (x_fresh_user_id or "").startswith("demo-user")
-    if is_demo_account:
-        role = x_fresh_role or "personal"
-        plan_id = "business_pro" if role == "business" else (x_fresh_plan_id or "free")
-        plan_id = plan_id if plan_id in PLAN_LIMITS else "free"
-        return {
-            **SUBSCRIPTION_STATE,
-            "plan_id": plan_id,
-            "plan_name": PLAN_NAMES[plan_id],
-            "role": role,
-            "demo": True,
-            "usage": {**SUBSCRIPTION_STATE.get("usage", {})},
-        }
+def _resolve_user_id(query_user_id: str | None = None, x_fresh_user_id: str | None = None) -> str:
+    if query_user_id and query_user_id != "demo-user":
+        return query_user_id
+    return x_fresh_user_id or query_user_id or "demo-user"
 
-    return SUBSCRIPTION_STATE
+
+def _resolve_business_id(query_business_id: str | None = None, x_fresh_user_id: str | None = None) -> str:
+    if query_business_id and query_business_id != "demo-business":
+        return query_business_id
+    return x_fresh_user_id or query_business_id or "demo-business"
+
+
+def _normalize_usage(subscription: Subscription | None = None, branches: int = 0) -> dict[str, int]:
+    if subscription is None:
+        return {**SUBSCRIPTION_STATE.get("usage", {}), "branches": branches}
+    return {
+        "inventory_items": subscription.inventory_items_count or 0,
+        "ai_scans_this_month": subscription.ai_scans_this_month or 0,
+        "marketplace_listings": subscription.marketplace_listings_count or 0,
+        "donation_listings": subscription.donation_listings_count or 0,
+        "branches": branches,
+    }
+
+
+def _subscription_payload(
+    plan_id: str,
+    role: str = "personal",
+    status: str = "active",
+    billing_cycle: str | None = "monthly",
+    started_at: datetime | str | None = None,
+    expires_at: datetime | str | None = None,
+    usage: dict[str, Any] | None = None,
+    is_demo: bool = False,
+) -> dict[str, Any]:
+    plan_id = plan_id if plan_id in PLAN_LIMITS else "free"
+    return {
+        "plan_id": plan_id,
+        "plan_name": PLAN_NAMES[plan_id],
+        "role": role or ("business" if plan_id == "business_pro" else "personal"),
+        "status": status,
+        "billing_cycle": billing_cycle or "monthly",
+        "started_at": started_at.isoformat() if hasattr(started_at, "isoformat") else started_at,
+        "expires_at": expires_at.isoformat() if hasattr(expires_at, "isoformat") else expires_at,
+        "usage": usage or _normalize_usage(),
+        "limits": _plan_limits(plan_id),
+        "is_demo": is_demo,
+        "demo": is_demo,
+    }
 
 
 def get_active_subscription(
@@ -419,8 +453,36 @@ def get_active_subscription(
     x_fresh_role: str | None = Header(default=None),
     x_fresh_plan_id: str | None = Header(default=None),
     x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    return _subscription_from_headers(x_fresh_demo, x_fresh_role, x_fresh_plan_id, x_fresh_user_id)
+    is_demo_account = (x_fresh_demo or "").lower() == "true" and (x_fresh_user_id or "").startswith("demo-user")
+    if is_demo_account:
+        role = x_fresh_role or "personal"
+        plan_id = "business_pro" if role == "business" else (x_fresh_plan_id or "free")
+        return _subscription_payload(
+            plan_id=plan_id,
+            role=role,
+            status=SUBSCRIPTION_STATE["status"],
+            billing_cycle=SUBSCRIPTION_STATE["billing_cycle"],
+            started_at=SUBSCRIPTION_STATE["started_at"],
+            expires_at=SUBSCRIPTION_STATE["expires_at"],
+            usage={**SUBSCRIPTION_STATE.get("usage", {})},
+            is_demo=True,
+        )
+
+    user_id = _resolve_user_id(x_fresh_user_id=x_fresh_user_id)
+    subscription = get_or_create_subscription(db, user_id, x_fresh_role or "personal")
+    branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == user_id).count()
+    return _subscription_payload(
+        plan_id=subscription.plan_id,
+        role=x_fresh_role or ("business" if subscription.plan_id == "business_pro" else "personal"),
+        status=subscription.status,
+        billing_cycle=subscription.billing_cycle,
+        started_at=subscription.started_at,
+        expires_at=subscription.expires_at,
+        usage=_normalize_usage(subscription, branch_count),
+        is_demo=False,
+    )
 
 
 def _raise_upgrade_required(required_plan: str, message: str):
@@ -442,7 +504,18 @@ def _check_limit(subscription: dict[str, Any], limit_name: str, current_count: i
         _raise_upgrade_required(required_plan, message)
 
 
-def _increment_usage(usage_type: str) -> dict[str, Any]:
+def _increment_usage(usage_type: str, db: Session | None = None, user_id: str | None = None) -> dict[str, Any]:
+    if db is not None and user_id and not user_id.startswith("demo-user"):
+        subscription = increment_user_usage(db, user_id, usage_type)
+        branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == user_id).count()
+        return _subscription_payload(
+            plan_id=subscription.plan_id,
+            status=subscription.status,
+            billing_cycle=subscription.billing_cycle,
+            started_at=subscription.started_at,
+            expires_at=subscription.expires_at,
+            usage=_normalize_usage(subscription, branch_count),
+        )
     SUBSCRIPTION_STATE.setdefault("usage", {})
     SUBSCRIPTION_STATE["usage"][usage_type] = SUBSCRIPTION_STATE["usage"].get(usage_type, 0) + 1
     return SUBSCRIPTION_STATE
@@ -1096,6 +1169,8 @@ def debug_artifacts():
 async def scan_food(
     image: UploadFile = File(...),
     subscription: dict[str, Any] = Depends(get_active_subscription),
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ):
     used_scans = int(subscription.get("usage", {}).get("ai_scans_this_month", 0) or 0)
     _check_limit(
@@ -1109,7 +1184,7 @@ async def scan_food(
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Uploaded image is empty")
     result = predict_food_from_image(image_bytes, filename=image.filename)
-    _increment_usage("ai_scans_this_month")
+    _increment_usage("ai_scans_this_month", db, _resolve_user_id(x_fresh_user_id=x_fresh_user_id))
     return result
 
 
@@ -1120,11 +1195,13 @@ def predict_risk(payload: PredictInput):
 
 @app.get("/foods")
 def list_foods(
-    user_id: str = Query("demo-user"),
+    user_id: str | None = Query(default=None),
     include_finished: bool = False,
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ):
-    query = db.query(FoodItem).filter(FoodItem.user_id == user_id)
+    owner_id = _resolve_user_id(user_id, x_fresh_user_id)
+    query = db.query(FoodItem).filter(FoodItem.user_id == owner_id)
     if not include_finished:
         query = query.filter(FoodItem.is_finished == False)
     items = query.order_by(FoodItem.created_at.desc()).all()
@@ -1136,10 +1213,14 @@ def create_food(
     payload: FoodCreate,
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(get_active_subscription),
+    x_fresh_user_id: str | None = Header(default=None),
+    x_fresh_role: str | None = Header(default=None),
 ):
+    owner_id = _resolve_user_id(payload.user_id, x_fresh_user_id)
+    owner_role = x_fresh_role or payload.role or "personal"
     active_items = (
         db.query(FoodItem)
-        .filter(FoodItem.user_id == payload.user_id, FoodItem.is_finished == False)
+        .filter(FoodItem.user_id == owner_id, FoodItem.is_finished == False)
         .count()
     )
     _check_limit(
@@ -1164,11 +1245,11 @@ def create_food(
         days_to_expiry=payload.days_to_expiry,
         storage_condition=_storage(payload),
         shelf_life=payload.shelf_life,
-        role=payload.role,
+        role=owner_role,
     )
     item = FoodItem(
-        user_id=payload.user_id,
-        role=payload.role,
+        user_id=owner_id,
+        role=owner_role,
         food_name=food_name,
         name=food_name,
         category=payload.category,
@@ -1187,7 +1268,7 @@ def create_food(
     db.add(item)
     db.commit()
     db.refresh(item)
-    _increment_usage("inventory_items")
+    _increment_usage("inventory_items", db, owner_id)
     return _json(_serialize_food(item))
 
 
@@ -1252,8 +1333,13 @@ def delete_food(food_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/dashboard")
-def dashboard(user_id: str = Query("demo-user"), db: Session = Depends(get_db)):
-    foods = db.query(FoodItem).filter(FoodItem.user_id == user_id, FoodItem.is_finished == False).all()
+def dashboard(
+    user_id: str | None = Query(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    owner_id = _resolve_user_id(user_id, x_fresh_user_id)
+    foods = db.query(FoodItem).filter(FoodItem.user_id == owner_id, FoodItem.is_finished == False).all()
     high = sum(1 for item in foods if (item.risk_label or item.risk_level) == "High Risk")
     warning = sum(1 for item in foods if (item.risk_label or item.risk_level) == "Warning")
     safe = sum(1 for item in foods if (item.risk_label or item.risk_level) == "Safe")
@@ -1320,8 +1406,14 @@ def create_marketplace(
     payload: MarketplaceCreate,
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(get_active_subscription),
+    x_fresh_user_id: str | None = Header(default=None),
+    x_fresh_role: str | None = Header(default=None),
 ):
-    listing_count = db.query(MarketplaceListing).filter(MarketplaceListing.user_id == payload.user_id).count()
+    owner_id = _resolve_user_id(payload.user_id, x_fresh_user_id)
+    owner_role = x_fresh_role or payload.role or "personal"
+    payload.user_id = owner_id
+    payload.role = owner_role
+    listing_count = db.query(MarketplaceListing).filter(MarketplaceListing.user_id == owner_id).count()
     _check_limit(
         subscription,
         "max_marketplace_listings",
@@ -1330,7 +1422,7 @@ def create_marketplace(
         "Your marketplace listing limit has been reached.",
     )
     item = _create_marketplace(payload, db)
-    _increment_usage("marketplace_listings")
+    _increment_usage("marketplace_listings", db, owner_id)
     return item
 
 
@@ -1387,8 +1479,12 @@ def create_donation(
     payload: DonationCreate,
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(get_active_subscription),
+    x_fresh_user_id: str | None = Header(default=None),
+    x_fresh_role: str | None = Header(default=None),
 ):
-    donation_count = db.query(DonationItem).filter(DonationItem.user_id == payload.user_id).count()
+    owner_id = _resolve_user_id(payload.user_id, x_fresh_user_id)
+    owner_role = x_fresh_role or payload.role or "personal"
+    donation_count = db.query(DonationItem).filter(DonationItem.user_id == owner_id).count()
     _check_limit(
         subscription,
         "max_donation_listings",
@@ -1397,8 +1493,8 @@ def create_donation(
         "Your donation listing limit has been reached.",
     )
     item = DonationItem(
-        user_id=payload.user_id,
-        role=payload.role,
+        user_id=owner_id,
+        role=owner_role,
         food_name=payload.food_name,
         category=payload.category,
         quantity=payload.quantity,
@@ -1414,7 +1510,7 @@ def create_donation(
     db.add(item)
     db.commit()
     db.refresh(item)
-    _increment_usage("donation_listings")
+    _increment_usage("donation_listings", db, owner_id)
     return _json(_serialize_donation(item))
 
 
@@ -1453,24 +1549,45 @@ def delete_donation(donation_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/analytics")
-def analytics(db: Session = Depends(get_db)):
-    foods = db.query(FoodItem).all()
+def analytics(
+    user_id: str | None = Query(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    owner_id = _resolve_user_id(user_id, x_fresh_user_id)
+    foods = db.query(FoodItem).filter(FoodItem.user_id == owner_id).all()
     if not foods:
-        seed_marketplace(db)
-        seed_donations(db)
+        if owner_id.startswith("demo-user"):
+            seed_marketplace(db)
+            seed_donations(db)
+            return {
+                "total_food_items": 20,
+                "high_risk_items": 5,
+                "warning_items": 8,
+                "safe_items": 7,
+                "estimated_waste_prevented_kg": 12.5,
+                "estimated_money_saved": 175000,
+                "total_donations": db.query(DonationItem).filter(DonationItem.user_id == owner_id).count(),
+                "total_marketplace_listings": db.query(MarketplaceListing).filter(MarketplaceListing.user_id == owner_id).count(),
+                "risk_distribution": [
+                    {"name": "Safe", "value": 7},
+                    {"name": "Warning", "value": 8},
+                    {"name": "High Risk", "value": 5},
+                ],
+            }
         return {
-            "total_food_items": 20,
-            "high_risk_items": 5,
-            "warning_items": 8,
-            "safe_items": 7,
-            "estimated_waste_prevented_kg": 12.5,
-            "estimated_money_saved": 175000,
-            "total_donations": db.query(DonationItem).count(),
-            "total_marketplace_listings": db.query(MarketplaceListing).count(),
+            "total_food_items": 0,
+            "high_risk_items": 0,
+            "warning_items": 0,
+            "safe_items": 0,
+            "estimated_waste_prevented_kg": 0,
+            "estimated_money_saved": 0,
+            "total_donations": db.query(DonationItem).filter(DonationItem.user_id == owner_id).count(),
+            "total_marketplace_listings": db.query(MarketplaceListing).filter(MarketplaceListing.user_id == owner_id).count(),
             "risk_distribution": [
-                {"name": "Safe", "value": 7},
-                {"name": "Warning", "value": 8},
-                {"name": "High Risk", "value": 5},
+                {"name": "Safe", "value": 0},
+                {"name": "Warning", "value": 0},
+                {"name": "High Risk", "value": 0},
             ],
         }
 
@@ -1484,8 +1601,8 @@ def analytics(db: Session = Depends(get_db)):
         "safe_items": safe,
         "estimated_waste_prevented_kg": round((high * 1.5) + (warning * 0.8), 2),
         "estimated_money_saved": int((high * 25000) + (warning * 12500)),
-        "total_donations": db.query(DonationItem).count(),
-        "total_marketplace_listings": db.query(MarketplaceListing).count(),
+        "total_donations": db.query(DonationItem).filter(DonationItem.user_id == owner_id).count(),
+        "total_marketplace_listings": db.query(MarketplaceListing).filter(MarketplaceListing.user_id == owner_id).count(),
         "risk_distribution": [
             {"name": "Safe", "value": safe},
             {"name": "Warning", "value": warning},
@@ -1495,9 +1612,16 @@ def analytics(db: Session = Depends(get_db)):
 
 
 @app.get("/recommendations")
-def recommendations(db: Session = Depends(get_db)):
-    foods = db.query(FoodItem).filter(FoodItem.is_finished == False).all()
+def recommendations(
+    user_id: str | None = Query(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    owner_id = _resolve_user_id(user_id, x_fresh_user_id)
+    foods = db.query(FoodItem).filter(FoodItem.user_id == owner_id, FoodItem.is_finished == False).all()
     if not foods:
+        if not owner_id.startswith("demo-user"):
+            return []
         return [
             {
                 "id": "r1",
@@ -1529,21 +1653,35 @@ def recommendations(db: Session = Depends(get_db)):
 
 @app.get("/business/inventory")
 def get_business_inventory(
+    business_id: str | None = Query(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(require_business_pro),
 ):
-    seed_business_inventory(db)
-    items = db.query(BusinessInventory).order_by(BusinessInventory.created_at.desc()).all()
+    if subscription.get("demo"):
+        seed_business_inventory(db)
+        items = db.query(BusinessInventory).order_by(BusinessInventory.created_at.desc()).all()
+        return _json([_serialize_business_inventory(item) for item in items])
+
+    owner_id = _resolve_business_id(business_id, x_fresh_user_id)
+    items = (
+        db.query(BusinessInventory)
+        .filter(BusinessInventory.business_id == owner_id)
+        .order_by(BusinessInventory.created_at.desc())
+        .all()
+    )
     return _json([_serialize_business_inventory(item) for item in items])
 
 
 @app.post("/business/inventory")
 def create_business_inventory(
     payload: BusinessInventoryCreate,
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(require_business_pro),
 ):
-    expiration_date = payload.expiration_date or payload.expiry_date or _today_plus(5)
+    owner_id = _resolve_business_id(payload.business_id, x_fresh_user_id)
+    expiration_date = payload.expiration_date or getattr(payload, "expiry_date", None) or _today_plus(5)
     risk = predict_food_risk(
         food_name=payload.item_name,
         category=payload.category,
@@ -1553,15 +1691,20 @@ def create_business_inventory(
         storage_condition=payload.storage_area or "Business Storage",
         role="business",
     )
+    explicit_loss = getattr(payload, "estimated_loss", None)
+    explicit_risk_label = getattr(payload, "risk_label", None)
+    explicit_risk_score = getattr(payload, "risk_score", None)
+    explicit_action = getattr(payload, "suggested_action", None)
+    explicit_status = getattr(payload, "status", None)
     estimated_loss = (
-        payload.estimated_loss
-        if payload.estimated_loss is not None
+        explicit_loss
+        if explicit_loss is not None
         else max(0, payload.quantity * payload.cost_per_unit)
         if risk["risk_label"] in {"High Risk", "Warning"}
         else 0
     )
     item = BusinessInventory(
-        business_id=payload.business_id,
+        business_id=owner_id,
         item_name=payload.item_name,
         category=payload.category,
         batch_code=payload.batch_code,
@@ -1575,10 +1718,10 @@ def create_business_inventory(
         cost_per_unit=payload.cost_per_unit,
         selling_price=payload.selling_price,
         estimated_loss=estimated_loss,
-        risk_label=payload.risk_label or risk["risk_label"],
-        risk_score=payload.risk_score if payload.risk_score is not None else risk["risk_score"],
-        suggested_action=payload.suggested_action or risk["suggested_action"],
-        status=payload.status or risk["risk_label"],
+        risk_label=explicit_risk_label or risk["risk_label"],
+        risk_score=explicit_risk_score if explicit_risk_score is not None else risk["risk_score"],
+        suggested_action=explicit_action or risk["suggested_action"],
+        status=explicit_status or risk["risk_label"],
     )
     db.add(item)
     db.commit()
@@ -1590,10 +1733,15 @@ def create_business_inventory(
 def update_business_inventory(
     inventory_id: int,
     payload: BusinessInventoryUpdate,
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(require_business_pro),
 ):
-    item = db.query(BusinessInventory).filter(BusinessInventory.id == inventory_id).first()
+    owner_id = _resolve_business_id(getattr(payload, "business_id", None), x_fresh_user_id)
+    query = db.query(BusinessInventory).filter(BusinessInventory.id == inventory_id)
+    if not subscription.get("demo"):
+        query = query.filter(BusinessInventory.business_id == owner_id)
+    item = query.first()
     if not item:
         raise HTTPException(status_code=404, detail="Business inventory item not found")
     data = payload.model_dump(exclude_unset=True)
@@ -1610,10 +1758,15 @@ def update_business_inventory(
 @app.delete("/business/inventory/{inventory_id}")
 def delete_business_inventory(
     inventory_id: int,
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(require_business_pro),
 ):
-    item = db.query(BusinessInventory).filter(BusinessInventory.id == inventory_id).first()
+    owner_id = _resolve_business_id(x_fresh_user_id=x_fresh_user_id)
+    query = db.query(BusinessInventory).filter(BusinessInventory.id == inventory_id)
+    if not subscription.get("demo"):
+        query = query.filter(BusinessInventory.business_id == owner_id)
+    item = query.first()
     if not item:
         raise HTTPException(status_code=404, detail="Business inventory item not found")
     db.delete(item)
@@ -1623,11 +1776,23 @@ def delete_business_inventory(
 
 @app.get("/business/orders")
 def get_business_orders(
+    business_id: str | None = Query(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(require_business_pro),
 ):
-    seed_business_orders(db)
-    orders = db.query(BusinessOrder).order_by(BusinessOrder.created_at.desc()).all()
+    if subscription.get("demo"):
+        seed_business_orders(db)
+        orders = db.query(BusinessOrder).order_by(BusinessOrder.created_at.desc()).all()
+        return _json(orders)
+
+    owner_id = _resolve_business_id(business_id, x_fresh_user_id)
+    orders = (
+        db.query(BusinessOrder)
+        .filter(BusinessOrder.business_id == owner_id)
+        .order_by(BusinessOrder.created_at.desc())
+        .all()
+    )
     return _json(orders)
 
 
@@ -1635,11 +1800,17 @@ def get_business_orders(
 def update_business_order(
     order_id: int,
     payload: BusinessOrderUpdate,
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(require_business_pro),
 ):
-    seed_business_orders(db)
-    order = db.query(BusinessOrder).filter(BusinessOrder.id == order_id).first()
+    if subscription.get("demo"):
+        seed_business_orders(db)
+    owner_id = _resolve_business_id(x_fresh_user_id=x_fresh_user_id)
+    query = db.query(BusinessOrder).filter(BusinessOrder.id == order_id)
+    if not subscription.get("demo"):
+        query = query.filter(BusinessOrder.business_id == owner_id)
+    order = query.first()
     if not order:
         raise HTTPException(status_code=404, detail="Business order not found")
     order.status = payload.status
@@ -1650,21 +1821,35 @@ def update_business_order(
 
 @app.get("/business/branches")
 def get_business_branches(
+    business_id: str | None = Query(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(require_business_pro),
 ):
-    seed_business_branches(db)
-    branches = db.query(BusinessBranch).order_by(BusinessBranch.created_at.desc()).all()
+    if subscription.get("demo"):
+        seed_business_branches(db)
+        branches = db.query(BusinessBranch).order_by(BusinessBranch.created_at.desc()).all()
+        return _json([_serialize_branch(branch) for branch in branches])
+
+    owner_id = _resolve_business_id(business_id, x_fresh_user_id)
+    branches = (
+        db.query(BusinessBranch)
+        .filter(BusinessBranch.business_id == owner_id)
+        .order_by(BusinessBranch.created_at.desc())
+        .all()
+    )
     return _json([_serialize_branch(branch) for branch in branches])
 
 
 @app.post("/business/branches")
 def create_business_branch(
     payload: BusinessBranchCreate,
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(require_business_pro),
 ):
-    branch_count = db.query(BusinessBranch).count()
+    owner_id = _resolve_business_id(payload.business_id, x_fresh_user_id)
+    branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == owner_id).count()
     _check_limit(
         subscription,
         "max_branches",
@@ -1672,7 +1857,9 @@ def create_business_branch(
         "business_pro",
         "Business Pro branch limit has been reached.",
     )
-    branch = BusinessBranch(**payload.model_dump())
+    data = payload.model_dump()
+    data["business_id"] = owner_id
+    branch = BusinessBranch(**data)
     db.add(branch)
     db.commit()
     db.refresh(branch)
@@ -1681,21 +1868,34 @@ def create_business_branch(
 
 @app.get("/business/analytics")
 def business_analytics(
+    business_id: str | None = Query(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
     db: Session = Depends(get_db),
     subscription: dict[str, Any] = Depends(require_business_pro),
 ):
-    seed_business_inventory(db)
-    seed_business_branches(db)
-    inventory = db.query(BusinessInventory).all()
-    branches = db.query(BusinessBranch).all()
+    owner_id = None
+    if subscription.get("demo"):
+        seed_business_inventory(db)
+        seed_business_branches(db)
+        inventory = db.query(BusinessInventory).all()
+        branches = db.query(BusinessBranch).all()
+    else:
+        owner_id = _resolve_business_id(business_id, x_fresh_user_id)
+        inventory = db.query(BusinessInventory).filter(BusinessInventory.business_id == owner_id).all()
+        branches = db.query(BusinessBranch).filter(BusinessBranch.business_id == owner_id).all()
     high_value = sum((item.estimated_loss or 0) for item in inventory if item.risk_label == "High Risk")
-    total_prevented = max(2500000, int(sum(item.estimated_loss or 0 for item in inventory)))
+    total_prevented = int(sum(item.estimated_loss or 0 for item in inventory))
+    if subscription.get("demo"):
+        total_prevented = max(2500000, total_prevented)
+    listing_query = db.query(MarketplaceListing)
+    if owner_id:
+        listing_query = listing_query.filter(MarketplaceListing.user_id == owner_id)
     return {
         "estimated_loss_prevented": total_prevented,
-        "high_risk_stock_value": int(high_value or 850000),
-        "surplus_sales": 1200000,
-        "donation_volume_kg": 42,
-        "monthly_waste_reduction": 28,
+        "high_risk_stock_value": int(high_value or (850000 if subscription.get("demo") else 0)),
+        "surplus_sales": 1200000 if subscription.get("demo") else 0,
+        "donation_volume_kg": 42 if subscription.get("demo") else 0,
+        "monthly_waste_reduction": 28 if subscription.get("demo") else 0,
         "branch_comparison": [
             {
                 "branch": branch.branch_name,
@@ -1707,7 +1907,7 @@ def business_analytics(
         ],
         "total_stock_items": len(inventory),
         "high_risk_items": sum(1 for item in inventory if item.risk_label == "High Risk"),
-        "surplus_listings": db.query(MarketplaceListing).count(),
+        "surplus_listings": listing_query.count(),
         "total_branches": len(branches),
     }
 
@@ -1732,60 +1932,177 @@ def business_report(subscription: dict[str, Any] = Depends(require_business_pro)
 # Database-based Subscription Endpoints
 @app.get("/subscription")
 def get_subscription(
-    user_id: str = Query("demo-user"),
-    role: str = Query("personal"),
-    db: Session = Depends(get_db)
+    user_id: str | None = Query(default=None),
+    role: str | None = Query(default=None),
+    x_fresh_demo: str | None = Header(default=None),
+    x_fresh_role: str | None = Header(default=None),
+    x_fresh_plan_id: str | None = Header(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ):
     """Get user subscription from database"""
-    from .subscription_service import get_subscription_limits
-    
-    subscription_data = get_subscription_limits(db, user_id)
-    return subscription_data
+    owner_id = _resolve_user_id(user_id, x_fresh_user_id)
+    if (x_fresh_demo or "").lower() == "true" and owner_id.startswith("demo-user"):
+        return get_active_subscription(x_fresh_demo, role or x_fresh_role, x_fresh_plan_id, owner_id, db)
+
+    subscription = get_or_create_subscription(db, owner_id, role or x_fresh_role or "personal")
+    branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == owner_id).count()
+    return _subscription_payload(
+        plan_id=subscription.plan_id,
+        role=role or x_fresh_role or ("business" if subscription.plan_id == "business_pro" else "personal"),
+        status=subscription.status,
+        billing_cycle=subscription.billing_cycle,
+        started_at=subscription.started_at,
+        expires_at=subscription.expires_at,
+        usage=_normalize_usage(subscription, branch_count),
+    )
 
 
 @app.post("/subscription/upgrade")
 def upgrade_subscription(
     payload: dict,
-    db: Session = Depends(get_db)
+    x_fresh_user_id: str | None = Header(default=None),
+    x_fresh_role: str | None = Header(default=None),
+    x_fresh_demo: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ):
     """Upgrade user subscription plan"""
-    from .subscription_service import upgrade_subscription
-    
-    user_id = payload.get("user_id", "demo-user")
+    user_id = _resolve_user_id(payload.get("user_id"), x_fresh_user_id)
     plan_id = payload.get("plan_id", "free")
+    role = payload.get("role") or x_fresh_role or ("business" if plan_id == "business_pro" else "personal")
+    billing_cycle = payload.get("billing_cycle", "monthly")
     
     if plan_id not in ["free", "personal_plus", "business_pro"]:
         raise HTTPException(status_code=400, detail="Unknown subscription plan")
     
     try:
-        subscription = upgrade_subscription(db, user_id, plan_id)
-        return {
-            "message": f"Upgraded to {subscription.plan_name}",
-            "subscription": {
-                "plan_id": subscription.plan_id,
-                "plan_name": subscription.plan_name,
-                "status": subscription.status,
-                "expires_at": subscription.expires_at.isoformat() if subscription.expires_at else None
-            }
-        }
+        if (x_fresh_demo or "").lower() == "true" and user_id.startswith("demo-user"):
+            SUBSCRIPTION_STATE.update(
+                {
+                    "plan_id": plan_id,
+                    "plan_name": PLAN_NAMES[plan_id],
+                    "role": role,
+                    "billing_cycle": billing_cycle,
+                }
+            )
+            return _subscription_payload(
+                plan_id=plan_id,
+                role=role,
+                billing_cycle=billing_cycle,
+                started_at=SUBSCRIPTION_STATE["started_at"],
+                expires_at=SUBSCRIPTION_STATE["expires_at"],
+                usage={**SUBSCRIPTION_STATE.get("usage", {})},
+                is_demo=True,
+            )
+
+        subscription = upgrade_user_subscription(db, user_id, plan_id, billing_cycle)
+        branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == user_id).count()
+        return _subscription_payload(
+            plan_id=subscription.plan_id,
+            role=role,
+            status=subscription.status,
+            billing_cycle=subscription.billing_cycle,
+            started_at=subscription.started_at,
+            expires_at=subscription.expires_at,
+            usage=_normalize_usage(subscription, branch_count),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upgrade subscription: {str(e)}")
-def cancel_subscription():
-    SUBSCRIPTION_STATE.update({"plan_id": "free", "plan_name": "Free Starter", "role": "personal"})
-    return SUBSCRIPTION_STATE
+
+
+@app.post("/subscription/cancel")
+def cancel_subscription(
+    payload: dict | None = None,
+    x_fresh_user_id: str | None = Header(default=None),
+    x_fresh_role: str | None = Header(default=None),
+    x_fresh_demo: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    user_id = _resolve_user_id((payload or {}).get("user_id"), x_fresh_user_id)
+    if (x_fresh_demo or "").lower() == "true" and user_id.startswith("demo-user"):
+        SUBSCRIPTION_STATE.update({"plan_id": "free", "plan_name": "Free Starter", "role": "personal"})
+        return _subscription_payload(
+            plan_id="free",
+            role="personal",
+            billing_cycle="monthly",
+            started_at=SUBSCRIPTION_STATE["started_at"],
+            expires_at=None,
+            usage={**SUBSCRIPTION_STATE.get("usage", {})},
+            is_demo=True,
+        )
+
+    subscription = cancel_user_subscription(db, user_id)
+    return _subscription_payload(
+        plan_id=subscription.plan_id,
+        role=x_fresh_role or "personal",
+        status=subscription.status,
+        billing_cycle=subscription.billing_cycle,
+        started_at=subscription.started_at,
+        expires_at=subscription.expires_at,
+        usage=_normalize_usage(subscription),
+    )
 
 
 @app.get("/subscription/usage")
-def get_subscription_usage():
-    return SUBSCRIPTION_STATE["usage"]
+def get_subscription_usage(
+    user_id: str | None = Query(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
+    x_fresh_demo: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    owner_id = _resolve_user_id(user_id, x_fresh_user_id)
+    if (x_fresh_demo or "").lower() == "true" and owner_id.startswith("demo-user"):
+        return SUBSCRIPTION_STATE["usage"]
+    subscription = get_or_create_subscription(db, owner_id)
+    branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == owner_id).count()
+    return _normalize_usage(subscription, branch_count)
 
 
 @app.post("/subscription/usage/increment")
-def increment_subscription_usage(payload: dict):
-    usage_type = payload.get("type")
+def increment_subscription_usage(
+    payload: dict,
+    x_fresh_user_id: str | None = Header(default=None),
+    x_fresh_role: str | None = Header(default=None),
+    x_fresh_demo: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    usage_type = payload.get("type") or payload.get("usage_type")
+    owner_id = _resolve_user_id(payload.get("user_id"), x_fresh_user_id)
     if usage_type:
-        _increment_usage(usage_type)
-    return SUBSCRIPTION_STATE
+        if (x_fresh_demo or "").lower() == "true" and owner_id.startswith("demo-user"):
+            _increment_usage(usage_type)
+            return _subscription_payload(
+                plan_id=SUBSCRIPTION_STATE.get("plan_id", "free"),
+                role=x_fresh_role or SUBSCRIPTION_STATE.get("role", "personal"),
+                billing_cycle=SUBSCRIPTION_STATE.get("billing_cycle", "monthly"),
+                started_at=SUBSCRIPTION_STATE.get("started_at"),
+                expires_at=SUBSCRIPTION_STATE.get("expires_at"),
+                usage={**SUBSCRIPTION_STATE.get("usage", {})},
+                is_demo=True,
+            )
+
+        subscription = increment_user_usage(db, owner_id, usage_type)
+        branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == owner_id).count()
+        return _subscription_payload(
+            plan_id=subscription.plan_id,
+            role=x_fresh_role or ("business" if subscription.plan_id == "business_pro" else "personal"),
+            status=subscription.status,
+            billing_cycle=subscription.billing_cycle,
+            started_at=subscription.started_at,
+            expires_at=subscription.expires_at,
+            usage=_normalize_usage(subscription, branch_count),
+        )
+    subscription = get_or_create_subscription(db, owner_id, x_fresh_role or "personal")
+    branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == owner_id).count()
+    return _subscription_payload(
+        plan_id=subscription.plan_id,
+        role=x_fresh_role or ("business" if subscription.plan_id == "business_pro" else "personal"),
+        status=subscription.status,
+        billing_cycle=subscription.billing_cycle,
+        started_at=subscription.started_at,
+        expires_at=subscription.expires_at,
+        usage=_normalize_usage(subscription, branch_count),
+    )
 
 
 @app.post("/payments/create-transaction")
