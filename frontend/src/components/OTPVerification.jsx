@@ -105,7 +105,9 @@ export default function OTPVerification({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || 'Kode OTP salah. Silakan coba lagi.');
+        const detail = data.detail;
+        const errorMsg = typeof detail === 'string' ? detail : 'Kode OTP salah. Silakan coba lagi.';
+        throw new Error(errorMsg);
       }
 
       setVerified(true);
@@ -123,7 +125,8 @@ export default function OTPVerification({
       }
 
     } catch (err) {
-      setError(err.message || 'Kode OTP salah. Silakan coba lagi.');
+      const msg = typeof err.message === 'string' ? err.message : 'Kode OTP salah. Silakan coba lagi.';
+      setError(msg);
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {

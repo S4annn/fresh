@@ -201,92 +201,6 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         )
 
 
-@app.post("/auth/verify-otp")
-def verify_otp(email: str, otp: str, db: Session = Depends(get_db)):
-    """Verify OTP and complete user registration."""
-    from .otp_service import verify_user_otp
-    
-    result = verify_user_otp(email, otp)
-    
-    if not result['success']:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result['message']
-        )
-    
-    # Create user in database
-    try:
-        user_data = result['user_data']
-        db_user = create_user(db, user_data)
-        
-        # Mark email as verified
-        db_user.email_verified = True
-        db.commit()
-        
-        # Create JWT token for auto-login
-        access_token_expires = timedelta(minutes=30)
-        access_token = create_access_token(
-            data={"sub": str(db_user.id), "uid": db_user.uid}, 
-            expires_delta=access_token_expires
-        )
-        
-        # Create session record
-        create_user_session(db, db_user, access_token)
-        
-        return {
-            "message": "Registration successful! You are now logged in.",
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "id": db_user.id,
-                "uid": db_user.uid,
-                "name": db_user.name,
-                "email": db_user.email,
-                "role": db_user.role,
-                "provider": db_user.provider
-            }
-        }
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to complete registration: {str(e)}"
-        )
-
-
-@app.post("/auth/resend-otp")
-def resend_otp(email: str):
-    """Resend OTP to user email."""
-    from .otp_service import resend_user_otp
-    from .email_service import send_otp_email
-    
-    result = resend_user_otp(email)
-    
-    if not result['success']:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result['message']
-        )
-    
-    # Send new OTP email
-    email_result = send_otp_email(email, result.get('otp'), "User")
-    
-    if email_result and "dev_otp" in email_result:
-        return {
-            "message": "New OTP sent to your email.",
-            "dev_otp": result.get('otp')  # Only in development
-        }
-    elif email_result:
-        return {
-            "message": "New OTP sent to your email."
-        }
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send OTP email. Please try again."
-        )
-
-
 @app.post("/auth/register-legacy")
 def register_user_legacy(user: UserCreate, db: Session = Depends(get_db)):
     """Legacy registration without OTP (for backward compatibility)."""
@@ -399,59 +313,80 @@ class ResendOTPRequest(BaseModel):
 
 @app.post("/auth/verify-otp")
 def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
+    from .otp_service import verify_user_otp
+    
     email_lower = request.email.lower()
+    
+    # Verify OTP from in-memory store (same as registration)
+    result = verify_user_otp(email_lower, request.otp)
+    
+    if not result['success']:
+        raise HTTPException(status_code=400, detail=result['message'])
+    
+    # Create user in database from stored user_data
+    user_data = result.get('user_data', {})
+    
+    # Check if user already exists
     user = get_user_by_email(db, email_lower)
+    
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    validation_result = validate_otp(db, email_lower, request.otp)
-    if validation_result["status"] == "error":
-        raise HTTPException(status_code=400, detail=validation_result["message"])
-        
+        # Create new user
+        try:
+            user = create_user(db, user_data)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Gagal membuat akun: {str(e)}")
+    
+    # Mark email as verified
     user.email_verified = True
     user.status = "active"
     db.commit()
     db.refresh(user)
     
-    subscription = get_or_create_subscription(db, user.uid, user.role)
-    branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == user.uid).count()
-    sub_data = _subscription_payload(
-        plan_id=subscription.plan_id,
-        role=user.role,
-        status=subscription.status,
-        billing_cycle=subscription.billing_cycle,
-        started_at=subscription.started_at,
-        expires_at=subscription.expires_at,
-        usage=_normalize_usage(subscription, branch_count),
-        is_demo=False,
+    # Create access token
+    access_token_expires = timedelta(minutes=30)
+    access_token = create_access_token(
+        data={"sub": str(user.id), "uid": user.uid},
+        expires_delta=access_token_expires
     )
+    
+    # Create session
+    create_user_session(db, user, access_token)
     
     return {
         "message": "Email verified successfully",
+        "access_token": access_token,
+        "token_type": "bearer",
         "user": {
             "id": user.id,
+            "uid": getattr(user, 'uid', ''),
             "name": user.name,
             "email": user.email,
             "role": user.role,
             "email_verified": user.email_verified,
             "status": user.status
-        },
-        "subscription": sub_data
+        }
     }
 
 @app.post("/auth/resend-otp")
 def resend_otp(request: ResendOTPRequest, db: Session = Depends(get_db)):
-    email_lower = request.email.lower()
-    user = get_user_by_email(db, email_lower)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if user.email_verified:
-        raise HTTPException(status_code=400, detail="Email already verified")
-        
-    otp = create_otp_record(db, email_lower)
-    send_otp_email(email_lower, otp, user.name)
+    from .otp_service import resend_user_otp
+    from .email_service import send_otp_email
     
-    return {"message": "New OTP has been sent"}
+    email_lower = request.email.lower()
+    
+    result = resend_user_otp(email_lower)
+    
+    if not result['success']:
+        raise HTTPException(status_code=400, detail=result['message'])
+    
+    # Try to send email (will fallback to dev_otp on Railway)
+    new_otp = result.get('otp', '')
+    email_result = send_otp_email(email_lower, new_otp, "User")
+    
+    if email_result and "dev_otp" in email_result:
+        return {"message": "Kode OTP baru telah dikirim.", "dev_otp": new_otp}
+    
+    return {"message": "Kode OTP baru telah dikirim."}
 
 @app.get("/debug-otps")
 def debug_otps(db: Session = Depends(get_db)):
