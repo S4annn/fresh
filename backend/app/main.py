@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Iterable
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile, status
+from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -66,6 +67,8 @@ from .vision_model import (
     predict_food_from_image,
     vision_model_status,
 )
+from .otp import create_otp_record, validate_otp
+from .email_service import send_otp_email
 
 create_db_and_tables()
 
@@ -139,11 +142,149 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
 
 
 # User Management Endpoints
-@app.post("/auth/register", response_model=UserResponse)
+@app.post("/auth/register")
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user."""
-    # Check if user already exists
-    db_user = get_user_by_email(db, user.email)
+    """Register a new user with OTP verification."""
+    from .otp_service import generate_and_store_otp
+    from .email_service import send_otp_email
+    
+    email_lower = user.email.lower()
+    user.email = email_lower
+    
+    db_user = get_user_by_email(db, email_lower)
+    
+    if db_user:
+        if db_user.email_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered and verified"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered but not verified. Please check your email for OTP."
+            )
+    
+    # Generate OTP and store user data
+    user_data = user.model_dump()
+    otp = generate_and_store_otp(email_lower, user_data)
+    
+    # Send OTP email
+    email_result = send_otp_email(email_lower, otp, user.name)
+    
+    if email_result and "dev_otp" in email_result:
+        # Development mode - return OTP for testing
+        return {
+            "message": "Registration initiated. Please check your email for OTP.",
+            "dev_otp": otp,  # Only in development
+            "email": email_lower
+        }
+    elif email_result:
+        return {
+            "message": "Registration initiated. Please check your email for OTP.",
+            "email": email_lower
+        }
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send OTP email. Please try again."
+        )
+
+
+@app.post("/auth/verify-otp")
+def verify_otp(email: str, otp: str, db: Session = Depends(get_db)):
+    """Verify OTP and complete user registration."""
+    from .otp_service import verify_user_otp
+    
+    result = verify_user_otp(email, otp)
+    
+    if not result['success']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result['message']
+        )
+    
+    # Create user in database
+    try:
+        user_data = result['user_data']
+        db_user = create_user(db, user_data)
+        
+        # Mark email as verified
+        db_user.email_verified = True
+        db.commit()
+        
+        # Create JWT token for auto-login
+        access_token_expires = timedelta(minutes=30)
+        access_token = create_access_token(
+            data={"sub": str(db_user.id), "uid": db_user.uid}, 
+            expires_delta=access_token_expires
+        )
+        
+        # Create session record
+        create_user_session(db, db_user, access_token)
+        
+        return {
+            "message": "Registration successful! You are now logged in.",
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": db_user.id,
+                "uid": db_user.uid,
+                "name": db_user.name,
+                "email": db_user.email,
+                "role": db_user.role,
+                "provider": db_user.provider
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to complete registration: {str(e)}"
+        )
+
+
+@app.post("/auth/resend-otp")
+def resend_otp(email: str):
+    """Resend OTP to user email."""
+    from .otp_service import resend_user_otp
+    from .email_service import send_otp_email
+    
+    result = resend_user_otp(email)
+    
+    if not result['success']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result['message']
+        )
+    
+    # Send new OTP email
+    email_result = send_otp_email(email, result.get('otp'), "User")
+    
+    if email_result and "dev_otp" in email_result:
+        return {
+            "message": "New OTP sent to your email.",
+            "dev_otp": result.get('otp')  # Only in development
+        }
+    elif email_result:
+        return {
+            "message": "New OTP sent to your email."
+        }
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send OTP email. Please try again."
+        )
+
+
+@app.post("/auth/register-legacy")
+def register_user_legacy(user: UserCreate, db: Session = Depends(get_db)):
+    """Legacy registration without OTP (for backward compatibility)."""
+    email_lower = user.email.lower()
+    user.email = email_lower
+    
+    db_user = get_user_by_email(db, email_lower)
+    
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -153,13 +294,13 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     # Create new user
     try:
         db_user = create_user(db, user.model_dump())
-        get_or_create_subscription(db, db_user.uid, db_user.role)
         return db_user
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create user: {str(e)}"
         )
+                                                            
 
 
 @app.get("/users")
@@ -194,15 +335,26 @@ def get_all_users(current_admin: str = Depends(get_current_admin), db: Session =
         )
 
 
-@app.post("/auth/login", response_model=Token)
+@app.post("/auth/login")
 def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     """Authenticate user and return JWT token."""
-    user = authenticate_user(db, user_credentials.email, user_credentials.password)
+    email_lower = user_credentials.email.lower()
+    user = authenticate_user(db, email_lower, user_credentials.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    if not user.email_verified:
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": "Email not verified",
+                "requires_otp": True,
+                "email": user.email
+            }
         )
     
     # Update last login
@@ -226,6 +378,107 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
         "user": user,
     }
 
+
+from pydantic import BaseModel
+class VerifyOTPRequest(BaseModel):
+    email: str
+    otp: str
+
+class ResendOTPRequest(BaseModel):
+    email: str
+
+@app.post("/auth/verify-otp")
+def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
+    email_lower = request.email.lower()
+    user = get_user_by_email(db, email_lower)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    validation_result = validate_otp(db, email_lower, request.otp)
+    if validation_result["status"] == "error":
+        raise HTTPException(status_code=400, detail=validation_result["message"])
+        
+    user.email_verified = True
+    user.status = "active"
+    db.commit()
+    db.refresh(user)
+    
+    subscription = get_or_create_subscription(db, user.uid, user.role)
+    branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == user.uid).count()
+    sub_data = _subscription_payload(
+        plan_id=subscription.plan_id,
+        role=user.role,
+        status=subscription.status,
+        billing_cycle=subscription.billing_cycle,
+        started_at=subscription.started_at,
+        expires_at=subscription.expires_at,
+        usage=_normalize_usage(subscription, branch_count),
+        is_demo=False,
+    )
+    
+    return {
+        "message": "Email verified successfully",
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "email_verified": user.email_verified,
+            "status": user.status
+        },
+        "subscription": sub_data
+    }
+
+@app.post("/auth/resend-otp")
+def resend_otp(request: ResendOTPRequest, db: Session = Depends(get_db)):
+    email_lower = request.email.lower()
+    user = get_user_by_email(db, email_lower)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.email_verified:
+        raise HTTPException(status_code=400, detail="Email already verified")
+        
+    otp = create_otp_record(db, email_lower)
+    send_otp_email(email_lower, otp, user.name)
+    
+    return {"message": "New OTP has been sent"}
+
+@app.get("/debug-otps")
+def debug_otps(db: Session = Depends(get_db)):
+    if os.getenv("ENVIRONMENT", "development") == "production":
+        raise HTTPException(status_code=403, detail="Not available in production")
+    
+    from .models import EmailOTP
+    otps = db.query(EmailOTP).order_by(EmailOTP.created_at.desc()).all()
+    return [
+        {
+            "email": o.email,
+            "purpose": o.purpose,
+            "expires_at": o.expires_at.isoformat() if o.expires_at else None,
+            "attempt_count": o.attempt_count,
+            "is_used": o.is_used,
+            "created_at": o.created_at.isoformat() if o.created_at else None
+        }
+        for o in otps
+    ]
+
+@app.get("/debug-users")
+def debug_users_endpoint(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return [
+        {
+            "id": u.id,
+            "uid": u.uid,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "provider": u.provider,
+            "email_verified": u.email_verified,
+            "status": getattr(u, "status", None),
+            "created_at": u.created_at.isoformat() if u.created_at else None
+        }
+        for u in users
+    ]
 
 @app.get("/auth/me", response_model=UserResponse)
 def get_current_user_info(current_user: User = Depends(get_current_active_user)):

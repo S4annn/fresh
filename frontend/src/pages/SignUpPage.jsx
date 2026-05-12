@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
 import { BUSINESS_TYPES } from '../data/businessDummyData';
+import OTPVerification from '../components/OTPVerification';
 import { Leaf, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, Building2, Phone, MapPin, Briefcase, CheckCircle2 } from 'lucide-react';
+import { registerUser } from '../api';
 
 export default function SignUpPage() {
   const { signUpLocal, signInWithGoogle, isFirebaseConfigured } = useAuth();
@@ -17,6 +19,8 @@ export default function SignUpPage() {
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState('');
   const [success, setSuccess]           = useState('');
+  const [showOTP, setShowOTP]           = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const [form, setForm] = useState({
     full_name:         '',
@@ -53,25 +57,91 @@ export default function SignUpPage() {
     setLoading(true);
     try {
       setRole(selectedRole);
-      await signUpLocal({
-        name:             selectedRole === 'business' ? form.business_name.trim() : form.full_name.trim(),
-        email:            form.email.trim(),
-        password:         form.password,
-        role:             selectedRole,
-        businessName:     form.business_name || null,
-        businessType:     form.business_type || null,
-        businessLocation: form.business_location || null,
-        contactNumber:    form.contact_number || null,
+      
+      // Call backend API to initiate registration with OTP
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: selectedRole === 'business' ? form.business_name.trim() : form.full_name.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          role: selectedRole,
+          business_name: form.business_name || null,
+          business_type: form.business_type || null,
+          business_location: form.business_location || null,
+          contact_number: form.contact_number || null,
+        }),
       });
-      setSuccess('Pendaftaran berhasil! Anda akan dialihkan ke dashboard.');
-      setTimeout(() => {
-        navigate(getRedirectPath(selectedRole));
-      }, 1500);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Pendaftaran gagal. Silakan coba lagi.');
+      }
+
+      // Show OTP verification screen
+      setRegisteredEmail(form.email.trim());
+      setShowOTP(true);
+      
+      // Show development OTP if available
+      if (data.dev_otp) {
+        setSuccess(`OTP telah dikirim ke ${form.email.trim()}. Development OTP: ${data.dev_otp}`);
+      } else {
+        setSuccess(`OTP telah dikirim ke ${form.email.trim()}. Silakan periksa email Anda.`);
+      }
+
     } catch (err) {
       setError(err.message || 'Pendaftaran gagal. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResendOTP = async (email) => {
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Gagal mengirim ulang OTP.');
+      }
+
+      if (data.dev_otp) {
+        setSuccess(`OTP baru telah dikirim. Development OTP: ${data.dev_otp}`);
+      } else {
+        setSuccess('OTP baru telah dikirim ke email Anda.');
+      }
+
+    } catch (err) {
+      throw new Error(err.message || 'Gagal mengirim ulang OTP. Silakan coba lagi.');
+    }
+  };
+
+  const handleOTPSuccess = (user) => {
+    // Navigate to dashboard after successful OTP verification
+    navigate(getRedirectPath(user.role));
+  };
+
+  const handleBackToRegistration = () => {
+    setShowOTP(false);
+    setError('');
+    setSuccess('');
   };
 
   const handleGoogleSignUp = async () => {
@@ -101,6 +171,19 @@ export default function SignUpPage() {
   };
 
   const f = (key, val) => setForm({ ...form, [key]: val });
+
+  // Show OTP verification screen if needed
+  if (showOTP) {
+    return (
+      <OTPVerification
+        email={registeredEmail}
+        onBack={handleBackToRegistration}
+        onSuccess={handleOTPSuccess}
+        onResendOTP={handleResendOTP}
+        loading={loading}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex">

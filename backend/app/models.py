@@ -47,6 +47,7 @@ class User(Base):
     contact_number = Column(String(50), nullable=True)
     is_active = Column(Boolean, default=True)
     email_verified = Column(Boolean, default=False)
+    status = Column(String(50), default="pending_verification")
     last_login = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -232,3 +233,17 @@ class ScanHistory(Base):
     image_filename = Column(String(255), nullable=True)
     top_predictions_json = Column(Text, nullable=True)  # JSON string of top predictions
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class EmailOTP(Base):
+    __tablename__ = "email_otps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(150), index=True, nullable=False)
+    otp_hash = Column(String(255), nullable=False)
+    purpose = Column(String(50), default="register")
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    attempt_count = Column(Integer, default=0)
+    is_used = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+

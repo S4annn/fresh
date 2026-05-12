@@ -13,6 +13,7 @@ import './index.css';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const SignInPage = lazy(() => import('./pages/SignInPage'));
 const SignUpPage = lazy(() => import('./pages/SignUpPage'));
+const VerifyOtpPage = lazy(() => import('./pages/VerifyOtpPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const InventoryPage = lazy(() => import('./pages/InventoryPage'));
@@ -83,6 +84,7 @@ function App() {
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/signin" element={<PublicRoute><SignInPage /></PublicRoute>} />
             <Route path="/signup" element={<PublicRoute><SignUpPage /></PublicRoute>} />
+            <Route path="/verify-otp" element={<PublicRoute><VerifyOtpPage /></PublicRoute>} />
 
             {/* Personal Protected Routes */}
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>

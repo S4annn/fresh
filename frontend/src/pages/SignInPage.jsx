@@ -57,7 +57,12 @@ export default function SignInPage() {
       setRole(nextRole);
       navigate(getRedirectPath(nextRole));
     } catch (err) {
-      setError(err.message || 'Sign in gagal. Periksa email dan password Anda.');
+      if (err.requires_otp) {
+        sessionStorage.setItem("pending_verification_email", err.email);
+        navigate(`/verify-otp?email=${encodeURIComponent(err.email)}`);
+      } else {
+        setError(err.message || 'Sign in gagal. Periksa email dan password Anda.');
+      }
     } finally {
       setLoading(false);
     }

@@ -277,6 +277,12 @@ export function AuthProvider({ children }) {
 
       if (!response.ok) {
         // Handle backend error messages
+        if (response.status === 403 && data.detail && data.detail === 'Email not verified') {
+          const err = new Error('Email not verified');
+          err.requires_otp = true;
+          err.email = data.email || email.toLowerCase().trim();
+          throw err;
+        }
         if (response.status === 401) {
           throw new Error('Email tidak ditemukan atau password salah. Silakan coba lagi.');
         }

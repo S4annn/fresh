@@ -10,7 +10,7 @@ import {
   getDemoUsageLabel,
 } from './services/subscription';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, "");
 
 export function getUserRole() {
   return localStorage.getItem('fresh_user_role') || 'personal';
@@ -109,9 +109,42 @@ async function apiFetch(path, options = {}) {
     const error = new Error(text || 'API error');
     error.isBackendError = true;
     error.status = res.status;
+    try {
+      error.data = JSON.parse(text);
+    } catch (e) {
+      error.data = { detail: text };
+    }
     throw error;
   }
   return res.json();
+}
+
+export async function registerUser(payload) {
+  return apiFetch('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyOtp(email, otp) {
+  return apiFetch('/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp }),
+  });
+}
+
+export async function resendOtp(email) {
+  return apiFetch('/auth/resend-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function loginUser(email, password) {
+  return apiFetch('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
 }
 
 // Multipart fetch for file uploads

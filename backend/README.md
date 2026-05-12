@@ -118,6 +118,9 @@ GET  /business/report
 DATABASE_URL=sqlite:///./fresh.db
 CORS_ORIGINS=https://frontend-vercel-url.vercel.app
 ENVIRONMENT=production
+RESEND_API_KEY=your_resend_api_key
+EMAIL_FROM="F.R.E.S.H <onboarding@resend.dev>"
+OTP_EXPIRE_MINUTES=10
 ```
 
 7. Railway akan memakai start command dari `railway.json`:
