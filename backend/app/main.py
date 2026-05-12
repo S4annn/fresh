@@ -1760,8 +1760,15 @@ def _create_marketplace(payload: MarketplaceCreate, db: Session):
 
 @app.get("/marketplace")
 @app.get("/marketplace/listings")
-def list_marketplace(db: Session = Depends(get_db)):
-    seed_marketplace(db)
+def list_marketplace(
+    x_fresh_demo: str | None = Header(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    # Only seed demo data for demo users
+    is_demo = (x_fresh_demo or "").lower() == "true" and (x_fresh_user_id or "").startswith("demo-user")
+    if is_demo:
+        seed_marketplace(db)
     items = db.query(MarketplaceListing).order_by(MarketplaceListing.created_at.desc()).all()
     return _json([_serialize_marketplace(item) for item in items])
 
@@ -1834,8 +1841,15 @@ def delete_marketplace_item(listing_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/donations")
-def list_donations(db: Session = Depends(get_db)):
-    seed_donations(db)
+def list_donations(
+    x_fresh_demo: str | None = Header(default=None),
+    x_fresh_user_id: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    # Only seed demo data for demo users
+    is_demo = (x_fresh_demo or "").lower() == "true" and (x_fresh_user_id or "").startswith("demo-user")
+    if is_demo:
+        seed_donations(db)
     items = db.query(DonationItem).order_by(DonationItem.created_at.desc()).all()
     return _json([_serialize_donation(item) for item in items])
 
