@@ -7,7 +7,7 @@ import { getUsageLabel, useSubscription } from '../services/subscription';
 import { cancelSubscription } from '../api';
 import {
   Settings, User, Bell, Shield, LogOut, Save,
-  Globe, Smartphone, Mail, Check, CreditCard, Crown,
+  Globe, Mail, Check, CreditCard, Crown,
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -335,7 +335,7 @@ export default function SettingsPage() {
       <div className="card">
         <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
           <Shield className="w-5 h-5 text-blue-500" />
-          {t('connectedAccounts', 'Connected Accounts')}
+          {t('connectedAccounts', 'Akun Terhubung')}
         </h2>
         <div className="space-y-3">
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
@@ -349,26 +349,32 @@ export default function SettingsPage() {
               <div>
                 <p className="font-medium text-gray-800">Google</p>
                 <p className="text-xs text-gray-500">
-                  {user?.provider === 'google' ? t('connected', 'Connected') : isFirebaseConfigured ? t('notConnected', 'Not connected') : t('firebaseNotConfigured', 'Firebase not configured')}
+                  {user?.provider === 'google' ? 'Masuk dengan Google' : 'Tersedia untuk login'}
                 </p>
               </div>
             </div>
             {user?.provider === 'google' ? (
-              <span className="badge badge-safe"><Check className="w-3 h-3 mr-1" /> {t('connected', 'Connected')}</span>
+              <span className="badge badge-safe"><Check className="w-3 h-3 mr-1" /> Terhubung</span>
             ) : (
-              <span className="badge bg-gray-100 text-gray-500">{t('notConnected', 'Not Connected')}</span>
+              <span className="badge bg-gray-100 text-gray-500">Tersedia</span>
             )}
           </div>
 
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
             <div className="flex items-center gap-3">
-              <Smartphone className="w-5 h-5 text-gray-500" />
+              <Mail className="w-5 h-5 text-gray-500" />
               <div>
-                <p className="font-medium text-gray-800">FastAPI Backend</p>
-                <p className="text-xs text-gray-500">{import.meta.env.VITE_API_BASE_URL || t('notConfigured', 'Not configured')}</p>
+                <p className="font-medium text-gray-800">Email & Password</p>
+                <p className="text-xs text-gray-500">
+                  {user?.provider === 'local' ? user?.email : 'Tidak digunakan'}
+                </p>
               </div>
             </div>
-            <span className="badge bg-gray-100 text-gray-500">API</span>
+            {user?.provider === 'local' ? (
+              <span className="badge badge-safe"><Check className="w-3 h-3 mr-1" /> Terhubung</span>
+            ) : (
+              <span className="badge bg-gray-100 text-gray-500">Tidak aktif</span>
+            )}
           </div>
         </div>
       </div>
