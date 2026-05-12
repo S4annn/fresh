@@ -380,17 +380,17 @@ export default function LandingPage() {
 
           <div className="grid lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {/* Personal Card */}
-            <div className="bg-white rounded-3xl border-2 border-emerald-200 p-8 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 hover:-translate-y-1 group">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl border-2 border-emerald-200 dark:border-emerald-500 p-8 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 hover:-translate-y-1 group">
               <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform">
                 <User className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-extrabold text-gray-800 mb-2">Untuk Personal</h3>
-              <p className="text-gray-500 mb-6">Kelola stok makanan rumah dan hemat pengeluaran Anda</p>
+              <h3 className="text-2xl font-extrabold text-gray-800 dark:text-white mb-2">Untuk Personal</h3>
+              <p className="text-gray-500 dark:text-gray-300 mb-6">Kelola stok makanan rumah dan hemat pengeluaran Anda</p>
               <ul className="space-y-3 mb-8">
                 {['Kelola stok makanan rumah', 'Dapatkan pengingat kedaluwarsa', 'Hemat uang belanja', 'Temukan ide resep', 'Donasikan makanan berlebih'].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-gray-700">
-                    <div className="w-5 h-5 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <li key={i} className="flex items-center gap-3 text-gray-800 dark:text-gray-100 font-medium">
+                    <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900 rounded-full flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />
                     </div>
                     {item}
                   </li>
@@ -402,18 +402,18 @@ export default function LandingPage() {
             </div>
 
             {/* Business Card */}
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl border-2 border-blue-300 p-8 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:-translate-y-1 group relative overflow-hidden">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800 rounded-3xl border-2 border-blue-300 dark:border-blue-500 p-8 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:-translate-y-1 group relative overflow-hidden">
               <div className="absolute top-4 right-4 px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full">Business Pro</div>
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
                 <Building2 className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-extrabold text-gray-800 mb-2">Untuk Bisnis</h3>
-              <p className="text-gray-500 mb-6">Kelola inventaris dan cabang secara profesional</p>
+              <h3 className="text-2xl font-extrabold text-gray-800 dark:text-white mb-2">Untuk Bisnis</h3>
+              <p className="text-gray-500 dark:text-gray-300 mb-6">Kelola inventaris dan cabang secara profesional</p>
               <ul className="space-y-3 mb-8">
                 {['Kelola inventaris dan cabang', 'Prediksi risiko limbah stok', 'Jual makanan berlebih', 'Jadwalkan donasi', 'Pantau dampak keberlanjutan'].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-gray-700">
-                    <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <CheckCircle2 className="w-3 h-3 text-blue-600" />
+                  <li key={i} className="flex items-center gap-3 text-gray-800 dark:text-gray-100 font-medium">
+                    <div className="w-5 h-5 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-3 h-3 text-blue-600 dark:text-blue-300" />
                     </div>
                     {item}
                   </li>
