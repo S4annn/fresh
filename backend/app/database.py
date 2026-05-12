@@ -70,27 +70,33 @@ def get_database_info():
     }
 
 
-def _ensure_sqlite_columns() -> None:
-    if not DATABASE_URL.startswith("sqlite"):
-        return
-
-    inspector = inspect(engine)
+def _ensure_columns() -> None:
+    """Add any missing columns defined in SQLAlchemy models to existing tables.
+    Works for both SQLite and PostgreSQL."""
     with engine.begin() as conn:
+        inspector = inspect(conn)
         for table in Base.metadata.sorted_tables:
             if not inspector.has_table(table.name):
                 continue
 
             existing_columns = {
-                column["name"] for column in inspect(engine).get_columns(table.name)
+                col["name"] for col in inspector.get_columns(table.name)
             }
             for column in table.columns:
                 if column.name in existing_columns or column.primary_key:
                     continue
 
                 column_type = column.type.compile(dialect=engine.dialect)
-                conn.execute(
-                    text(
-                        f'ALTER TABLE "{table.name}" '
-                        f'ADD COLUMN "{column.name}" {column_type}'
+                try:
+                    conn.execute(
+                        text(
+                            f'ALTER TABLE "{table.name}" '
+                            f'ADD COLUMN "{column.name}" {column_type}'
+                        )
                     )
-                )
+                except Exception as e:
+                    err_msg = str(e).lower()
+                    if "already exists" in err_msg or "duplicate column" in err_msg:
+                        pass
+                    else:
+                        print(f"  [WARN] Could not add {table.name}.{column.name}: {e}")

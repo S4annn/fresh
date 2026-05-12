@@ -8,5 +8,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY artifacts ./artifacts
 COPY start.py .
+COPY update_database_schema.py .
 
 CMD ["python", "start.py"]

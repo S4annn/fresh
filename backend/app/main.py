@@ -70,30 +70,17 @@ from .vision_model import (
 from .otp import create_otp_record, validate_otp
 from .email_service import send_otp_email
 
-# Run database migration on startup
-def run_database_migration():
-    """Run database migration on startup"""
-    try:
-        import sys
-        import os
-        
-        # Add app directory to path for Railway
-        if os.path.exists('/app'):
-            sys.path.append('/app')
-        
-        from update_database_schema import update_database_schema
-        
-        print("🔄 Running database migration on startup...")
-        update_database_schema()
-        print("✅ Database migration completed successfully!")
-        
-    except Exception as e:
-        print(f"❌ Database migration failed: {e}")
-        # Continue startup even if migration fails
+# Run database migration on startup (inside app package — always available in Docker)
+from .migrations import run_migrations
 
-# Create database and run migration
 create_db_and_tables()
-run_database_migration()
+
+try:
+    run_migrations()
+except Exception as _mig_err:
+    import traceback
+    print(f"[WARN] Migration warning (non-fatal): {_mig_err}")
+    traceback.print_exc()
 
 app = FastAPI(
     title="F.R.E.S.H API",
