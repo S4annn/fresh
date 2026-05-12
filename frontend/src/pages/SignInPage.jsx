@@ -5,7 +5,7 @@ import { useRole } from '../context/RoleContext';
 import { canAccessBusinessFeature } from '../services/subscription';
 import {
   Leaf, Mail, Lock, Eye, EyeOff, AlertCircle,
-  Loader2, Zap, User, Building2,
+  Loader2, Zap, User, Building2, ArrowLeft, KeyRound,
 } from 'lucide-react';
 
 export default function SignInPage() {
@@ -21,6 +21,15 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState('');
+
+  // Forgot password state
+  const [forgotStep, setForgotStep] = useState(null); // null | 'email' | 'otp' | 'done'
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [forgotMsg, setForgotMsg] = useState('');
+  const [forgotError, setForgotError] = useState('');
 
   // Check if user can access business features
   const canAccessBusiness = canAccessBusinessFeature();
@@ -102,6 +111,64 @@ export default function SignInPage() {
     navigate(getRedirectPath(selectedRole));
   };
 
+  // ── Forgot Password Handlers ───────────────────────────────────────────────
+  const handleForgotRequest = async () => {
+    if (!forgotEmail.trim()) { setForgotError('Email wajib diisi.'); return; }
+    setForgotError('');
+    setLoading(true);
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail.trim() }),
+      });
+      const data = await res.json();
+      setForgotMsg(data.message || 'OTP telah dikirim.');
+      if (data.dev_otp) setForgotOtp(data.dev_otp);
+      setForgotStep('otp');
+    } catch {
+      setForgotError('Gagal mengirim OTP. Coba lagi.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!forgotOtp.trim()) { setForgotError('Kode OTP wajib diisi.'); return; }
+    if (newPassword.length < 6) { setForgotError('Password minimal 6 karakter.'); return; }
+    setForgotError('');
+    setLoading(true);
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail.trim(), otp: forgotOtp.trim(), new_password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setForgotError(data.detail || 'Gagal reset password.');
+        return;
+      }
+      setForgotMsg(data.message || 'Password berhasil diubah!');
+      setForgotStep('done');
+    } catch {
+      setForgotError('Gagal reset password. Coba lagi.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setForgotStep(null);
+    setForgotEmail('');
+    setForgotOtp('');
+    setNewPassword('');
+    setForgotMsg('');
+    setForgotError('');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex">
       {/* Left Panel */}
@@ -146,6 +213,143 @@ export default function SignInPage() {
             <span className="text-xl font-extrabold text-gray-800">F.R.E.S.H</span>
           </div>
 
+          {forgotStep ? (
+            /* ── Forgot Password UI ─────────────────────────────────────────── */
+            <>
+              <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Reset Password</h1>
+              <p className="text-gray-500 mb-6">
+                {forgotStep === 'email' && 'Masukkan email Anda untuk menerima kode OTP.'}
+                {forgotStep === 'otp' && 'Masukkan kode OTP dan password baru Anda.'}
+                {forgotStep === 'done' && 'Password Anda berhasil diubah.'}
+              </p>
+
+              {/* Forgot Error */}
+              {forgotError && (
+                <div className="flex items-start gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl mb-5 animate-fade-in">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{forgotError}</p>
+                </div>
+              )}
+
+              {/* Forgot Success Message */}
+              {forgotMsg && forgotStep !== 'done' && (
+                <div className="flex items-start gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl mb-5 animate-fade-in">
+                  <Mail className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-emerald-700">{forgotMsg}</p>
+                </div>
+              )}
+
+              {/* Step: Email */}
+              {forgotStep === 'email' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="input-label">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="email"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        placeholder="name@example.com"
+                        className="input-field pl-12"
+                        autoComplete="email"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleForgotRequest}
+                    disabled={loading}
+                    className="btn-primary w-full py-3.5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Kirim OTP'}
+                  </button>
+                </div>
+              )}
+
+              {/* Step: OTP + New Password */}
+              {forgotStep === 'otp' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="input-label">Kode OTP</label>
+                    <div className="relative">
+                      <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={forgotOtp}
+                        onChange={(e) => setForgotOtp(e.target.value)}
+                        placeholder="Masukkan kode OTP"
+                        className="input-field pl-12"
+                        autoComplete="one-time-code"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="input-label">Password Baru</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Minimal 6 karakter"
+                        className="input-field pl-12 pr-12"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-transparent border-none p-0 cursor-pointer"
+                      >
+                        {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetPassword}
+                    disabled={loading}
+                    className="btn-primary w-full py-3.5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Reset Password'}
+                  </button>
+                </div>
+              )}
+
+              {/* Step: Done */}
+              {forgotStep === 'done' && (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl animate-fade-in">
+                    <svg className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <p className="text-sm text-emerald-700">{forgotMsg}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleBackToLogin}
+                    className="btn-primary w-full py-3.5 text-base"
+                  >
+                    Kembali ke Login
+                  </button>
+                </div>
+              )}
+
+              {/* Back to login link */}
+              {forgotStep !== 'done' && (
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="flex items-center gap-2 mt-5 text-sm text-gray-500 hover:text-emerald-600 bg-transparent border-none cursor-pointer p-0 mx-auto"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Kembali ke Login
+                </button>
+              )}
+            </>
+          ) : (
+            /* ── Normal Login UI ────────────────────────────────────────────── */
+            <>
           <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Masuk</h1>
           <p className="text-gray-500 mb-6">Masuk dengan akun yang sudah terdaftar.</p>
 
@@ -273,6 +477,12 @@ export default function SignInPage() {
               </div>
             </div>
 
+            <p className="text-right mt-1 mb-0">
+              <button type="button" onClick={() => { setForgotStep('email'); setForgotEmail(email); setForgotError(''); setForgotMsg(''); }} className="text-sm text-emerald-600 hover:text-emerald-700 font-medium bg-transparent border-none cursor-pointer p-0">
+                Lupa Password?
+              </button>
+            </p>
+
             <button
               type="submit"
               disabled={loading}
@@ -342,6 +552,8 @@ export default function SignInPage() {
           <Link to="/" className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-3 no-underline">
             ← Kembali ke beranda
           </Link>
+            </>
+          )}
         </div>
       </div>
     </div>

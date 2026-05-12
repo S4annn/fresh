@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import ThemeToggle from '../components/ThemeToggle';
+import AIAssistantWidget from '../components/AIAssistantWidget';
 import {
   LayoutDashboard, Package, Brain, Lightbulb, ShoppingBag, Heart,
   BarChart3, Settings, Menu, X, Bell, Search, LogOut, ChevronDown,
@@ -236,6 +237,9 @@ export default function DashboardLayout() {
           })}
         </div>
       </nav>
+
+      {/* AI Assistant (floating widget) */}
+      <AIAssistantWidget />
     </div>
   );
 }

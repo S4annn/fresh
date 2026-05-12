@@ -361,6 +361,20 @@ export async function getNearbyMarketplaceItems(lat, lng) { return apiFetch(`/ma
 export async function getNearbyDonationItems(lat, lng) { return apiFetch(`/donations?lat=${lat}&lng=${lng}`); }
 export async function updateUserLocation(lat, lng) { return apiFetch('/user/location', { method: 'POST', body: JSON.stringify({ lat, lng }) }); }
 
+// ─── AI Assistant (Gemini) ───────────────────────────────────────────────────
+export async function chatWithAssistant(payload) {
+  const response = await fetch(`${API_BASE_URL}/ai-assistant/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getFreshHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || 'Gagal chat dengan AI Assistant');
+  }
+  return response.json();
+}
+
 // ─── Legacy compatibility ─────────────────────────────────────────────────────
 export const api = {
   dashboard: getDashboard,
