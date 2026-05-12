@@ -23,6 +23,7 @@ backend/uploads/
 .env
 .env.*
 !.env.example
+!frontend/.env
 .venv/
 venv/
 backend/.venv/
@@ -42,7 +43,6 @@ Thumbs.db
 
 # Environment files (contain secrets)
 backend/.env
-frontend/.env
 
 # Exported data
 fresh_users_export.json
