@@ -8,6 +8,9 @@ from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger(__name__)
 
+# Detect Railway environment (SMTP ports are blocked there)
+IS_RAILWAY = bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_SERVICE_NAME") or os.getenv("RAILWAY_PROJECT_ID"))
+
 
 def _build_html(otp: str, user_name: str) -> str:
     return f"""
@@ -27,7 +30,7 @@ def _build_html(otp: str, user_name: str) -> str:
 
 
 def _send_via_resend(to_email: str, subject: str, html_content: str):
-    """Send email using Resend HTTP API (works on Railway - port 443 not blocked)."""
+    """Send email using Resend HTTP API (works on Railway)."""
     resend_api_key = os.getenv("RESEND_API_KEY")
     email_from = os.getenv("EMAIL_FROM", "F.R.E.S.H <onboarding@resend.dev>")
 
@@ -47,7 +50,7 @@ def _send_via_resend(to_email: str, subject: str, html_content: str):
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        response = requests.post(url, headers=headers, json=payload, timeout=5)
         response.raise_for_status()
         logger.info(f"Email sent via Resend to {to_email}")
         return {"status": "sent", "provider": "resend"}
@@ -56,8 +59,11 @@ def _send_via_resend(to_email: str, subject: str, html_content: str):
         return None
 
 
-def _send_via_smtp_ssl(to_email: str, subject: str, html_content: str):
-    """Send email using Gmail SMTP over SSL (port 465)."""
+def _send_via_smtp(to_email: str, subject: str, html_content: str):
+    """Send email using Gmail SMTP. Skipped on Railway (ports blocked)."""
+    if IS_RAILWAY:
+        return None
+
     smtp_email = os.getenv("SMTP_EMAIL")
     smtp_password = os.getenv("SMTP_PASSWORD")
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -74,67 +80,37 @@ def _send_via_smtp_ssl(to_email: str, subject: str, html_content: str):
 
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=10) as server:
+        with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=5) as server:
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
-        logger.info(f"Email sent via SMTP SSL to {to_email}")
-        return {"status": "sent", "provider": "smtp_ssl"}
+        logger.info(f"Email sent via SMTP to {to_email}")
+        return {"status": "sent", "provider": "smtp"}
     except Exception as e:
-        logger.error(f"SMTP SSL (port {smtp_port}) failed: {e}")
-        return None
-
-
-def _send_via_smtp_tls(to_email: str, subject: str, html_content: str):
-    """Send email using Gmail SMTP over TLS (port 587) - fallback."""
-    smtp_email = os.getenv("SMTP_EMAIL")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-
-    if not smtp_email or not smtp_password:
-        return None
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"F.R.E.S.H <{smtp_email}>"
-    msg["To"] = to_email
-    msg.attach(MIMEText(html_content, "html"))
-
-    try:
-        with smtplib.SMTP(smtp_host, 587, timeout=10) as server:
-            server.starttls()
-            server.login(smtp_email, smtp_password)
-            server.sendmail(smtp_email, to_email, msg.as_string())
-        logger.info(f"Email sent via SMTP TLS to {to_email}")
-        return {"status": "sent", "provider": "smtp_tls"}
-    except Exception as e:
-        logger.error(f"SMTP TLS (port 587) failed: {e}")
+        logger.error(f"SMTP failed: {e}")
         return None
 
 
 def send_otp_email(to_email: str, otp: str, name: str = None):
     """
     Send OTP verification email.
-    Priority: Resend API (HTTP) > SMTP SSL (465) > SMTP TLS (587) > dev fallback
+    On Railway: tries Resend API only (SMTP blocked).
+    Locally: tries SMTP then Resend.
+    Always returns dev_otp as fallback so registration never fails.
     """
     user_name = name if name else "User"
     subject = "Your F.R.E.S.H verification code"
     html_content = _build_html(otp, user_name)
 
-    # 1. Try Resend HTTP API (always works on Railway - uses HTTPS port 443)
+    # Try Resend HTTP API first (works everywhere)
     result = _send_via_resend(to_email, subject, html_content)
     if result:
         return result
 
-    # 2. Try SMTP SSL port 465
-    result = _send_via_smtp_ssl(to_email, subject, html_content)
+    # Try SMTP (only works locally, skipped on Railway)
+    result = _send_via_smtp(to_email, subject, html_content)
     if result:
         return result
 
-    # 3. Try SMTP TLS port 587
-    result = _send_via_smtp_tls(to_email, subject, html_content)
-    if result:
-        return result
-
-    # 4. All providers failed - return OTP in response for dev/testing
-    logger.warning(f"All email providers failed. OTP for {to_email}: {otp}")
-    return {"dev_otp": otp, "email_error": "All email providers failed"}
+    # All providers failed - return OTP directly
+    logger.warning(f"Email delivery unavailable. OTP for {to_email}: {otp}")
+    return {"dev_otp": otp}

@@ -212,7 +212,7 @@ export default function OTPVerification({
                   ${digit ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300'}
                   ${isExpired ? 'border-red-300 bg-red-50' : ''}
                 `}
-                disabled={verifying || success}
+                disabled={verifying}
               />
             ))}
           </div>
