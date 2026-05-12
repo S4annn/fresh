@@ -1,12 +1,16 @@
 """
 F.R.E.S.H AI Assistant powered by Gemini API.
 Secondary feature - does NOT replace AI Food Scanner or Risk Prediction.
+Uses direct HTTP REST API (no google-generativeai library needed).
 """
 import os
+import json
 import logging
-from typing import Any
+import requests
 
 logger = logging.getLogger(__name__)
+
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 
 ALLOWED_KEYWORDS = [
     "fresh", "food", "makanan", "waste", "limbah", "bahan", "inventory", "inventaris",
@@ -51,11 +55,8 @@ def is_topic_allowed(message: str, page_context: str | None = None) -> bool:
     """Check if message is related to F.R.E.S.H topics."""
     if not message:
         return False
-
-    # If coming from a F.R.E.S.H page, be more permissive
     if page_context and page_context.lower() in FRESH_PAGES:
         return True
-
     msg_lower = message.lower()
     return any(keyword in msg_lower for keyword in ALLOWED_KEYWORDS)
 
@@ -82,7 +83,7 @@ def build_user_context(user_id: str | None, role: str | None, inventory: list | 
 
     if inventory and isinstance(inventory, list):
         safe_items = []
-        for item in inventory[:10]:  # Max 10 items to keep context small
+        for item in inventory[:10]:
             if not isinstance(item, dict):
                 continue
             safe_item = {
@@ -95,7 +96,6 @@ def build_user_context(user_id: str | None, role: str | None, inventory: list | 
             }
             safe_items.append(safe_item)
         if safe_items:
-            import json
             parts.append(f"Inventory user saat ini (JSON): {json.dumps(safe_items, ensure_ascii=False)}")
 
     return "\n".join(parts) if parts else ""
@@ -103,7 +103,7 @@ def build_user_context(user_id: str | None, role: str | None, inventory: list | 
 
 def generate_ai_response(message: str, user_id: str | None = None, role: str | None = None,
                          inventory: list | None = None, page_context: str | None = None) -> dict:
-    """Generate AI response using Gemini API."""
+    """Generate AI response using Gemini REST API directly (no extra dependency needed)."""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return FALLBACK_NO_API_KEY
@@ -112,10 +112,6 @@ def generate_ai_response(message: str, user_id: str | None = None, role: str | N
         return FALLBACK_OFF_TOPIC
 
     try:
-        import google.generativeai as genai
-
-        genai.configure(api_key=api_key)
-
         system_prompt = build_system_prompt()
         user_context = build_user_context(user_id, role, inventory, page_context)
 
@@ -124,10 +120,37 @@ def generate_ai_response(message: str, user_id: str | None = None, role: str | N
             full_prompt += f"\n\nKonteks user:\n{user_context}"
         full_prompt += f"\n\nPertanyaan user: {message}\n\nJawab dalam bahasa Indonesia."
 
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(full_prompt)
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": full_prompt}]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 800,
+            }
+        }
 
-        reply = response.text.strip() if hasattr(response, "text") and response.text else ""
+        response = requests.post(
+            f"{GEMINI_API_URL}?key={api_key}",
+            json=payload,
+            timeout=20,
+            headers={"Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        # Extract reply from Gemini response format
+        candidates = data.get("candidates", [])
+        if not candidates:
+            logger.warning(f"Gemini returned no candidates: {data}")
+            return FALLBACK_ERROR
+
+        parts = candidates[0].get("content", {}).get("parts", [])
+        reply = "".join(part.get("text", "") for part in parts).strip()
+
         if not reply:
             reply = "Maaf, saya tidak bisa memberikan jawaban saat ini. Coba pertanyaan lain seputar F.R.E.S.H."
 
@@ -136,6 +159,9 @@ def generate_ai_response(message: str, user_id: str | None = None, role: str | N
             "source": "gemini_api",
             "topic_allowed": True,
         }
+    except requests.HTTPError as e:
+        logger.error(f"Gemini API HTTP error: {e.response.status_code} {e.response.text[:300]}")
+        return FALLBACK_ERROR
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
         return FALLBACK_ERROR
