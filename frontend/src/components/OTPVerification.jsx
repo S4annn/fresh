@@ -122,6 +122,11 @@ export default function OTPVerification({
         if (data.user?.uid) localStorage.setItem('fresh_user_id', data.user.uid);
         if (data.user?.role) localStorage.setItem('fresh_user_role', data.user.role);
         
+        // Save subscription from verify-otp response if available
+        if (data.subscription && data.subscription.plan_id) {
+          localStorage.setItem('fresh_user_subscription', JSON.stringify(data.subscription));
+        }
+        
         // Redirect to dashboard after short delay
         setTimeout(() => {
           onSuccess(data.user);

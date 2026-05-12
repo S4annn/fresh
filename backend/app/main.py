@@ -295,11 +295,39 @@ def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     # Create session record
     create_user_session(db, user, access_token)
     
+    # Fetch user's subscription from database so frontend doesn't need a separate call
+    subscription = get_or_create_subscription(db, user.uid, user.role or "personal")
+    branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == user.uid).count()
+    subscription_data = _subscription_payload(
+        plan_id=subscription.plan_id,
+        role=user.role or ("business" if subscription.plan_id == "business_pro" else "personal"),
+        status=subscription.status,
+        billing_cycle=subscription.billing_cycle,
+        started_at=subscription.started_at,
+        expires_at=subscription.expires_at,
+        usage=_normalize_usage(subscription, branch_count),
+        is_demo=False,
+    )
+    
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "expires_in": 604800,  # 7 days in seconds
-        "user": user,
+        "user": {
+            "id": user.id,
+            "uid": user.uid,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "provider": user.provider,
+            "business_name": user.business_name,
+            "business_type": user.business_type,
+            "business_location": user.business_location,
+            "contact_number": user.contact_number,
+            "email_verified": user.email_verified,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+        },
+        "subscription": subscription_data,
     }
 
 
@@ -352,6 +380,20 @@ def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
     # Create session
     create_user_session(db, user, access_token)
     
+    # Fetch user's subscription from database
+    subscription = get_or_create_subscription(db, user.uid, user.role or "personal")
+    branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == user.uid).count()
+    subscription_data = _subscription_payload(
+        plan_id=subscription.plan_id,
+        role=user.role or ("business" if subscription.plan_id == "business_pro" else "personal"),
+        status=subscription.status,
+        billing_cycle=subscription.billing_cycle,
+        started_at=subscription.started_at,
+        expires_at=subscription.expires_at,
+        usage=_normalize_usage(subscription, branch_count),
+        is_demo=False,
+    )
+    
     return {
         "message": "Email verified successfully",
         "access_token": access_token,
@@ -362,9 +404,16 @@ def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
             "name": user.name,
             "email": user.email,
             "role": user.role,
+            "provider": user.provider,
+            "business_name": user.business_name,
+            "business_type": user.business_type,
+            "business_location": user.business_location,
+            "contact_number": user.contact_number,
             "email_verified": user.email_verified,
-            "status": user.status
-        }
+            "status": user.status,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+        },
+        "subscription": subscription_data,
     }
 
 @app.post("/auth/resend-otp")
@@ -438,12 +487,14 @@ def update_user_profile(
     db: Session = Depends(get_db),
 ):
     """Update user profile (display name, contact info)."""
-    allowed_fields = {"name", "business_name", "business_type", "business_location", "contact_number"}
+    allowed_fields = {"name", "display_name", "business_name", "business_type", "business_location", "contact_number"}
     
     updated = False
     for field in allowed_fields:
         if field in payload and payload[field] is not None:
-            setattr(current_user, field, payload[field])
+            # Map display_name to name field
+            actual_field = "name" if field == "display_name" else field
+            setattr(current_user, actual_field, payload[field])
             updated = True
     
     if not updated:
@@ -481,6 +532,85 @@ def logout_user(current_user: User = Depends(get_current_active_user), db: Sessi
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to logout"
         )
+
+
+# ─── Email Change Endpoints ───────────────────────────────────────────────────
+
+class RequestEmailChangeRequest(BaseModel):
+    new_email: str
+
+class ConfirmEmailChangeRequest(BaseModel):
+    new_email: str
+    otp: str
+
+
+@app.post("/auth/request-email-change")
+def request_email_change(
+    payload: RequestEmailChangeRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Request email change - sends OTP to new email."""
+    new_email = payload.new_email.lower().strip()
+    
+    if new_email == current_user.email:
+        raise HTTPException(status_code=400, detail="Email baru sama dengan email saat ini.")
+    
+    # Check if new email is already taken
+    existing = db.query(User).filter(User.email == new_email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email sudah digunakan oleh akun lain.")
+    
+    # Generate OTP and store in database for purpose "email_change"
+    otp = create_otp_record(db, new_email, purpose="email_change")
+    
+    # Send OTP to new email
+    email_result = send_otp_email(new_email, otp, current_user.name)
+    
+    if email_result and "dev_otp" in email_result:
+        return {"message": "Kode OTP telah dikirim ke email baru.", "dev_otp": otp}
+    
+    return {"message": "Kode OTP telah dikirim ke email baru."}
+
+
+@app.post("/auth/confirm-email-change")
+def confirm_email_change(
+    payload: ConfirmEmailChangeRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Confirm email change with OTP verification."""
+    new_email = payload.new_email.lower().strip()
+    
+    # Validate OTP
+    result = validate_otp(db, new_email, payload.otp, purpose="email_change")
+    
+    if result["status"] == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+    
+    # Check again that email is not taken (race condition protection)
+    existing = db.query(User).filter(User.email == new_email, User.id != current_user.id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email sudah digunakan oleh akun lain.")
+    
+    # Update user email
+    old_email = current_user.email
+    current_user.email = new_email
+    current_user.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(current_user)
+    
+    return {
+        "message": "Email berhasil diubah.",
+        "user": {
+            "id": current_user.id,
+            "uid": current_user.uid,
+            "name": current_user.name,
+            "email": current_user.email,
+            "role": current_user.role,
+            "provider": current_user.provider,
+        }
+    }
 
 
 # Admin Authentication

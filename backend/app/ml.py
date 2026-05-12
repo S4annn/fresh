@@ -7,7 +7,18 @@ from typing import Any, Optional
 
 import joblib
 
-from .recommendation import build_recommendation
+# Resilient import: if recommendation module is missing, provide a minimal fallback
+# so the app can still start in degraded mode.
+try:
+    from .recommendation import build_recommendation
+except ImportError:  # pragma: no cover
+    def build_recommendation(food_name: str, risk_level: str, days_to_expiry: int, category: str) -> str:
+        name = (food_name or "Food Item").strip().title()
+        if risk_level == "High Risk":
+            return f"{name} berisiko tinggi terbuang. Gunakan hari ini atau pindahkan ke donasi/marketplace."
+        if risk_level == "Warning":
+            return f"{name} mendekati batas aman. Prioritaskan untuk digunakan dalam 1-3 hari."
+        return f"{name} masih relatif aman disimpan. Tetap cek stok secara berkala."
 
 ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_DIR = ROOT / "artifacts"

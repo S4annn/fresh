@@ -128,13 +128,14 @@ function ensureRealUserSubscription(role = 'personal') {
   if (subscription?.is_demo || subscription?.plan_id === 'demo') {
     return setCurrentSubscription('free', role, 'monthly');
   }
-  return ensureSubscriptionForRole(role);
+  // Don't overwrite existing real subscription - just return it
+  return subscription;
 }
 
 function persistRealSession(user) {
   localStorage.removeItem(TOKEN_KEY);
   saveSession(user);
-  // Only reset subscription if it was a demo subscription
+  // Only reset subscription if it was a demo subscription - never overwrite real subscriptions
   const subscription = getCurrentSubscription();
   if (subscription?.is_demo || subscription?.plan_id === 'demo') {
     setCurrentSubscription('free', user.role || 'personal', 'monthly');
@@ -238,10 +239,15 @@ export function AuthProvider({ children }) {
       const sessionUser = buildSessionUser(userData || data);
 
       saveSession(sessionUser);
-      try {
-        saveSubscription(await fetchSubscriptionForUser(sessionUser, loginData.access_token));
-      } catch {
-        ensureSubscriptionForRole(sessionUser.role);
+      // Use subscription from login response directly
+      if (loginData.subscription && loginData.subscription.plan_id) {
+        saveSubscription(loginData.subscription);
+      } else {
+        try {
+          saveSubscription(await fetchSubscriptionForUser(sessionUser, loginData.access_token));
+        } catch {
+          ensureSubscriptionForRole(sessionUser.role);
+        }
       }
       setUser(sessionUser);
       return sessionUser;
@@ -300,13 +306,19 @@ export function AuthProvider({ children }) {
       // Save session and update context
       saveSession(sessionUser);
       
-      // Fetch subscription from backend (persisted in database)
-      try {
-        const subData = await fetchSubscriptionForUser(sessionUser, data.access_token);
-        saveSubscription(subData);
-      } catch {
-        // Don't override with free — just ensure something exists
-        ensureSubscriptionForRole(sessionUser.role);
+      // Use subscription from login response directly (persisted in database)
+      // This avoids a separate fetch that might fail and reset to free
+      if (data.subscription && data.subscription.plan_id) {
+        saveSubscription(data.subscription);
+      } else {
+        // Fallback: try fetching from backend
+        try {
+          const subData = await fetchSubscriptionForUser(sessionUser, data.access_token);
+          saveSubscription(subData);
+        } catch {
+          // Only ensure something exists if nothing is stored - don't overwrite
+          ensureSubscriptionForRole(sessionUser.role);
+        }
       }
       
       setUser(sessionUser);

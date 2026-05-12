@@ -10,6 +10,8 @@ import {
   Globe, Smartphone, Mail, Check, CreditCard, Crown,
 } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
 export default function SettingsPage() {
   const { user, logout, isFirebaseConfigured } = useAuth();
   const { setRole } = useRole();
@@ -17,6 +19,14 @@ export default function SettingsPage() {
   const { subscription, plan, refreshSubscription } = useSubscription();
   const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Email change state
+  const [emailChangeStep, setEmailChangeStep] = useState(null); // null | 'input' | 'otp'
+  const [newEmail, setNewEmail] = useState('');
+  const [emailOtp, setEmailOtp] = useState('');
+  const [emailChangeMsg, setEmailChangeMsg] = useState('');
+  const [emailChangeError, setEmailChangeError] = useState('');
 
   const [prefs, setPrefs] = useState({
     name: user?.name || '',
@@ -28,38 +38,115 @@ export default function SettingsPage() {
     marketplaceUpdates: true,
   });
 
-  function handleSave() {
+  async function handleSave() {
     const token = localStorage.getItem('fresh_auth_token');
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
     
     // Save language preference
     setLanguage(prefs.language);
     
     // Save display name to backend if changed
     if (prefs.name && prefs.name !== user?.name && token) {
-      fetch(`${API_BASE_URL}/auth/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name: prefs.name }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.user) {
-            // Update local session with new name
-            const session = JSON.parse(localStorage.getItem('fresh_session_user') || '{}');
-            session.name = data.user.name;
-            localStorage.setItem('fresh_session_user', JSON.stringify(session));
-            localStorage.setItem('fresh_current_user', JSON.stringify(session));
-          }
-        })
-        .catch(() => {});
+      setSaving(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ name: prefs.name }),
+        });
+        const data = await res.json();
+        if (res.ok && data.user) {
+          // Update local session with new name
+          const session = JSON.parse(localStorage.getItem('fresh_session_user') || '{}');
+          session.name = data.user.name;
+          localStorage.setItem('fresh_session_user', JSON.stringify(session));
+          localStorage.setItem('fresh_current_user', JSON.stringify(session));
+        }
+      } catch {
+        // Silently fail - name will be saved next time
+      } finally {
+        setSaving(false);
+      }
     }
     
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function handleRequestEmailChange() {
+    const token = localStorage.getItem('fresh_auth_token');
+    if (!token || !newEmail.trim()) return;
+    
+    setEmailChangeError('');
+    setEmailChangeMsg('');
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/request-email-change`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ new_email: newEmail.trim() }),
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setEmailChangeError(data.detail || 'Gagal mengirim OTP.');
+        return;
+      }
+      
+      setEmailChangeMsg(data.message || 'OTP telah dikirim ke email baru.');
+      setEmailChangeStep('otp');
+      
+      // In dev mode, auto-fill OTP
+      if (data.dev_otp) {
+        setEmailOtp(data.dev_otp);
+      }
+    } catch {
+      setEmailChangeError('Gagal mengirim OTP. Periksa koneksi internet.');
+    }
+  }
+
+  async function handleConfirmEmailChange() {
+    const token = localStorage.getItem('fresh_auth_token');
+    if (!token || !emailOtp.trim()) return;
+    
+    setEmailChangeError('');
+    setEmailChangeMsg('');
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/confirm-email-change`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ new_email: newEmail.trim(), otp: emailOtp.trim() }),
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setEmailChangeError(data.detail || 'Verifikasi OTP gagal.');
+        return;
+      }
+      
+      // Update local session with new email
+      const session = JSON.parse(localStorage.getItem('fresh_session_user') || '{}');
+      session.email = data.user.email;
+      localStorage.setItem('fresh_session_user', JSON.stringify(session));
+      localStorage.setItem('fresh_current_user', JSON.stringify(session));
+      
+      setPrefs({ ...prefs, email: data.user.email });
+      setEmailChangeMsg('Email berhasil diubah!');
+      setEmailChangeStep(null);
+      setNewEmail('');
+      setEmailOtp('');
+    } catch {
+      setEmailChangeError('Gagal mengubah email. Periksa koneksi internet.');
+    }
   }
 
   function handleLanguageChange(e) {
@@ -109,8 +196,8 @@ export default function SettingsPage() {
           <div>
             <h3 className="text-xl font-bold text-gray-800">{user?.name || t('user', 'User')}</h3>
             <p className="text-gray-500">{user?.email || t('noEmail', 'No email')}</p>
-            <span className={`badge mt-2 ${user?.provider === 'google' ? 'badge-info' : 'badge-safe'}`}>
-              {user?.provider === 'google' ? t('googleAccount', 'Google Account') : t('demoAccount', 'Demo Account')}
+            <span className={`badge mt-2 ${user?.provider === 'google' ? 'badge-info' : user?.provider === 'local' ? 'badge-safe' : 'badge-safe'}`}>
+              {user?.provider === 'google' ? t('googleAccount', 'Google Account') : user?.provider === 'local' ? t('localAccount', 'Local Account') : t('demoAccount', 'Demo Account')}
             </span>
           </div>
         </div>
@@ -122,7 +209,65 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="input-label">{t('email', 'Email')}</label>
-            <input value={prefs.email} onChange={(e) => setPrefs({ ...prefs, email: e.target.value })} className="input-field" disabled={user?.provider === 'google'} />
+            <input value={prefs.email} className="input-field bg-gray-50" disabled />
+            {user?.provider === 'local' && (
+              <div className="mt-2">
+                {!emailChangeStep && (
+                  <button
+                    onClick={() => setEmailChangeStep('input')}
+                    className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                  >
+                    <Mail className="w-3 h-3 inline mr-1" />
+                    Ubah Email
+                  </button>
+                )}
+                
+                {emailChangeStep === 'input' && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-xl space-y-2">
+                    <input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="Email baru"
+                      className="input-field"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={handleRequestEmailChange} className="btn-primary text-sm px-3 py-2">
+                        Kirim OTP
+                      </button>
+                      <button onClick={() => { setEmailChangeStep(null); setNewEmail(''); setEmailChangeError(''); }} className="btn-secondary text-sm px-3 py-2">
+                        Batal
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {emailChangeStep === 'otp' && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-xl space-y-2">
+                    <p className="text-sm text-gray-600">Masukkan kode OTP yang dikirim ke <strong>{newEmail}</strong></p>
+                    <input
+                      type="text"
+                      value={emailOtp}
+                      onChange={(e) => setEmailOtp(e.target.value)}
+                      placeholder="Kode OTP (6 digit)"
+                      maxLength={6}
+                      className="input-field"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={handleConfirmEmailChange} className="btn-primary text-sm px-3 py-2">
+                        Verifikasi
+                      </button>
+                      <button onClick={() => { setEmailChangeStep(null); setNewEmail(''); setEmailOtp(''); setEmailChangeError(''); }} className="btn-secondary text-sm px-3 py-2">
+                        Batal
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {emailChangeError && <p className="text-sm text-red-600 mt-1">{emailChangeError}</p>}
+                {emailChangeMsg && <p className="text-sm text-emerald-600 mt-1">{emailChangeMsg}</p>}
+              </div>
+            )}
           </div>
         </div>
       </div>
