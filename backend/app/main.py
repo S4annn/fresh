@@ -613,6 +613,96 @@ def confirm_email_change(
     }
 
 
+# ─── Forgot / Reset Password Endpoints ────────────────────────────────────────
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    otp: str
+    new_password: str
+
+
+@app.post("/auth/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Send OTP for password reset."""
+    email_lower = payload.email.lower().strip()
+
+    user = get_user_by_email(db, email_lower)
+    if not user:
+        # Don't reveal if email exists or not for security
+        return {"message": "Jika email terdaftar, kode OTP telah dikirim."}
+
+    # Generate OTP for password reset
+    otp = create_otp_record(db, email_lower, purpose="password_reset")
+
+    # Send OTP
+    email_result = send_otp_email(email_lower, otp, user.name)
+
+    if email_result and "dev_otp" in email_result:
+        return {"message": "Jika email terdaftar, kode OTP telah dikirim.", "dev_otp": otp}
+
+    return {"message": "Jika email terdaftar, kode OTP telah dikirim."}
+
+
+@app.post("/auth/reset-password")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Verify OTP and reset password."""
+    from .security import hash_password
+
+    email_lower = payload.email.lower().strip()
+
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password minimal 6 karakter.")
+
+    # Validate OTP
+    result = validate_otp(db, email_lower, payload.otp, purpose="password_reset")
+
+    if result["status"] == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    # Find user and update password
+    user = get_user_by_email(db, email_lower)
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan.")
+
+    user.password_hash = hash_password(payload.new_password)
+    user.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {"message": "Password berhasil diubah. Silakan login dengan password baru."}
+
+
+# ─── AI Assistant (Gemini) Endpoint ──────────────────────────────────────────
+
+class AIAssistantRequest(BaseModel):
+    message: str
+    user_id: str | None = None
+    role: str | None = None
+    page_context: str | None = None
+    inventory: list | None = None
+
+
+@app.post("/ai-assistant/chat")
+def ai_assistant_chat(payload: AIAssistantRequest):
+    """Chat with F.R.E.S.H AI Assistant (powered by Gemini API)."""
+    from .ai_assistant import generate_ai_response
+
+    if not payload.message or not payload.message.strip():
+        raise HTTPException(status_code=400, detail="Message tidak boleh kosong.")
+
+    result = generate_ai_response(
+        message=payload.message.strip(),
+        user_id=payload.user_id,
+        role=payload.role,
+        inventory=payload.inventory,
+        page_context=payload.page_context,
+    )
+
+    return result
+
+
 # Admin Authentication
 @app.post("/admin/login")
 def admin_login(username: str, password: str, db: Session = Depends(get_db)):
