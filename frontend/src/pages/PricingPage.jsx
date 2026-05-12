@@ -245,9 +245,9 @@ export default function PricingPage() {
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15">
             <CreditCard className="h-7 w-7" />
           </div>
-          <h2 className="mb-3 text-3xl font-extrabold">Billing sandbox hari ini. Siap pembayaran besok.</h2>
+          <h2 className="mb-3 text-3xl font-extrabold">Mulai sekarang, berkembang tanpa batas.</h2>
           <p className="mx-auto mb-7 max-w-2xl text-emerald-100">
-            MVP ini menggunakan checkout dummy dan localStorage, dengan hook yang siap untuk sesi transaksi Midtrans atau Xendit.
+            Pilih paket yang sesuai dengan kebutuhan Anda. Gratis untuk memulai, upgrade kapan saja seiring pertumbuhan.
           </p>
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
             <button onClick={() => handlePlanClick(PLANS.free)} className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-bold text-emerald-700 hover:bg-emerald-50">

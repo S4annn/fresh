@@ -6,7 +6,7 @@ import ThemeToggle from '../components/ThemeToggle';
 import {
   Leaf, Brain, Package, Bell, Lightbulb, ShoppingBag, Heart, BarChart3,
   ArrowRight, ChevronRight, Sparkles, Shield, TrendingDown, Users,
-  CheckCircle2, Menu, X, Play, User, Building2, Scan, Tag,
+  CheckCircle2, Menu, X, Play, User, Building2, Scan, Tag, Bot,
 } from 'lucide-react';
 
 const features = [
@@ -65,6 +65,13 @@ const features = [
     description: 'Lihat data dan wawasan tentang pola konsumsi serta dampak positif Anda.',
     color: 'from-teal-500 to-cyan-600',
     bg: 'bg-teal-50',
+  },
+  {
+    icon: Bot,
+    title: 'F.R.E.S.H Assistant',
+    description: 'Chatbot AI yang membantu menjawab pertanyaan seputar makanan, resep, penyimpanan, dan fitur aplikasi.',
+    color: 'from-emerald-500 to-teal-600',
+    bg: 'bg-emerald-50',
   },
 ];
 
@@ -583,14 +590,14 @@ export default function LandingPage() {
               <h4 className="text-white font-bold mb-4">Kontak</h4>
               <ul className="space-y-2 list-none p-0 m-0">
                 <li className="text-sm">hello@fresh.app</li>
-                <li className="text-sm">Jakarta, Indonesia</li>
+                <li className="text-sm">Yogyakarta, Indonesia</li>
                 <li className="text-sm">+62 812 3456 7890</li>
               </ul>
             </div>
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center">
-            <p className="text-sm">© {new Date().getFullYear()} F.R.E.S.H — Food Resource Efficiency & Smart Handling. Semua hak dilindungi.</p>
+            <p className="text-sm">© {new Date().getFullYear()} F.R.E.S.H - Food Resource Efficiency & Smart Handling. Semua hak dilindungi.</p>
           </div>
         </div>
       </footer>

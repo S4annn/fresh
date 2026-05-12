@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { DUMMY_ANALYTICS } from '../data/dummyData';
 import { useAuth } from '../context/AuthContext';
 import * as apiModule from '../api';
@@ -6,6 +7,7 @@ import { LockedPreview } from '../components/FeatureGate';
 import { canAccessAnalyticsLevel, useSubscription } from '../services/subscription';
 import {
   BarChart3, TrendingDown, Heart, ShoppingBag, DollarSign, Leaf, Sparkles,
+  Download, FileText, Printer,
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -52,10 +54,14 @@ function normalizeAnalytics(result, fallback = EMPTY_ANALYTICS) {
 }
 
 export default function AnalyticsPage() {
-  const { isDemoMode } = useAuth();
+  const { isDemoMode, user } = useAuth();
   const { plan } = useSubscription();
+  const location = useLocation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [exportOpen, setExportOpen] = useState(false);
+
+  const isReportMode = location.pathname === '/report' || location.pathname === '/business/report';
 
   useEffect(() => {
     loadAnalytics();
@@ -71,6 +77,95 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function exportToCSV() {
+    if (!data) return;
+    const rows = [
+      ['F.R.E.S.H Personal Report'],
+      ['Pengguna', user?.name || '-'],
+      ['Email', user?.email || '-'],
+      ['Tanggal Export', new Date().toLocaleString('id-ID')],
+      [],
+      ['Ringkasan'],
+      ['Metrik', 'Nilai'],
+      ['Total Item Dilacak', data.total_items],
+      ['Limbah Dicegah', `${data.total_waste_prevented} item`],
+      ['Total Donasi', data.total_donations],
+      ['Listing Marketplace', data.total_marketplace],
+      ['Uang Dihemat', `Rp${data.money_saved?.toLocaleString('id-ID')}`],
+      ['CO2 Dikurangi', `${data.co2_reduced} kg`],
+      [],
+      ['Distribusi Risiko'],
+      ['Kategori Risiko', 'Jumlah'],
+      ...(data.risk_distribution || []).map((r) => [r.name, r.value]),
+    ];
+
+    if (data.category_distribution?.length) {
+      rows.push([], ['Kategori Makanan'], ['Kategori', 'Jumlah']);
+      data.category_distribution.forEach((c) => rows.push([c.name, c.value]));
+    }
+
+    if (data.monthly_savings?.length) {
+      rows.push([], ['Penghematan Bulanan'], ['Bulan', 'Jumlah (Rp)']);
+      data.monthly_savings.forEach((m) => rows.push([m.month, m.amount]));
+    }
+
+    const csv = rows
+      .map((row) => row.map((cell) => {
+        const s = String(cell ?? '');
+        return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+      }).join(','))
+      .join('\n');
+
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fresh-laporan-personal-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setExportOpen(false);
+  }
+
+  function exportToJSON() {
+    if (!data) return;
+    const payload = {
+      report_name: 'F.R.E.S.H Personal Report',
+      generated_at: new Date().toISOString(),
+      user: { name: user?.name, email: user?.email, role: user?.role },
+      plan: plan?.plan_name,
+      summary: {
+        total_items: data.total_items,
+        waste_prevented: data.total_waste_prevented,
+        total_donations: data.total_donations,
+        total_marketplace: data.total_marketplace,
+        money_saved: data.money_saved,
+        co2_reduced: data.co2_reduced,
+      },
+      risk_distribution: data.risk_distribution,
+      category_distribution: data.category_distribution,
+      weekly_waste: data.weekly_waste,
+      monthly_savings: data.monthly_savings,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fresh-laporan-personal-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setExportOpen(false);
+  }
+
+  function exportToPDF() {
+    // Use browser print to save as PDF
+    window.print();
+    setExportOpen(false);
   }
 
   if (loading || !data) {
@@ -97,12 +192,77 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6 pb-20 lg:pb-6 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-extrabold text-gray-800 flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-blue-500" />
-          Analytics Dashboard
-        </h1>
-        <p className="text-gray-500 mt-1">Track your food management impact and insights.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-gray-800 flex items-center gap-2">
+            {isReportMode ? (
+              <>
+                <FileText className="w-6 h-6 text-emerald-500" />
+                Laporan Personal
+              </>
+            ) : (
+              <>
+                <BarChart3 className="w-6 h-6 text-blue-500" />
+                Dasbor Analitik
+              </>
+            )}
+          </h1>
+          <p className="text-gray-500 mt-1">
+            {isReportMode
+              ? 'Ringkasan lengkap pengelolaan makanan dan dampak Anda.'
+              : 'Pantau dampak dan wawasan pengelolaan makanan Anda.'}
+          </p>
+        </div>
+
+        {isReportMode && hasAdvancedAnalytics && (
+          <div className="relative print:hidden">
+            <button
+              onClick={() => setExportOpen(!exportOpen)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Export Laporan
+            </button>
+
+            {exportOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setExportOpen(false)} />
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fade-in">
+                  <button
+                    onClick={exportToCSV}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 transition-colors text-left"
+                  >
+                    <FileText className="w-4 h-4 text-emerald-600" />
+                    <div>
+                      <div className="font-medium">CSV (Excel)</div>
+                      <div className="text-[10px] text-gray-400">Spreadsheet format</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={exportToJSON}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 transition-colors text-left"
+                  >
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    <div>
+                      <div className="font-medium">JSON</div>
+                      <div className="text-[10px] text-gray-400">Data mentah</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={exportToPDF}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 transition-colors text-left"
+                  >
+                    <Printer className="w-4 h-4 text-red-600" />
+                    <div>
+                      <div className="font-medium">PDF / Print</div>
+                      <div className="text-[10px] text-gray-400">Cetak atau simpan PDF</div>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="card border-emerald-100 bg-emerald-50/70">

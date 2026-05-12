@@ -47,7 +47,7 @@ export default function CheckoutModal({
       <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-gray-100 p-6">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">Sandbox checkout</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">Checkout</p>
             <h2 className="text-xl font-extrabold text-gray-800">{plan.plan_name}</h2>
           </div>
           <button onClick={onClose} className="btn-icon hover:bg-gray-100">
@@ -60,14 +60,14 @@ export default function CheckoutModal({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="font-bold text-gray-800">{plan.target}</p>
-                <p className="mt-1 text-sm text-gray-500">Billing cycle: <span className="font-semibold text-gray-700">{billingCycle}</span></p>
+                <p className="mt-1 text-sm text-gray-500">Siklus tagihan: <span className="font-semibold text-gray-700">{billingCycle === 'yearly' ? 'Tahunan' : 'Bulanan'}</span></p>
               </div>
               <p className="text-right text-2xl font-black text-emerald-700">{formatPrice(checkout.amount)}</p>
             </div>
           </div>
 
           <div>
-            <p className="mb-3 text-sm font-bold text-gray-700">Payment method</p>
+            <p className="mb-3 text-sm font-bold text-gray-700">Metode pembayaran</p>
             <div className="grid grid-cols-2 gap-3">
               {paymentMethods.map(({ key, label, icon: Icon }) => (
                 <button
@@ -88,16 +88,16 @@ export default function CheckoutModal({
           </div>
 
           <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
-            This is a sandbox/demo payment for MVP. Replace with Midtrans/Xendit transaction API later.
+            Pembayaran akan diproses dengan aman. Anda bisa membatalkan kapan saja.
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <button onClick={onClose} className="btn-secondary flex-1">
-              Cancel
+              Batal
             </button>
             <button onClick={handleSuccess} disabled={processing} className="btn-primary flex-1 py-3">
               {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              Simulate Payment Success
+              Bayar Sekarang
             </button>
           </div>
         </div>
