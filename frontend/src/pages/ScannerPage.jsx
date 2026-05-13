@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { analyzeFoodImage, createFood, getScannerLabels } from '../api';
+import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
 import { canAddInventory, canUseAiScan, getPlanLimit, incrementUsage, isUnlimited, useSubscription } from '../services/subscription';
 import DemoUsageIndicator, { DemoLimitWarning } from '../components/DemoUsageIndicator';
@@ -148,6 +149,7 @@ function SourceBadge({ source }) {
 
 export default function ScannerPage() {
   const navigate = useNavigate();
+  const { isDemoMode } = useAuth();
   const { isBusiness } = useRole();
   const { subscription, plan } = useSubscription();
   const fileInputRef = useRef(null);
@@ -429,18 +431,19 @@ export default function ScannerPage() {
           <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
             <Scan className="w-5 h-5 text-white" />
           </div>
-          AI Food Scanner
-          {isBusiness() && <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg">Business Mode</span>}
+          Pemindai Makanan AI
+          {isBusiness() && <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg">Mode Bisnis</span>}
         </h1>
-        <p className="text-gray-500 mt-1">Scan or upload food images to identify ingredients and reduce waste.</p>
+        <p className="text-gray-500 mt-1">Pindai atau unggah gambar makanan untuk mengenali bahan dan mengurangi limbah.</p>
         <DemoUsageIndicator featureName="ai_scan" className="mt-2" />
       </div>
 
+      {!isDemoMode && (
       <div className="card flex flex-col gap-3 border-emerald-100 bg-emerald-50/70 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-bold text-gray-800">{plan.plan_name}</p>
           <p className="text-xs text-gray-600">
-            {isUnlimited(scanLimit) ? 'Unlimited AI scans this month' : `${scansUsed}/${scanLimit} AI scans used this month`}
+            {isUnlimited(scanLimit) ? 'Pemindaian AI tak terbatas bulan ini' : `${scansUsed}/${scanLimit} Pemindaian AI bulan ini`}
           </p>
         </div>
         {!isUnlimited(scanLimit) && (
@@ -449,6 +452,7 @@ export default function ScannerPage() {
           </div>
         )}
       </div>
+      )}
 
       {!canUseAiScan() && (
         <LockedFeatureCard
@@ -581,7 +585,7 @@ export default function ScannerPage() {
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:border-emerald-300 hover:bg-emerald-50 transition-all text-sm"
             >
-              <Upload className="w-4 h-4 text-emerald-600" /> Upload Image
+              <Upload className="w-4 h-4 text-emerald-600" /> Unggah Gambar
             </button>
 
             {/* Open real camera */}
@@ -589,7 +593,7 @@ export default function ScannerPage() {
               onClick={openCamera}
               className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:border-emerald-300 hover:bg-emerald-50 transition-all text-sm"
             >
-              <Camera className="w-4 h-4 text-emerald-600" /> Open Camera
+              <Camera className="w-4 h-4 text-emerald-600" /> Buka Kamera
             </button>
           </div>
 
@@ -622,7 +626,7 @@ export default function ScannerPage() {
 
           {result && (
             <button onClick={clearImage} className="w-full btn-secondary py-3 text-sm">
-              <RefreshCw className="w-4 h-4" /> Scan Another Food
+              <RefreshCw className="w-4 h-4" /> Pindai Makanan Lain
             </button>
           )}
 
@@ -630,11 +634,11 @@ export default function ScannerPage() {
             <div className="flex items-start gap-3">
               <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
               <div className="text-xs text-blue-700 space-y-1">
-                <p className="font-semibold">Tips for best results:</p>
-                <p>• Use clear, well-lit photos</p>
-                <p>• Center the food in the frame</p>
-                <p>• Avoid blurry or dark images</p>
-                <p>• Camera works best on mobile devices</p>
+                <p className="font-semibold">Tips hasil terbaik:</p>
+                <p>• Gunakan foto yang jelas dan terang</p>
+                <p>• Posisikan makanan di tengah frame</p>
+                <p>• Hindari gambar buram atau gelap</p>
+                <p>• Kamera bekerja optimal di perangkat mobile</p>
               </div>
             </div>
           </div>
@@ -689,8 +693,8 @@ export default function ScannerPage() {
                 <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                   <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div className="text-xs text-amber-700">
-                    <p className="font-semibold mb-0.5">AI is not fully sure. Please confirm the food manually.</p>
-                    <p>Low confidence may happen when the image style, background, or food type is different from the training dataset.</p>
+                    <p className="font-semibold mb-0.5">AI belum yakin sepenuhnya. Silakan konfirmasi makanan secara manual.</p>
+                    <p>Akurasi rendah bisa terjadi saat gaya gambar, latar belakang, atau jenis makanan berbeda dari dataset pelatihan.</p>
                   </div>
                 </div>
               )}
@@ -700,36 +704,36 @@ export default function ScannerPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h2 className="text-2xl font-extrabold text-gray-800">
-                      {isLowConfidence ? `Possible: ${result.detected_food}` : result.detected_food}
+                      {isLowConfidence ? `Kemungkinan: ${result.detected_food}` : result.detected_food}
                     </h2>
                     <p className="text-gray-500 text-sm mt-0.5">{result.category}</p>
                   </div>
                   <span className={`badge ${isLowConfidence ? 'badge-warning' : risk.color} text-sm px-3 py-1.5`}>
-                    {isLowConfidence ? 'Low Confidence' : result.risk_label}
+                    {isLowConfidence ? 'Akurasi Rendah' : result.risk_label}
                   </span>
                 </div>
                 {/* Source badge */}
                 <div className="mb-4">
-                  {isLowConfidence ? (
+                    {isLowConfidence ? (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      Low Confidence
+                      Akurasi Rendah
                     </span>
                   ) : (
                     <SourceBadge source={result.source || result.classifier} />
                   )}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white/70 rounded-xl p-3 text-center">
-                    <p className="text-xs text-gray-500 mb-1">Confidence</p>
+                    <p className="text-xs text-gray-500 mb-1">Akurasi</p>
                     <p className="text-lg font-extrabold text-gray-800">{Math.round(result.confidence * 100)}%</p>
                   </div>
                   <div className="bg-white/70 rounded-xl p-3 text-center">
-                    <p className="text-xs text-gray-500 mb-1">Shelf Life</p>
+                    <p className="text-xs text-gray-500 mb-1">Masa Simpan</p>
                     <p className="text-lg font-extrabold text-gray-800">{result.estimated_shelf_life_days}d</p>
                   </div>
                   <div className="bg-white/70 rounded-xl p-3 text-center">
-                    <p className="text-xs text-gray-500 mb-1">Risk</p>
+                    <p className="text-xs text-gray-500 mb-1">Risiko</p>
                     <RiskIcon className={`w-6 h-6 mx-auto ${risk.text}`} />
                   </div>
                 </div>
@@ -737,7 +741,7 @@ export default function ScannerPage() {
 
               {(isLowConfidence || result.source === 'manual_correction') && (
               <div className="bg-white rounded-2xl border border-gray-100 p-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Correct food label</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Koreksi label makanan</label>
                 <select
                   value={scannerLabelOptions.find((item) => labelDisplay(item) === result.detected_food)?.label || ''}
                   onChange={(e) => handleManualCorrection(e.target.value)}
@@ -755,7 +759,7 @@ export default function ScannerPage() {
                 <div className="bg-white rounded-2xl border border-gray-100 p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Cpu className="w-4 h-4 text-violet-500" />
-                    <span className="font-semibold text-gray-700 text-sm">Top Predictions</span>
+                    <span className="font-semibold text-gray-700 text-sm">Prediksi Teratas</span>
                   </div>
                   <div className="space-y-2">
                     {result.top_predictions.slice(0, 5).map((prediction) => (
@@ -775,7 +779,7 @@ export default function ScannerPage() {
                   </div>
                   {isLowConfidence && (
                     <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-3">
-                      Prediction confidence is low. The uploaded image may be different from the training dataset or the model may need more training data.
+                      Akurasi prediksi rendah. Gambar yang diunggah mungkin berbeda dari dataset pelatihan atau model membutuhkan lebih banyak data.
                     </p>
                   )}
                 </div>
@@ -785,7 +789,7 @@ export default function ScannerPage() {
               <div className="bg-white rounded-2xl border border-gray-100 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Thermometer className="w-4 h-4 text-blue-500" />
-                  <span className="font-semibold text-gray-700 text-sm">Storage Advice</span>
+                  <span className="font-semibold text-gray-700 text-sm">Saran Penyimpanan</span>
                 </div>
                 <p className="text-gray-600 text-sm">{result.storage_advice}</p>
               </div>

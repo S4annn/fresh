@@ -71,7 +71,7 @@ export default function PredictPage() {
       <div>
         <h1 className="text-2xl font-extrabold text-gray-800 flex items-center gap-2">
           <Brain className="w-6 h-6 text-violet-600" />
-          {t('aiFoodWastePrediction', 'AI Food Waste Prediction')}
+          {t('aiFoodWastePrediction', 'Prediksi Limbah Makanan AI')}
         </h1>
         <p className="text-gray-500 mt-1">{t('predictSubtitle', 'Predict the risk of food waste using our AI model.')}</p>
       </div>
@@ -181,7 +181,7 @@ export default function PredictPage() {
                     {tv(result.risk_label)}
                   </div>
 
-                  <p className="text-sm text-gray-500 mb-2">{t('riskScore', 'Risk Score')}</p>
+                  <p className="text-sm text-gray-500 mb-2">{t('riskScore', 'Skor Risiko')}</p>
                   <div className="relative inline-flex items-center justify-center w-40 h-40">
                     <svg className="w-40 h-40 transform -rotate-90" viewBox="0 0 120 120">
                       <circle cx="60" cy="60" r="52" stroke="#e5e7eb" strokeWidth="10" fill="none" />
@@ -219,13 +219,13 @@ export default function PredictPage() {
               <div className="card">
                 <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-blue-500" />
-                  {t('analysis', 'Analysis')}
+                  {t('analysis', 'Analisis')}
                 </h3>
                 <p className="text-gray-600 leading-relaxed mb-4">{result.explanation}</p>
 
                 <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-violet-500" />
-                  {t('suggestedAction', 'Suggested Action')}
+                  {t('suggestedAction', 'Aksi yang Disarankan')}
                 </h3>
                 <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl p-4 border border-violet-100">
                   <p className="text-violet-700 font-medium">{result.suggested_action}</p>
@@ -252,7 +252,7 @@ export default function PredictPage() {
 
               {/* Details */}
               <div className="card">
-                <h3 className="font-bold text-gray-800 mb-3">{t('predictionDetails', 'Prediction Details')}</h3>
+                <h3 className="font-bold text-gray-800 mb-3">{t('predictionDetails', 'Detail Prediksi')}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 rounded-xl p-3">
                     <p className="text-xs text-gray-500">{t('foodName', 'Food Name')}</p>
