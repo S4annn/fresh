@@ -99,11 +99,37 @@ function withDemoTracking(featureName, apiCall) {
   };
 }
 
+export async function refreshToken() {
+  const token = localStorage.getItem('fresh_auth_token');
+  if (!token) return null;
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    localStorage.setItem('fresh_auth_token', data.access_token);
+    return data.access_token;
+  } catch {
+    return null;
+  }
+}
+
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...getFreshHeaders(), ...(options.headers || {}) },
   });
+  
+  // If 401, try refreshing token and retry once
+  if (res.status === 401 && !options._retried) {
+    const newToken = await refreshToken();
+    if (newToken) {
+      return apiFetch(path, { ...options, _retried: true });
+    }
+  }
+  
   if (!res.ok) {
     const text = await res.text();
     const error = new Error(text || 'API error');

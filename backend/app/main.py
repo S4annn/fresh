@@ -4,7 +4,7 @@ import os
 from datetime import date, datetime, timedelta
 from typing import Any, Iterable
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile, status
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
@@ -72,6 +72,10 @@ from .vision_model import (
 from .otp import create_otp_record, validate_otp
 from .email_service import send_otp_email
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 # Run database migration on startup (inside app package — always available in Docker)
 from .migrations import run_migrations
 
@@ -103,6 +107,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @app.on_event("startup")
@@ -155,13 +163,17 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
 
 # User Management Endpoints
 @app.post("/auth/register")
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register_user(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     """Register a new user with OTP verification."""
     from .otp_service import generate_and_store_otp
     from .email_service import send_otp_email
     
     email_lower = user.email.lower()
     user.email = email_lower
+    
+    if len(user.password) < 6:
+        raise HTTPException(status_code=400, detail="Password minimal 6 karakter.")
     
     db_user = get_user_by_email(db, email_lower)
     
@@ -262,7 +274,8 @@ def get_all_users(current_admin: str = Depends(get_current_admin), db: Session =
 
 
 @app.post("/auth/login")
-def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login_user(request: Request, user_credentials: UserLogin, db: Session = Depends(get_db)):
     """Authenticate user and return JWT token."""
     email_lower = user_credentials.email.lower()
     user = authenticate_user(db, email_lower, user_credentials.password)
@@ -342,13 +355,14 @@ class ResendOTPRequest(BaseModel):
     email: str
 
 @app.post("/auth/verify-otp")
-def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def verify_otp(request: Request, otp_request: VerifyOTPRequest, db: Session = Depends(get_db)):
     from .otp_service import verify_user_otp
     
-    email_lower = request.email.lower()
+    email_lower = otp_request.email.lower()
     
     # Verify OTP from in-memory store (same as registration)
-    result = verify_user_otp(email_lower, request.otp)
+    result = verify_user_otp(email_lower, otp_request.otp)
     
     if not result['success']:
         raise HTTPException(status_code=400, detail=result['message'])
@@ -419,11 +433,12 @@ def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
     }
 
 @app.post("/auth/resend-otp")
-def resend_otp(request: ResendOTPRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def resend_otp(request: Request, otp_request: ResendOTPRequest, db: Session = Depends(get_db)):
     from .otp_service import resend_user_otp
     from .email_service import send_otp_email
     
-    email_lower = request.email.lower()
+    email_lower = otp_request.email.lower()
     
     result = resend_user_otp(email_lower)
     
@@ -480,6 +495,22 @@ def debug_users_endpoint(db: Session = Depends(get_db)):
 def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     """Get current user information."""
     return current_user
+
+
+@app.post("/auth/refresh-token")
+def refresh_token(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    """Refresh JWT token for authenticated user."""
+    access_token_expires = timedelta(days=7)
+    new_token = create_access_token(
+        data={"sub": str(current_user.id), "uid": current_user.uid},
+        expires_delta=access_token_expires
+    )
+    create_user_session(db, current_user, new_token)
+    return {
+        "access_token": new_token,
+        "token_type": "bearer",
+        "expires_in": 604800,
+    }
 
 
 @app.put("/auth/profile")
@@ -627,7 +658,8 @@ class ResetPasswordRequest(BaseModel):
 
 
 @app.post("/auth/forgot-password")
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """Send OTP for password reset."""
     email_lower = payload.email.lower().strip()
 

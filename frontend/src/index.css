@@ -492,3 +492,11 @@ html.dark span[class*="bg-blue-100"][class*="text-blue-700"] {
 html.dark .leaflet-container {
   filter: brightness(0.78) contrast(1.08) saturate(0.85);
 }
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { DUMMY_DONATIONS } from '../data/dummyData';
 import { useAuth } from '../context/AuthContext';
 import { calculateDistanceKm, formatDistance, getUserLocation, saveUserLocation, loadUserLocation } from '../utils/geo';
@@ -93,7 +93,9 @@ export default function DonationPage() {
   const location = useLocation();
   const prefillDonation = location.state?.prefillDonation;
   const currentUserId = getCurrentUserId();
-  const [activeTab, setActiveTab] = useState('browse'); // 'browse' | 'mine'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') === 'mine' ? 'mine' : 'browse';
+  const setActiveTab = (tab) => setSearchParams(tab === 'browse' ? {} : { tab }, { replace: true });
   const [donations, setDonations]       = useState([]);
   const [loading, setLoading]           = useState(true);
   const [showForm, setShowForm]         = useState(false);
@@ -283,6 +285,7 @@ export default function DonationPage() {
       setDonations((prev) => [saved, ...prev]);
       incrementUsage('donation_listings');
       showToast('success', 'Donasi berhasil dibuat.');
+      loadDonations();
       setShowForm(false);
       setForm({ food_name: '', quantity: 1, unit: 'porsi', pickup_location: '', expiry_date: new Date().toISOString().slice(0, 10), donor_name: '', notes: '' });
       // Refresh my items if we're on that tab
@@ -1009,6 +1012,12 @@ function DonationRequestRow({ request, onAction }) {
 // ─── Request Donation Modal ──────────────────────────────────────────────────
 
 function RequestDonationModal({ donation, onClose, onSubmit }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const [form, setForm] = useState({
     requester_name: '',
     requester_email: '',

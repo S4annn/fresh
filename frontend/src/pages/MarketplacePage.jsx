@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { DUMMY_MARKETPLACE_NEARBY, FOOD_CATEGORIES, UNITS } from '../data/dummyData';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -209,7 +209,9 @@ export default function MarketplacePage() {
   const location = useLocation();
   const prefillListing = location.state?.prefillListing;
   const currentUserId = getCurrentUserId();
-  const [activeTab, setActiveTab] = useState('browse'); // 'browse' | 'mine'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') === 'mine' ? 'mine' : 'browse';
+  const setActiveTab = (tab) => setSearchParams(tab === 'browse' ? {} : { tab }, { replace: true });
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -561,6 +563,7 @@ export default function MarketplacePage() {
       setSelectedListingId(normalized.id);
       incrementUsage('marketplace_listings');
       showToast('success', 'Listing berhasil dibuat.');
+      loadItems();
       setShowForm(false);
       setForm({
         food_name: '',
@@ -1584,6 +1587,12 @@ function ReservationRequestRow({ reservation, onAction }) {
 // ─── Reserve Modal ───────────────────────────────────────────────────────────
 
 function ReserveModal({ item, onClose, onSubmit }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const [form, setForm] = useState({
     requester_name: '',
     requester_email: '',
