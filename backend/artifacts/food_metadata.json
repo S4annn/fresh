@@ -4,12 +4,12 @@
         "category": "Fruit",
         "shelf_life": 7,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator to extend freshness up to 2 weeks. Keep away from ethylene-sensitive produce.",
+        "storage_advice": "Simpan di kulkas untuk memperpanjang kesegaran hingga 2 minggu. Jauhkan dari produk yang sensitif etilen.",
         "recommendations": [
-            "Store in refrigerator for longer shelf life",
-            "Make apple juice, apple crumble, or apple pie",
-            "Great for snacking or adding to salads",
-            "Can be frozen sliced for smoothies"
+            "Simpan di kulkas untuk masa simpan lebih lama",
+            "Buat jus apel, apple crumble, atau pie apel",
+            "Cocok untuk camilan atau ditambahkan ke salad",
+            "Bisa dibekukan dalam irisan untuk smoothie"
         ]
     },
     "banana": {
@@ -17,12 +17,12 @@
         "category": "Fruit",
         "shelf_life": 3,
         "storage": "Room Temperature",
-        "storage_advice": "Store at room temperature away from direct sunlight. Refrigerate only when fully ripe to slow browning.",
+        "storage_advice": "Simpan di suhu ruang jauh dari sinar matahari langsung. Masukkan kulkas hanya saat sudah matang untuk memperlambat pencokelatan.",
         "recommendations": [
-            "Use within 2-3 days for best quality",
-            "Make banana smoothie, banana bread, or banana pancakes",
-            "Freeze sliced banana for later use in smoothies",
-            "If surplus, list in marketplace or donate"
+            "Gunakan dalam 2-3 hari untuk kualitas terbaik",
+            "Buat smoothie pisang, banana bread, atau pancake pisang",
+            "Bekukan irisan pisang untuk smoothie nanti",
+            "Jika berlebih, jual di marketplace atau donasikan"
         ]
     },
     "beetroot": {
@@ -30,12 +30,12 @@
         "category": "Vegetable",
         "shelf_life": 14,
         "storage": "Refrigerator",
-        "storage_advice": "Remove greens and store roots in refrigerator in a sealed bag.",
+        "storage_advice": "Buang daunnya dan simpan umbi di kulkas dalam kantong tertutup.",
         "recommendations": [
-            "Store in refrigerator for up to 2 weeks",
-            "Use for salad, soup, or roasted vegetables",
-            "Juice with carrot and ginger for a healthy drink",
-            "Pickle for longer preservation"
+            "Simpan di kulkas hingga 2 minggu",
+            "Gunakan untuk salad, sup, atau sayuran panggang",
+            "Jus dengan wortel dan jahe untuk minuman sehat",
+            "Acar untuk pengawetan lebih lama"
         ]
     },
     "bell pepper": {
@@ -43,11 +43,11 @@
         "category": "Vegetable",
         "shelf_life": 7,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator in a sealed bag. Use before skin becomes wrinkled.",
+        "storage_advice": "Simpan di kulkas dalam kantong tertutup. Gunakan sebelum kulit mengkerut.",
         "recommendations": [
-            "Store in refrigerator",
-            "Use for stir-fry, salad, or stuffed pepper",
-            "Roast for a sweet flavor",
+            "Simpan di kulkas",
+            "Gunakan untuk tumis, salad, atau paprika isi",
+            "Panggang untuk rasa manis",
             "Freeze sliced for later cooking use"
         ]
     },
@@ -69,9 +69,9 @@
         "category": "Vegetable",
         "shelf_life": 7,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator. Use before skin becomes wrinkled.",
+        "storage_advice": "Simpan di kulkas. Use before skin becomes wrinkled.",
         "recommendations": [
-            "Store in refrigerator",
+            "Simpan di kulkas",
             "Use for stir-fry, salad, or topping",
             "Roast for a sweet smoky flavor",
             "Use before skin becomes wrinkled"
@@ -82,9 +82,9 @@
         "category": "Vegetable",
         "shelf_life": 14,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator in a sealed bag. Keep away from excess moisture.",
+        "storage_advice": "Simpan di kulkas in a sealed bag. Keep away from excess moisture.",
         "recommendations": [
-            "Store in refrigerator",
+            "Simpan di kulkas",
             "Use for soup, stir-fry, or fresh juice",
             "Great as a healthy snack with hummus",
             "Keep away from excess moisture to prevent softening"
@@ -95,9 +95,9 @@
         "category": "Vegetable",
         "shelf_life": 5,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator. Use before brown spots appear.",
+        "storage_advice": "Simpan di kulkas. Use before brown spots appear.",
         "recommendations": [
-            "Store in refrigerator",
+            "Simpan di kulkas",
             "Use for soup, stir-fry, or steamed vegetables",
             "Make cauliflower rice as a low-carb alternative",
             "Use before brown spots appear"
@@ -108,7 +108,7 @@
         "category": "Vegetable",
         "shelf_life": 7,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator in a sealed bag or dry at room temperature.",
+        "storage_advice": "Simpan di kulkas in a sealed bag or dry at room temperature.",
         "recommendations": [
             "Store in refrigerator for up to a week",
             "Use for cooking, sambal, or chilli sauce",
@@ -121,7 +121,7 @@
         "category": "Vegetable",
         "shelf_life": 3,
         "storage": "Refrigerator",
-        "storage_advice": "Keep husks on and refrigerate. Use within 1-3 days for best sweetness.",
+        "storage_advice": "Keep husks on and refrigerate. Gunakan dalam 1-3 hari for best sweetness.",
         "recommendations": [
             "Use within 1-3 days for best sweetness",
             "Boil, grill, or roast for a delicious side dish",
@@ -134,9 +134,9 @@
         "category": "Vegetable",
         "shelf_life": 5,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator. Use soon if it starts becoming soft.",
+        "storage_advice": "Simpan di kulkas. Use soon if it starts becoming soft.",
         "recommendations": [
-            "Store in refrigerator",
+            "Simpan di kulkas",
             "Use for salad, pickles, or fresh side dish",
             "Add to infused water for a refreshing drink",
             "Use soon if it starts becoming soft"
@@ -199,11 +199,11 @@
         "category": "Vegetable",
         "shelf_life": 7,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator in a sealed bag.",
+        "storage_advice": "Simpan di kulkas in a sealed bag.",
         "recommendations": [
-            "Store in refrigerator",
+            "Simpan di kulkas",
             "Use for salsa, nachos, or spicy dishes",
-            "Pickle for longer preservation",
+            "Acar untuk pengawetan lebih lama",
             "Handle with care to avoid skin irritation"
         ]
     },
@@ -225,9 +225,9 @@
         "category": "Fruit",
         "shelf_life": 14,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator for up to 2 weeks. Keep in a sealed bag.",
+        "storage_advice": "Simpan di kulkas for up to 2 weeks. Keep in a sealed bag.",
         "recommendations": [
-            "Store in refrigerator for up to 2 weeks",
+            "Simpan di kulkas hingga 2 minggu",
             "Use for cooking, baking, or fresh lemonade",
             "Zest and freeze for later use",
             "Add to water for a refreshing drink"
@@ -238,7 +238,7 @@
         "category": "Vegetable",
         "shelf_life": 3,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator wrapped in a damp paper towel. Use within 3 days.",
+        "storage_advice": "Simpan di kulkas wrapped in a damp paper towel. Gunakan dalam 3 hari.",
         "recommendations": [
             "Store in refrigerator wrapped in a damp paper towel",
             "Use for salad, wraps, or burger topping",
@@ -251,7 +251,7 @@
         "category": "Fruit",
         "shelf_life": 4,
         "storage": "Room Temperature/Refrigerator",
-        "storage_advice": "Ripen at room temperature, then refrigerate. Use within 2-4 days once ripe.",
+        "storage_advice": "Ripen at room temperature, then refrigerate. Gunakan dalam 2-4 hari once ripe.",
         "recommendations": [
             "Ripen at room temperature",
             "Refrigerate once ripe and use within 2-4 days",
@@ -277,9 +277,9 @@
         "category": "Fruit",
         "shelf_life": 10,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator for up to 2 weeks or at room temperature for up to a week.",
+        "storage_advice": "Simpan di kulkas for up to 2 weeks or at room temperature for up to a week.",
         "recommendations": [
-            "Store in refrigerator for longer shelf life",
+            "Simpan di kulkas untuk masa simpan lebih lama",
             "Use for fresh juice, smoothie, or snacking",
             "Zest for baking and cooking",
             "Rich in vitamin C — great for immunity"
@@ -290,10 +290,10 @@
         "category": "Vegetable",
         "shelf_life": 7,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator. Use before skin becomes wrinkled.",
+        "storage_advice": "Simpan di kulkas. Use before skin becomes wrinkled.",
         "recommendations": [
-            "Store in refrigerator",
-            "Use for stir-fry, salad, or stuffed pepper",
+            "Simpan di kulkas",
+            "Gunakan untuk tumis, salad, atau paprika isi",
             "Roast for a sweet smoky flavor",
             "Use before skin becomes wrinkled"
         ]
@@ -303,7 +303,7 @@
         "category": "Fruit",
         "shelf_life": 5,
         "storage": "Refrigerator",
-        "storage_advice": "Ripen at room temperature, then refrigerate. Use within 3-5 days once ripe.",
+        "storage_advice": "Ripen at room temperature, then refrigerate. Gunakan dalam 3-5 hari once ripe.",
         "recommendations": [
             "Ripen at room temperature",
             "Refrigerate once ripe",
@@ -316,10 +316,10 @@
         "category": "Vegetable",
         "shelf_life": 3,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator and use within 3 days. Freeze for longer storage.",
+        "storage_advice": "Simpan di kulkas and use within 3 hari. Freeze for longer storage.",
         "recommendations": [
             "Store in refrigerator and use within 3 days",
-            "Freeze for longer storage",
+            "Bekukan untuk penyimpanan lebih lama",
             "Use for soup, stir-fry, or rice dishes",
             "Great as a side dish or added to pasta"
         ]
@@ -329,7 +329,7 @@
         "category": "Fruit",
         "shelf_life": 4,
         "storage": "Refrigerator",
-        "storage_advice": "Store cut pineapple in refrigerator in an airtight container. Use within 3-4 days.",
+        "storage_advice": "Store cut pineapple in refrigerator in an airtight container. Gunakan dalam 3-4 hari.",
         "recommendations": [
             "Store cut pineapple in refrigerator",
             "Use for fruit salad, juice, or grilled pineapple",
@@ -368,10 +368,10 @@
         "category": "Vegetable",
         "shelf_life": 7,
         "storage": "Refrigerator",
-        "storage_advice": "Remove leaves before storing. Store in refrigerator.",
+        "storage_advice": "Remove leaves before storing. Simpan di kulkas.",
         "recommendations": [
             "Remove leaves before storing",
-            "Store in refrigerator",
+            "Simpan di kulkas",
             "Use for soup, salad, or pickles",
             "Great as a crunchy snack with dip"
         ]
@@ -394,7 +394,7 @@
         "category": "Vegetable",
         "shelf_life": 2,
         "storage": "Refrigerator",
-        "storage_advice": "Store in refrigerator in a sealed bag. Use within 2 days for best quality.",
+        "storage_advice": "Simpan di kulkas in a sealed bag. Gunakan dalam 2 hari untuk kualitas terbaik.",
         "recommendations": [
             "Use immediately — spinach wilts fast",
             "Make stir-fry, soup, or smoothie today",
@@ -407,7 +407,7 @@
         "category": "Vegetable",
         "shelf_life": 3,
         "storage": "Refrigerator",
-        "storage_advice": "Keep husks on and refrigerate. Use within 1-3 days for best sweetness.",
+        "storage_advice": "Keep husks on and refrigerate. Gunakan dalam 1-3 hari for best sweetness.",
         "recommendations": [
             "Use within 1-3 days for best sweetness",
             "Boil, grill, or roast for a delicious side dish",
@@ -451,7 +451,7 @@
             "Remove greens and store roots in refrigerator",
             "Use for soup, stew, or roasted vegetables",
             "Mash with butter as a potato alternative",
-            "Pickle for longer preservation"
+            "Acar untuk pengawetan lebih lama"
         ]
     },
     "watermelon": {
@@ -459,7 +459,7 @@
         "category": "Fruit",
         "shelf_life": 5,
         "storage": "Refrigerator",
-        "storage_advice": "Store cut watermelon in refrigerator covered with plastic wrap. Use within 3-5 days.",
+        "storage_advice": "Store cut watermelon in refrigerator covered with plastic wrap. Gunakan dalam 3-5 hari.",
         "recommendations": [
             "Store cut watermelon in refrigerator",
             "Use within 3-5 days once cut",

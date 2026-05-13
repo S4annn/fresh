@@ -798,7 +798,7 @@ export default function ScannerPage() {
               <div className="bg-white rounded-2xl border border-gray-100 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Lightbulb className="w-4 h-4 text-amber-500" />
-                  <span className="font-semibold text-gray-700 text-sm">Recommendations</span>
+                  <span className="font-semibold text-gray-700 text-sm">Rekomendasi</span>
                 </div>
                 <ul className="space-y-2">
                   {result.recommendations.map((rec, i) => (
