@@ -277,3 +277,68 @@ def generate_ai_response(message: str, user_id: str | None = None, role: str | N
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
         return FALLBACK_ERROR
+
+
+def generate_recipe_recommendations(food_name: str, category: str = "Other") -> list[str]:
+    """
+    Generate recipe recommendations using Gemini based on detected food.
+    Returns list of recipe suggestions in Indonesian.
+    Falls back to generic recommendations if Gemini unavailable.
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return []  # Return empty — caller will use metadata recommendations
+
+    prompt = f"""Berikan 4 rekomendasi resep masakan sederhana menggunakan bahan utama: {food_name} (kategori: {category}).
+
+Format jawaban:
+- Setiap rekomendasi dalam 1 kalimat singkat (maks 15 kata)
+- Bahasa Indonesia
+- Praktis dan mudah dibuat di rumah
+- Jangan pakai markdown, bintang, atau simbol khusus
+- Langsung tulis 4 baris, satu resep per baris
+- Contoh format:
+Tumis {food_name} dengan bawang putih dan kecap manis
+Sup {food_name} dengan wortel dan kentang
+"""
+
+    try:
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.8,
+                "maxOutputTokens": 200,
+                "topP": 0.9,
+            }
+        }
+
+        response = requests.post(
+            f"{GEMINI_API_URL}?key={api_key}",
+            json=payload,
+            timeout=10,
+            headers={"Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        candidates = data.get("candidates", [])
+        if not candidates:
+            return []
+
+        parts = candidates[0].get("content", {}).get("parts", [])
+        text = "".join(part.get("text", "") for part in parts).strip()
+
+        if not text:
+            return []
+
+        # Clean and parse lines
+        text = clean_markdown(text)
+        lines = [line.strip().lstrip("•-123456789. ") for line in text.split("\n") if line.strip()]
+        # Filter out empty or too-short lines
+        recipes = [line for line in lines if len(line) > 5][:4]
+
+        return recipes if recipes else []
+
+    except Exception as e:
+        logger.warning(f"Gemini recipe generation failed: {e}")
+        return []

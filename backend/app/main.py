@@ -1708,6 +1708,20 @@ async def scan_food(
         raise HTTPException(status_code=400, detail="Uploaded image is empty")
     result = predict_food_from_image(image_bytes, filename=image.filename)
     _increment_usage("ai_scans_this_month", db, _resolve_user_id(x_fresh_user_id=x_fresh_user_id))
+    
+    # Generate AI recipe recommendations using Gemini (non-blocking fallback)
+    try:
+        from .ai_assistant import generate_recipe_recommendations
+        food_name = result.get("detected_food", "")
+        category = result.get("category", "Other")
+        if food_name and food_name != "Unknown Food":
+            ai_recipes = generate_recipe_recommendations(food_name, category)
+            if ai_recipes:
+                result["recommendations"] = ai_recipes
+                result["recommendations_source"] = "gemini_ai"
+    except Exception:
+        pass  # Keep original metadata recommendations
+    
     return result
 
 
