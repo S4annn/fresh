@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from datetime import date, datetime, timedelta
 from typing import Any, Iterable
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile, status
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
@@ -103,6 +104,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─── WebSocket Connection Manager ─────────────────────────────────────────────
+from .websocket_manager import manager as ws_manager
+
+
+@app.websocket("/ws/notifications/{user_id}")
+async def websocket_notifications(websocket: WebSocket, user_id: str):
+    """WebSocket endpoint for real-time notifications."""
+    await ws_manager.connect(websocket, user_id)
+    try:
+        while True:
+            # Keep connection alive, listen for pings
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket, user_id)
+    except Exception:
+        ws_manager.disconnect(websocket, user_id)
 
 
 @app.on_event("startup")
@@ -2247,6 +2267,20 @@ def reserve_marketplace_item(
     db.add(reservation)
     db.commit()
     db.refresh(reservation)
+
+    # Send real-time notification to seller
+    try:
+        asyncio.create_task(ws_manager.send_notification(item.user_id, {
+            "type": "marketplace_reservation",
+            "title": "Reservasi Baru",
+            "message": f"{reservation.requester_name} ingin mereservasi {item.food_name}",
+            "item_id": item_id,
+            "reservation_id": reservation.id,
+            "created_at": datetime.utcnow().isoformat(),
+        }))
+    except Exception:
+        pass  # Don't fail the request if notification fails
+
     return _serialize_reservation(reservation)
 
 
@@ -2299,6 +2333,19 @@ def accept_reservation(
         item.status = "Reserved"
     db.commit()
     db.refresh(reservation)
+
+    # Send real-time notification to requester
+    try:
+        asyncio.create_task(ws_manager.send_notification(reservation.requester_user_id, {
+            "type": "reservation_accepted",
+            "title": "Reservasi Diterima",
+            "message": f"Reservasi Anda untuk item #{reservation.marketplace_item_id} telah diterima",
+            "reservation_id": reservation.id,
+            "created_at": datetime.utcnow().isoformat(),
+        }))
+    except Exception:
+        pass
+
     return _serialize_reservation(reservation)
 
 
@@ -2322,6 +2369,19 @@ def reject_reservation(
     reservation.status = "rejected"
     db.commit()
     db.refresh(reservation)
+
+    # Send real-time notification to requester
+    try:
+        asyncio.create_task(ws_manager.send_notification(reservation.requester_user_id, {
+            "type": "reservation_rejected",
+            "title": "Reservasi Ditolak",
+            "message": f"Reservasi Anda untuk item #{reservation.marketplace_item_id} ditolak",
+            "reservation_id": reservation.id,
+            "created_at": datetime.utcnow().isoformat(),
+        }))
+    except Exception:
+        pass
+
     return _serialize_reservation(reservation)
 
 
@@ -2420,6 +2480,20 @@ def request_donation_item(
     db.add(req)
     db.commit()
     db.refresh(req)
+
+    # Send real-time notification to donor
+    try:
+        asyncio.create_task(ws_manager.send_notification(item.user_id, {
+            "type": "donation_request",
+            "title": "Permintaan Donasi Baru",
+            "message": f"{req.requester_name} meminta donasi {item.food_name}",
+            "item_id": item_id,
+            "request_id": req.id,
+            "created_at": datetime.utcnow().isoformat(),
+        }))
+    except Exception:
+        pass
+
     return _serialize_donation_request(req)
 
 
@@ -2464,6 +2538,19 @@ def accept_donation_request(
         item.status = "Approved"
     db.commit()
     db.refresh(req)
+
+    # Send real-time notification to requester
+    try:
+        asyncio.create_task(ws_manager.send_notification(req.requester_user_id, {
+            "type": "donation_accepted",
+            "title": "Donasi Diterima",
+            "message": f"Permintaan donasi Anda untuk item #{req.donation_item_id} telah diterima",
+            "request_id": req.id,
+            "created_at": datetime.utcnow().isoformat(),
+        }))
+    except Exception:
+        pass
+
     return _serialize_donation_request(req)
 
 
@@ -2483,6 +2570,19 @@ def reject_donation_request(
     req.status = "rejected"
     db.commit()
     db.refresh(req)
+
+    # Send real-time notification to requester
+    try:
+        asyncio.create_task(ws_manager.send_notification(req.requester_user_id, {
+            "type": "donation_rejected",
+            "title": "Donasi Ditolak",
+            "message": f"Permintaan donasi Anda untuk item #{req.donation_item_id} ditolak",
+            "request_id": req.id,
+            "created_at": datetime.utcnow().isoformat(),
+        }))
+    except Exception:
+        pass
+
     return _serialize_donation_request(req)
 
 
