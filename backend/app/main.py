@@ -72,10 +72,6 @@ from .vision_model import (
 from .otp import create_otp_record, validate_otp
 from .email_service import send_otp_email
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-
 # Run database migration on startup (inside app package — always available in Docker)
 from .migrations import run_migrations
 
@@ -107,10 +103,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @app.on_event("startup")
@@ -163,8 +155,7 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
 
 # User Management Endpoints
 @app.post("/auth/register")
-@limiter.limit("5/minute")
-def register_user(request: Request, user: UserCreate, db: Session = Depends(get_db)):
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
     """Register a new user with OTP verification."""
     from .otp_service import generate_and_store_otp
     from .email_service import send_otp_email
@@ -274,8 +265,7 @@ def get_all_users(current_admin: str = Depends(get_current_admin), db: Session =
 
 
 @app.post("/auth/login")
-@limiter.limit("5/minute")
-def login_user(request: Request, user_credentials: UserLogin, db: Session = Depends(get_db)):
+def login_user(user_credentials: UserLogin, db: Session = Depends(get_db)):
     """Authenticate user and return JWT token."""
     email_lower = user_credentials.email.lower()
     user = authenticate_user(db, email_lower, user_credentials.password)
@@ -355,8 +345,7 @@ class ResendOTPRequest(BaseModel):
     email: str
 
 @app.post("/auth/verify-otp")
-@limiter.limit("5/minute")
-def verify_otp(request: Request, otp_request: VerifyOTPRequest, db: Session = Depends(get_db)):
+def verify_otp(otp_request: VerifyOTPRequest, db: Session = Depends(get_db)):
     from .otp_service import verify_user_otp
     
     email_lower = otp_request.email.lower()
@@ -433,8 +422,7 @@ def verify_otp(request: Request, otp_request: VerifyOTPRequest, db: Session = De
     }
 
 @app.post("/auth/resend-otp")
-@limiter.limit("5/minute")
-def resend_otp(request: Request, otp_request: ResendOTPRequest, db: Session = Depends(get_db)):
+def resend_otp(otp_request: ResendOTPRequest, db: Session = Depends(get_db)):
     from .otp_service import resend_user_otp
     from .email_service import send_otp_email
     
@@ -658,8 +646,7 @@ class ResetPasswordRequest(BaseModel):
 
 
 @app.post("/auth/forgot-password")
-@limiter.limit("5/minute")
-def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """Send OTP for password reset."""
     email_lower = payload.email.lower().strip()
 
