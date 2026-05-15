@@ -4,6 +4,7 @@ import { DUMMY_DONATIONS } from '../data/dummyData';
 import { useAuth } from '../context/AuthContext';
 import { calculateDistanceKm, formatDistance, getUserLocation, saveUserLocation, loadUserLocation } from '../utils/geo';
 import FreshMap from '../components/FreshMap';
+import LocationAutocomplete from '../components/LocationAutocomplete';
 import FeatureGate from '../components/FeatureGate';
 import * as api from '../api';
 import { getCurrentUserId } from '../api';
@@ -276,8 +277,8 @@ export default function DonationPage() {
       quantity: Number(form.quantity),
       status: 'Available',
       created_at: new Date().toISOString().slice(0, 10),
-      latitude: userLocation?.lat ?? DEFAULT_LOC.lat,
-      longitude: userLocation?.lng ?? DEFAULT_LOC.lng,
+      latitude: form._lat || userLocation?.lat || DEFAULT_LOC.lat,
+      longitude: form._lng || userLocation?.lng || DEFAULT_LOC.lng,
     };
 
     try {
@@ -287,7 +288,7 @@ export default function DonationPage() {
       showToast('success', 'Donasi berhasil dibuat.');
       loadDonations();
       setShowForm(false);
-      setForm({ food_name: '', quantity: 1, unit: 'porsi', pickup_location: '', expiry_date: new Date().toISOString().slice(0, 10), donor_name: '', notes: '' });
+      setForm({ food_name: '', quantity: 1, unit: 'porsi', pickup_location: '', expiry_date: new Date().toISOString().slice(0, 10), donor_name: '', notes: '', _lat: null, _lng: null });
       // Refresh my items if we're on that tab
       if (activeTab === 'mine') loadMyItems();
     } catch (err) {
@@ -634,14 +635,13 @@ export default function DonationPage() {
                   <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="input-field" placeholder="porsi" />
                 </div>
               </div>
-              <div>
-                <label className="input-label">Pickup Location</label>
-                <input value={form.pickup_location} onChange={(e) => setForm({ ...form, pickup_location: e.target.value })} className="input-field" required placeholder="e.g. Kantin Kampus A, Jakarta" />
-              </div>
-              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 text-xs text-blue-700 flex items-center gap-2">
-                <Navigation className="w-4 h-4 flex-shrink-0" />
-                Pin location: <strong>{userLocation?.name || 'Jakarta (default)'}</strong>
-              </div>
+              <LocationAutocomplete
+                value={form.pickup_location}
+                onChange={(val) => setForm({ ...form, pickup_location: val })}
+                onSelect={(loc) => setForm({ ...form, pickup_location: loc.location_name, _lat: loc.latitude, _lng: loc.longitude })}
+                placeholder="Cari lokasi pickup, mis. Kantin Kampus"
+                label="Lokasi Pickup"
+              />
               <div>
                 <label className="input-label">Expiry Date</label>
                 <input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} className="input-field" required />

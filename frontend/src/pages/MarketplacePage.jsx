@@ -14,6 +14,7 @@ import {
   sortByNearest,
 } from '../utils/geo';
 import FreshMap from '../components/FreshMap';
+import LocationAutocomplete from '../components/LocationAutocomplete';
 import FeatureGate from '../components/FeatureGate';
 import * as api from '../api';
 import { getCurrentUserId } from '../api';
@@ -544,8 +545,8 @@ export default function MarketplacePage() {
       original_price: Number(form.original_price) || 0,
       status: 'Available',
       seller: 'You',
-      latitude: userLocation?.lat ?? DEFAULT_LOCATION.lat,
-      longitude: userLocation?.lng ?? DEFAULT_LOCATION.lng,
+      latitude: form._lat || userLocation?.lat || DEFAULT_LOCATION.lat,
+      longitude: form._lng || userLocation?.lng || DEFAULT_LOCATION.lng,
       location_name: form.location || userLocationName,
       location: form.location || userLocationName,
     });
@@ -575,6 +576,8 @@ export default function MarketplacePage() {
         original_price: '',
         expiry_date: new Date().toISOString().slice(0, 10),
         description: '',
+        _lat: null,
+        _lng: null,
       });
       // Refresh my items if we're on that tab
       if (activeTab === 'mine') loadMyItems();
@@ -989,15 +992,13 @@ export default function MarketplacePage() {
                 </div>
               </div>
 
-              <div>
-                <label className="input-label">Location Name</label>
-                <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input-field" required placeholder="e.g. Bekasi Selatan" />
-              </div>
-
-              <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
-                <Navigation className="h-4 w-4 flex-shrink-0" />
-                New listing pin uses: <strong>{userLocationName}</strong>
-              </div>
+              <LocationAutocomplete
+                value={form.location}
+                onChange={(val) => setForm({ ...form, location: val })}
+                onSelect={(loc) => setForm({ ...form, location: loc.location_name, _lat: loc.latitude, _lng: loc.longitude })}
+                placeholder="Cari lokasi, mis. Bekasi Selatan"
+                label="Lokasi"
+              />
 
               <div>
                 <label className="input-label">Expiry Date</label>
