@@ -139,26 +139,35 @@ export default function LocationAutocomplete({
     try {
       const position = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
+          enableHighAccuracy: false,
+          timeout: 15000,
+          maximumAge: 60000,
         });
       });
 
       const { latitude, longitude } = position.coords;
 
-      // Reverse geocode
-      const params = new URLSearchParams({
-        lat: latitude.toString(),
-        lon: longitude.toString(),
-        format: 'json',
-        addressdetails: '1',
-      });
-      const res = await fetch(`${REVERSE_URL}?${params}`, {
-        headers: { 'Accept-Language': 'id' },
-      });
-      const data = await res.json();
+      // Try reverse geocode, but don't fail if it doesn't work
+      let displayName = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+      try {
+        const params = new URLSearchParams({
+          lat: latitude.toString(),
+          lon: longitude.toString(),
+          format: 'json',
+          addressdetails: '1',
+        });
+        const res = await fetch(`${REVERSE_URL}?${params}`, {
+          headers: { 'Accept-Language': 'id' },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.display_name) displayName = data.display_name;
+        }
+      } catch {
+        // Reverse geocode failed, use coordinates as fallback
+      }
 
-      const displayName = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
       setQuery(displayName);
       if (onChange) onChange(displayName);
       if (onSelect) onSelect({
@@ -166,13 +175,17 @@ export default function LocationAutocomplete({
         location_name: displayName,
         latitude,
         longitude,
-        raw: data,
+        raw: null,
       });
     } catch (err) {
       if (err.code === 1) {
-        setError('Izin lokasi ditolak. Ketik lokasi secara manual.');
+        setError('Izin lokasi ditolak. Buka pengaturan browser → izinkan lokasi untuk situs ini.');
+      } else if (err.code === 2) {
+        setError('Lokasi tidak tersedia. Pastikan GPS aktif.');
+      } else if (err.code === 3) {
+        setError('Timeout mendapatkan lokasi. Coba lagi.');
       } else {
-        setError('Gagal mendapatkan lokasi. Coba lagi.');
+        setError('Gagal mendapatkan lokasi. Ketik manual.');
       }
     } finally {
       setLocating(false);
