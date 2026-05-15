@@ -81,7 +81,17 @@ export default function SignUpPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || 'Pendaftaran gagal. Silakan coba lagi.');
+        const detail = data.detail;
+        let errorMsg = 'Pendaftaran gagal. Silakan coba lagi.';
+        if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          // FastAPI validation error format: [{msg: "...", loc: [...]}]
+          errorMsg = detail.map((e) => e.msg || e.message || JSON.stringify(e)).join('. ');
+        } else if (detail && typeof detail === 'object') {
+          errorMsg = detail.msg || detail.message || JSON.stringify(detail);
+        }
+        throw new Error(errorMsg);
       }
 
       // Show OTP verification screen
