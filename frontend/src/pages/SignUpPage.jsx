@@ -86,8 +86,14 @@ export default function SignUpPage() {
         if (typeof detail === 'string') {
           errorMsg = detail;
         } else if (Array.isArray(detail)) {
-          // FastAPI validation error format: [{msg: "...", loc: [...]}]
-          errorMsg = detail.map((e) => e.msg || e.message || JSON.stringify(e)).join('. ');
+          // FastAPI validation error format: [{msg: "...", loc: [...], type: "..."}]
+          const messages = detail.map((e) => {
+            const field = Array.isArray(e.loc) ? e.loc[e.loc.length - 1] : '';
+            const msg = e.msg || e.message || '';
+            if (field && msg) return `${field}: ${msg}`;
+            return msg || JSON.stringify(e);
+          });
+          errorMsg = messages.join('. ') || 'Validasi gagal. Periksa data yang diisi.';
         } else if (detail && typeof detail === 'object') {
           errorMsg = detail.msg || detail.message || JSON.stringify(detail);
         }
