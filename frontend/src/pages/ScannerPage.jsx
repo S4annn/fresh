@@ -147,6 +147,27 @@ function SourceBadge({ source }) {
   );
 }
 
+// Recommendation source badge
+function RecommendationSourceBadge({ recommendationSource }) {
+  if (!recommendationSource) return null;
+
+  if (recommendationSource === 'gemini_api') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+        <Brain className="w-3.5 h-3.5" />
+        AI Vision Model + Gemini Recommendation
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+      <Cpu className="w-3.5 h-3.5" />
+      AI Vision Model + Metadata Fallback
+    </span>
+  );
+}
+
 export default function ScannerPage() {
   const navigate = useNavigate();
   const { isDemoMode } = useAuth();
@@ -712,8 +733,8 @@ export default function ScannerPage() {
                     {isLowConfidence ? 'Akurasi Rendah' : result.risk_label}
                   </span>
                 </div>
-                {/* Source badge */}
-                <div className="mb-4">
+                {/* Source badges */}
+                <div className="mb-4 flex flex-wrap gap-2">
                     {isLowConfidence ? (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
                       <AlertTriangle className="w-3.5 h-3.5" />
@@ -722,6 +743,7 @@ export default function ScannerPage() {
                   ) : (
                     <SourceBadge source={result.source || result.classifier} />
                   )}
+                  <RecommendationSourceBadge recommendationSource={result.recommendation_source} />
                 </div>
                   <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white/70 rounded-xl p-3 text-center">
@@ -799,10 +821,10 @@ export default function ScannerPage() {
                 <div className="flex items-center gap-2 mb-3">
                   <Lightbulb className="w-4 h-4 text-amber-500" />
                   <span className="font-semibold text-gray-700 text-sm">
-                    {result.recommendations_source === 'gemini_ai' ? 'Rekomendasi Resep AI' : 'Rekomendasi'}
+                    {result.recommendation_source === 'gemini_api' ? 'Rekomendasi AI' : 'Rekomendasi'}
                   </span>
-                  {result.recommendations_source === 'gemini_ai' && (
-                    <span className="text-[10px] px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-semibold">Gemini</span>
+                  {result.recommendation_source === 'gemini_api' && (
+                    <span className="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-semibold">Gemini AI</span>
                   )}
                 </div>
                 <ul className="space-y-2">
@@ -814,6 +836,57 @@ export default function ScannerPage() {
                   ))}
                 </ul>
               </div>
+
+              {/* Recipe Ideas (from Gemini) */}
+              {Array.isArray(result.recipe_ideas) && result.recipe_ideas.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Flame className="w-4 h-4 text-orange-500" />
+                    <span className="font-semibold text-gray-700 text-sm">Ide Resep</span>
+                    {result.recommendation_source === 'gemini_api' && (
+                      <span className="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-semibold">Gemini AI</span>
+                    )}
+                  </div>
+                  <ul className="space-y-2">
+                    {result.recipe_ideas.map((recipe, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                        <span className="w-5 h-5 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
+                        {recipe}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Marketplace Suggestion */}
+              {result.marketplace_suggestion && (
+                <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ShoppingBag className="w-4 h-4 text-pink-500" />
+                    <span className="font-semibold text-gray-700 text-sm">Saran Marketplace</span>
+                  </div>
+                  <p className="text-gray-600 text-sm">{result.marketplace_suggestion}</p>
+                </div>
+              )}
+
+              {/* Donation Suggestion */}
+              {result.donation_suggestion && (
+                <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Heart className="w-4 h-4 text-red-500" />
+                    <span className="font-semibold text-gray-700 text-sm">Saran Donasi</span>
+                  </div>
+                  <p className="text-gray-600 text-sm">{result.donation_suggestion}</p>
+                </div>
+              )}
+
+              {/* Confidence Note */}
+              {result.confidence_note && (
+                <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                  <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-700">{result.confidence_note}</p>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-3">

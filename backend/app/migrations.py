@@ -103,6 +103,10 @@ def run_migrations() -> None:
         add_column_safe(conn, "email_otps", "attempt_count", "INTEGER DEFAULT 0")
         add_column_safe(conn, "email_otps", "is_used", "BOOLEAN DEFAULT FALSE")
 
+        # --- scan_history table ---
+        add_column_safe(conn, "scan_history", "recommendation_source", "VARCHAR(50) DEFAULT 'metadata_fallback'")
+        add_column_safe(conn, "scan_history", "gemini_recommendation_json", "TEXT")
+
     # Step 3: Backfill NULL values for critical columns
     with engine.begin() as conn:
         inspector = inspect(conn)

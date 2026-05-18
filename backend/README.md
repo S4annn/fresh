@@ -165,3 +165,64 @@ Project ini memakai `tensorflow-cpu` agar image scanner bisa mencoba load `food_
 ## Catatan
 
 File di `artifacts/` tidak di-ignore karena model perlu ikut deploy untuk MVP. Jika ukuran model terlalu besar untuk deployment, pindahkan model ke storage eksternal dan load lewat URL/service terpisah.
+
+## Gemini Recommendation for AI Food Scanner
+
+### Arsitektur
+
+```
+User upload image
+       ↓
+FastAPI /scan-food
+       ↓
+TensorFlow model predicts food class (PRIMARY)
+       ↓
+Detected food + confidence + top predictions
+       ↓
+Gemini API generates recommendation (SECONDARY)
+       ↓
+Fallback to food_metadata.json if Gemini fails
+       ↓
+Frontend displays result
+```
+
+### Penjelasan
+
+- **TensorFlow model** (`food_vision_model.keras`) digunakan sebagai klasifikasi gambar utama. Model ini mendeteksi jenis makanan dari gambar yang diupload user.
+- **Gemini API** (`gemini-1.5-flash`) digunakan sebagai fitur sekunder untuk menghasilkan rekomendasi yang lebih pintar dan natural, termasuk:
+  - Storage advice (saran penyimpanan)
+  - Recipe ideas (ide resep)
+  - Marketplace suggestion (saran jual di marketplace)
+  - Donation suggestion (saran donasi)
+  - Risk assessment berdasarkan confidence level
+  - Suggested inventory entry
+
+### Environment Variable
+
+```env
+GEMINI_API_KEY=your-gemini-api-key-here
+```
+
+- Jika `GEMINI_API_KEY` tidak tersedia, sistem **tidak crash**.
+- Scanner otomatis menggunakan `food_metadata.json` sebagai fallback.
+- Response tetap berhasil dengan `recommendation_source = "metadata_fallback"`.
+
+### Debug Endpoints
+
+```
+GET  /debug-gemini                      → Cek status konfigurasi Gemini
+POST /debug-gemini/recommendation-test  → Test Gemini recommendation
+```
+
+### Response Fields
+
+Field tambahan dari Gemini di response `/scan-food`:
+
+| Field | Deskripsi |
+|-------|-----------|
+| `recommendation_source` | `"gemini_api"` atau `"metadata_fallback"` |
+| `recipe_ideas` | Array ide resep dari Gemini |
+| `marketplace_suggestion` | Saran marketplace |
+| `donation_suggestion` | Saran donasi |
+| `confidence_note` | Catatan jika confidence rendah |
+| `is_low_confidence` | Boolean, true jika confidence < 0.6 |

@@ -264,8 +264,10 @@ class ScanHistory(Base):
     category = Column(String(80), nullable=False)
     confidence = Column(Float, default=0.0)
     source = Column(String(50), default="vision_model")  # vision_model, manual, etc.
+    recommendation_source = Column(String(50), default="metadata_fallback")  # gemini_api, metadata_fallback
     image_filename = Column(String(255), nullable=True)
     top_predictions_json = Column(Text, nullable=True)  # JSON string of top predictions
+    gemini_recommendation_json = Column(Text, nullable=True)  # JSON string of Gemini recommendation
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

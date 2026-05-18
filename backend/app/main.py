@@ -1695,6 +1695,53 @@ def debug_artifacts():
     }
 
 
+@app.get("/debug-gemini")
+def debug_gemini():
+    """Debug endpoint to check Gemini configuration status."""
+    from .gemini_recommendation import gemini_debug_info
+    return gemini_debug_info()
+
+
+@app.post("/debug-gemini/recommendation-test")
+def debug_gemini_recommendation_test(payload: dict[str, Any]):
+    """Test endpoint to verify Gemini recommendation generation."""
+    from .gemini_recommendation import generate_food_recommendation_with_gemini, is_gemini_configured
+
+    detected_food = payload.get("detected_food", "Tofu")
+    confidence = float(payload.get("confidence", 0.85))
+    top_predictions = payload.get("top_predictions", [
+        {"label": detected_food, "confidence": confidence}
+    ])
+
+    if not is_gemini_configured():
+        return {
+            "status": "error",
+            "message": "GEMINI_API_KEY not configured",
+            "recommendation_source": "metadata_fallback_no_gemini_key",
+        }
+
+    result = generate_food_recommendation_with_gemini(
+        detected_food=detected_food,
+        confidence=confidence,
+        top_predictions=top_predictions,
+        user_role=payload.get("user_role", "personal"),
+        language=payload.get("language", "id"),
+    )
+
+    if result:
+        return {
+            "status": "success",
+            "recommendation_source": "gemini_api",
+            "result": result,
+        }
+    else:
+        return {
+            "status": "fallback",
+            "message": "Gemini failed, would use metadata fallback in production",
+            "recommendation_source": "metadata_fallback",
+        }
+
+
 @app.post("/scan-food")
 async def scan_food(
     image: UploadFile = File(...),
@@ -1715,20 +1762,87 @@ async def scan_food(
         raise HTTPException(status_code=400, detail="Uploaded image is empty")
     result = predict_food_from_image(image_bytes, filename=image.filename)
     _increment_usage("ai_scans_this_month", db, _resolve_user_id(x_fresh_user_id=x_fresh_user_id))
-    
-    # Generate AI recipe recommendations using Gemini (non-blocking fallback)
+
+    # ─── Gemini Recommendation Enhancement ────────────────────────────────────
+    # TensorFlow model is the PRIMARY classifier. Gemini is SECONDARY for recommendations.
+    detected_food = result.get("detected_food", "")
+    confidence = float(result.get("confidence", 0))
+    top_predictions = result.get("top_predictions", [])
+    recommendation_source = "metadata_fallback"
+    gemini_json = None
+
+    if detected_food and detected_food != "Unknown Food":
+        try:
+            from .gemini_recommendation import generate_food_recommendation_with_gemini
+
+            gemini_result = generate_food_recommendation_with_gemini(
+                detected_food=detected_food,
+                confidence=confidence,
+                top_predictions=top_predictions,
+                user_role="personal",
+                language="id",
+            )
+
+            if gemini_result and isinstance(gemini_result, dict):
+                # Apply Gemini recommendations to result
+                recommendation_source = "gemini_api"
+                gemini_json = gemini_result
+
+                # Override metadata fields with Gemini's smarter recommendations
+                if gemini_result.get("category"):
+                    result["category"] = gemini_result["category"]
+                if gemini_result.get("estimated_shelf_life_days"):
+                    result["estimated_shelf_life_days"] = int(gemini_result["estimated_shelf_life_days"])
+                if gemini_result.get("risk_label"):
+                    result["risk_label"] = gemini_result["risk_label"]
+                if gemini_result.get("storage_advice"):
+                    result["storage_advice"] = gemini_result["storage_advice"]
+                if gemini_result.get("recommendations"):
+                    result["recommendations"] = gemini_result["recommendations"]
+                if gemini_result.get("recipe_ideas"):
+                    result["recipe_ideas"] = gemini_result["recipe_ideas"]
+                if gemini_result.get("marketplace_suggestion"):
+                    result["marketplace_suggestion"] = gemini_result["marketplace_suggestion"]
+                if gemini_result.get("donation_suggestion"):
+                    result["donation_suggestion"] = gemini_result["donation_suggestion"]
+                if gemini_result.get("confidence_note"):
+                    result["confidence_note"] = gemini_result["confidence_note"]
+                if gemini_result.get("suggested_inventory") and isinstance(gemini_result["suggested_inventory"], dict):
+                    result["suggested_inventory"] = gemini_result["suggested_inventory"]
+
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Gemini recommendation failed: {e}")
+            # Keep metadata fallback — scanner never crashes because of Gemini
+
+    # Add recommendation_source to response
+    result["recommendation_source"] = recommendation_source
+
+    # Low confidence handling
+    is_low_confidence = confidence < 0.6
+    result["is_low_confidence"] = is_low_confidence
+    if is_low_confidence and not result.get("confidence_note"):
+        result["confidence_note"] = "Model confidence is low. Please verify the detected food manually."
+
+    # Save scan history
     try:
-        from .ai_assistant import generate_recipe_recommendations
-        food_name = result.get("detected_food", "")
-        category = result.get("category", "Other")
-        if food_name and food_name != "Unknown Food":
-            ai_recipes = generate_recipe_recommendations(food_name, category)
-            if ai_recipes:
-                result["recommendations"] = ai_recipes
-                result["recommendations_source"] = "gemini_ai"
+        import json as _json
+        scan_record = ScanHistory(
+            user_id=_resolve_user_id(x_fresh_user_id=x_fresh_user_id),
+            detected_food=detected_food,
+            category=result.get("category", "Other"),
+            confidence=confidence,
+            source=result.get("source", "tensorflow_vision_model"),
+            recommendation_source=recommendation_source,
+            image_filename=image.filename,
+            top_predictions_json=_json.dumps(top_predictions) if top_predictions else None,
+            gemini_recommendation_json=_json.dumps(gemini_json) if gemini_json else None,
+        )
+        db.add(scan_record)
+        db.commit()
     except Exception:
-        pass  # Keep original metadata recommendations
-    
+        pass  # Don't fail scan because of history save error
+
     return result
 
 
