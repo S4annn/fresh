@@ -138,6 +138,11 @@ def _validate_recommendation(data: dict[str, Any]) -> bool:
     return all(field in data for field in required_fields)
 
 
+class _QuotaExceededError(Exception):
+    """Raised when Gemini returns 429 — no point trying other models."""
+    pass
+
+
 def _call_gemini(model: str, payload: dict[str, Any], api_key: str) -> Optional[requests.Response]:
     """Make a single Gemini API call. Returns response or None on 404."""
     url = f"{_get_generate_url(model)}?key={api_key}"
@@ -153,6 +158,12 @@ def _call_gemini(model: str, payload: dict[str, Any], api_key: str) -> Optional[
                 f"[gemini_recommendation] Model '{model}' not found (404). Trying next fallback..."
             )
             return None
+        if response.status_code == 429:
+            logger.warning(
+                f"[gemini_recommendation] Quota exceeded (429) for model '{model}'. "
+                "All models share the same API key — skipping remaining fallbacks."
+            )
+            raise _QuotaExceededError("Rate limit / quota exceeded")
         response.raise_for_status()
         return response
     except requests.HTTPError as e:
@@ -161,6 +172,8 @@ def _call_gemini(model: str, payload: dict[str, Any], api_key: str) -> Optional[
                 f"[gemini_recommendation] Model '{model}' not found (404). Trying next fallback..."
             )
             return None
+        if e.response is not None and e.response.status_code == 429:
+            raise _QuotaExceededError("Rate limit / quota exceeded")
         raise
 
 
@@ -230,6 +243,9 @@ def generate_food_recommendation_with_gemini(
             if response is not None:
                 used_model = model
                 break
+        except _QuotaExceededError:
+            # All models share the same key — no point trying others
+            return None
         except requests.Timeout:
             logger.error(f"[gemini_recommendation] Timeout with model '{model}'.")
             continue
