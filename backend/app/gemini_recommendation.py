@@ -1,14 +1,14 @@
 """
-F.R.E.S.H Gemini Recommendation Service
-=========================================
-Uses Gemini API as a SECONDARY feature to generate smart food waste
+F.R.E.S.H Gemini Recommendation Service (via OpenRouter)
+=========================================================
+Uses OpenRouter API as a SECONDARY feature to generate smart food waste
 recommendations based on TensorFlow model classification results.
 
 The TensorFlow model remains the PRIMARY classifier.
-Gemini only provides enhanced recommendations, recipe ideas,
-marketplace/donation suggestions, and storage advice.
+OpenRouter (with Gemini/other models) only provides enhanced recommendations,
+recipe ideas, marketplace/donation suggestions, and storage advice.
 
-If Gemini fails or API key is missing, the system falls back to
+If OpenRouter fails or API key is missing, the system falls back to
 food_metadata.json — the scanner never crashes.
 """
 
@@ -24,31 +24,29 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# Gemini API configuration — read model from env, default to gemini-2.0-flash
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
-GEMINI_TIMEOUT = 12  # seconds
+# OpenRouter API configuration
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+GEMINI_TIMEOUT = 15  # seconds
 
-# Fallback models to try if the primary model returns 404
+# Fallback models to try if the primary model fails
 FALLBACK_MODELS = [
-    GEMINI_MODEL,
-    "gemini-2.0-flash",
-    "gemini-2.5-flash",
+    OPENROUTER_MODEL,
+    "google/gemini-2.0-flash-001",
+    "google/gemini-2.5-flash-preview",
+    "meta-llama/llama-4-scout",
 ]
 
 
 def _get_api_key() -> Optional[str]:
-    """Get Gemini API key from environment. Returns None if not configured."""
-    return os.getenv("GEMINI_API_KEY")
-
-
-def _get_generate_url(model: str) -> str:
-    """Build the generateContent URL for a given model."""
-    return f"{GEMINI_API_BASE}/{model}:generateContent"
+    """Get OpenRouter API key from environment. Returns None if not configured."""
+    key = os.getenv("OPENROUTER_API_KEY", "")
+    return key if key else None
 
 
 def _build_system_instruction() -> str:
-    """Build the system instruction for Gemini."""
+    """Build the system instruction for the model."""
     return (
         "Kamu adalah AI recommendation assistant untuk F.R.E.S.H, aplikasi untuk mengurangi food waste. "
         "Kamu tidak melakukan klasifikasi gambar. Klasifikasi gambar sudah dilakukan oleh model TensorFlow milik aplikasi. "
@@ -95,7 +93,7 @@ def _build_user_prompt(
     user_role: str = "personal",
     language: str = "id",
 ) -> str:
-    """Build the dynamic user prompt for Gemini."""
+    """Build the dynamic user prompt."""
     top_preds_text = ""
     for i, pred in enumerate(top_predictions[:5], 1):
         label = pred.get("label", "Unknown")
@@ -115,7 +113,7 @@ def _build_user_prompt(
 
 
 def _clean_json_response(text: str) -> str:
-    """Clean Gemini response that may be wrapped in markdown code blocks."""
+    """Clean response that may be wrapped in markdown code blocks."""
     if not text:
         return text
     # Remove ```json ... ``` wrapping
@@ -139,42 +137,51 @@ def _validate_recommendation(data: dict[str, Any]) -> bool:
 
 
 class _QuotaExceededError(Exception):
-    """Raised when Gemini returns 429 — no point trying other models."""
+    """Raised when API returns 429 — no point trying other models with same key."""
     pass
 
 
-def _call_gemini(model: str, payload: dict[str, Any], api_key: str) -> Optional[requests.Response]:
-    """Make a single Gemini API call. Returns response or None on 404."""
-    url = f"{_get_generate_url(model)}?key={api_key}"
-    try:
-        response = requests.post(
-            url,
-            json=payload,
-            timeout=GEMINI_TIMEOUT,
-            headers={"Content-Type": "application/json"},
+def _call_openrouter(model: str, messages: list[dict], api_key: str) -> Optional[dict]:
+    """
+    Make a single OpenRouter API call.
+    Returns parsed JSON response or None on model-not-found.
+    Raises _QuotaExceededError on 429.
+    """
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 800,
+        "top_p": 0.9,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://fresh-app.up.railway.app",
+        "X-OpenRouter-Title": "F.R.E.S.H Food Waste App",
+    }
+
+    response = requests.post(
+        OPENROUTER_API_URL,
+        json=payload,
+        timeout=GEMINI_TIMEOUT,
+        headers=headers,
+    )
+
+    if response.status_code == 404:
+        logger.warning(f"[gemini_recommendation] Model '{model}' not found (404). Trying next...")
+        return None
+
+    if response.status_code == 429:
+        logger.warning(
+            f"[gemini_recommendation] Quota exceeded (429) for model '{model}'. "
+            "Skipping remaining fallbacks."
         )
-        if response.status_code == 404:
-            logger.warning(
-                f"[gemini_recommendation] Model '{model}' not found (404). Trying next fallback..."
-            )
-            return None
-        if response.status_code == 429:
-            logger.warning(
-                f"[gemini_recommendation] Quota exceeded (429) for model '{model}'. "
-                "All models share the same API key — skipping remaining fallbacks."
-            )
-            raise _QuotaExceededError("Rate limit / quota exceeded")
-        response.raise_for_status()
-        return response
-    except requests.HTTPError as e:
-        if e.response is not None and e.response.status_code == 404:
-            logger.warning(
-                f"[gemini_recommendation] Model '{model}' not found (404). Trying next fallback..."
-            )
-            return None
-        if e.response is not None and e.response.status_code == 429:
-            raise _QuotaExceededError("Rate limit / quota exceeded")
-        raise
+        raise _QuotaExceededError("Rate limit / quota exceeded")
+
+    response.raise_for_status()
+    return response.json()
 
 
 def generate_food_recommendation_with_gemini(
@@ -185,7 +192,7 @@ def generate_food_recommendation_with_gemini(
     language: str = "id",
 ) -> Optional[dict[str, Any]]:
     """
-    Generate food waste recommendation using Gemini API.
+    Generate food waste recommendation using OpenRouter API.
 
     Args:
         detected_food: The food label from TensorFlow model
@@ -195,12 +202,12 @@ def generate_food_recommendation_with_gemini(
         language: Response language (default "id" for Indonesian)
 
     Returns:
-        Dict with recommendation fields, or None if Gemini fails.
+        Dict with recommendation fields, or None if API fails.
         Caller should fall back to food_metadata.json if None is returned.
     """
     api_key = _get_api_key()
     if not api_key:
-        logger.info("[gemini_recommendation] No GEMINI_API_KEY configured, skipping.")
+        logger.info("[gemini_recommendation] No OPENROUTER_API_KEY configured, skipping.")
         return None
 
     system_instruction = _build_system_instruction()
@@ -212,21 +219,12 @@ def generate_food_recommendation_with_gemini(
         language=language,
     )
 
-    payload = {
-        "system_instruction": {
-            "parts": [{"text": system_instruction}]
-        },
-        "contents": [
-            {"role": "user", "parts": [{"text": user_prompt}]}
-        ],
-        "generationConfig": {
-            "temperature": 0.7,
-            "maxOutputTokens": 800,
-            "topP": 0.9,
-        },
-    }
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {"role": "user", "content": user_prompt},
+    ]
 
-    # Try each model in the fallback list (deduplicated, preserving order)
+    # Deduplicate fallback models, preserving order
     seen = set()
     models_to_try = []
     for m in FALLBACK_MODELS:
@@ -234,17 +232,16 @@ def generate_food_recommendation_with_gemini(
             seen.add(m)
             models_to_try.append(m)
 
-    response = None
+    data = None
     used_model = None
 
     for model in models_to_try:
         try:
-            response = _call_gemini(model, payload, api_key)
-            if response is not None:
+            data = _call_openrouter(model, messages, api_key)
+            if data is not None:
                 used_model = model
                 break
         except _QuotaExceededError:
-            # All models share the same key — no point trying others
             return None
         except requests.Timeout:
             logger.error(f"[gemini_recommendation] Timeout with model '{model}'.")
@@ -252,31 +249,28 @@ def generate_food_recommendation_with_gemini(
         except requests.HTTPError as e:
             logger.error(
                 f"[gemini_recommendation] HTTP error with model '{model}': "
-                f"{e.response.status_code} {e.response.text[:300]}"
+                f"{e.response.status_code if e.response else 'unknown'}"
             )
             continue
         except Exception as e:
             logger.error(f"[gemini_recommendation] Error with model '{model}': {e}")
             continue
 
-    if response is None:
+    if data is None:
         logger.error("[gemini_recommendation] All models failed. Returning None for fallback.")
         return None
 
-    # Parse response
+    # Parse OpenRouter response (OpenAI-compatible format)
     try:
-        data = response.json()
-
-        candidates = data.get("candidates", [])
-        if not candidates:
-            logger.warning("[gemini_recommendation] Gemini returned no candidates.")
+        choices = data.get("choices", [])
+        if not choices:
+            logger.warning("[gemini_recommendation] No choices in response.")
             return None
 
-        parts = candidates[0].get("content", {}).get("parts", [])
-        raw_text = "".join(part.get("text", "") for part in parts).strip()
+        raw_text = choices[0].get("message", {}).get("content", "").strip()
 
         if not raw_text:
-            logger.warning("[gemini_recommendation] Gemini returned empty text.")
+            logger.warning("[gemini_recommendation] Empty content in response.")
             return None
 
         # Clean and parse JSON
@@ -284,7 +278,7 @@ def generate_food_recommendation_with_gemini(
         result = json.loads(cleaned_text)
 
         if not isinstance(result, dict):
-            logger.warning("[gemini_recommendation] Gemini response is not a dict.")
+            logger.warning("[gemini_recommendation] Response is not a dict.")
             return None
 
         if not _validate_recommendation(result):
@@ -308,15 +302,16 @@ def generate_food_recommendation_with_gemini(
 
 
 def is_gemini_configured() -> bool:
-    """Check if Gemini API key is configured."""
+    """Check if OpenRouter API key is configured."""
     return bool(_get_api_key())
 
 
 def gemini_debug_info() -> dict[str, Any]:
-    """Return debug info about Gemini configuration (never exposes API key)."""
+    """Return debug info about API configuration (never exposes API key)."""
     return {
         "gemini_configured": is_gemini_configured(),
-        "gemini_model": GEMINI_MODEL,
+        "provider": "openrouter",
+        "openrouter_model": OPENROUTER_MODEL,
         "fallback_models": FALLBACK_MODELS,
         "environment": os.getenv("ENVIRONMENT", "development"),
         "timeout_seconds": GEMINI_TIMEOUT,
@@ -325,38 +320,48 @@ def gemini_debug_info() -> dict[str, Any]:
 
 def list_available_models() -> dict[str, Any]:
     """
-    List available Gemini models via the API.
+    List available models via OpenRouter API.
     Used by GET /debug-gemini/models endpoint.
-    Never exposes the API key in the response.
     """
     api_key = _get_api_key()
     if not api_key:
         return {
-            "error": "GEMINI_API_KEY not configured",
+            "error": "OPENROUTER_API_KEY not configured",
             "models": [],
         }
 
     try:
         response = requests.get(
-            f"{GEMINI_API_BASE}?key={api_key}",
+            "https://openrouter.ai/api/v1/models",
             timeout=10,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
         )
         response.raise_for_status()
         data = response.json()
 
+        # Filter to show only relevant models (Gemini + popular ones)
         models = []
-        for model in data.get("models", []):
-            models.append({
-                "name": model.get("name", ""),
-                "displayName": model.get("displayName", ""),
-                "supportedGenerationMethods": model.get("supportedGenerationMethods", []),
-            })
+        for model in data.get("data", []):
+            model_id = model.get("id", "")
+            # Show Google models and a few popular alternatives
+            if any(prefix in model_id for prefix in ["google/", "meta-llama/", "anthropic/"]):
+                models.append({
+                    "id": model_id,
+                    "name": model.get("name", ""),
+                    "pricing": {
+                        "prompt": model.get("pricing", {}).get("prompt", ""),
+                        "completion": model.get("pricing", {}).get("completion", ""),
+                    },
+                })
 
         return {
-            "models": models,
+            "models": models[:50],  # Limit output
             "count": len(models),
-            "current_model": GEMINI_MODEL,
+            "current_model": OPENROUTER_MODEL,
+            "provider": "openrouter",
         }
 
     except requests.HTTPError as e:

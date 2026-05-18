@@ -431,7 +431,11 @@ def predict_food_from_image(
         # Match the Colab notebook inference path. The exported model already
         # includes MobileNetV2 preprocessing internally, so pass raw RGB
         # float32 pixels in the 0..255 range.
-        image = Image.open(BytesIO(image_bytes)).convert("RGB")
+        image = Image.open(BytesIO(image_bytes))
+        if image.mode in ("P", "PA"):
+            image = image.convert("RGBA").convert("RGB")
+        else:
+            image = image.convert("RGB")
         image = image.resize((width, height))
         img_array = np.array(image).astype("float32")
         input_array = np.expand_dims(img_array, axis=0)

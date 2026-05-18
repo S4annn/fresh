@@ -111,7 +111,21 @@ from .websocket_manager import manager as ws_manager
 
 @app.websocket("/ws/notifications/{user_id}")
 async def websocket_notifications(websocket: WebSocket, user_id: str):
-    """WebSocket endpoint for real-time notifications."""
+    """WebSocket endpoint for real-time notifications with optional token auth."""
+    # Optional token validation — if token is provided, verify it matches user_id
+    token = websocket.query_params.get("token")
+    if token:
+        try:
+            from .auth import verify_token
+            token_data = verify_token(token)
+            if token_data and token_data.uid and token_data.uid != user_id:
+                await websocket.close(code=4003, reason="Token mismatch")
+                return
+        except Exception:
+            # Invalid token — reject connection
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+
     await ws_manager.connect(websocket, user_id)
     try:
         while True:

@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const { t, tv } = useLanguage();
   const [foods, setFoods] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,16 +26,19 @@ export default function DashboardPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [foodsData, recommendationData] = await Promise.all([
+      const [foodsData, recommendationData, analyticsData] = await Promise.all([
         api.getFoods(),
         api.getRecommendations(),
+        api.getAnalytics().catch(() => null),
       ]);
       setFoods(Array.isArray(foodsData) ? foodsData : []);
       setRecommendations(Array.isArray(recommendationData) ? recommendationData : []);
+      setAnalytics(analyticsData && typeof analyticsData === 'object' ? analyticsData : null);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       setFoods(isDemoMode ? DUMMY_FOODS : []);
       setRecommendations(isDemoMode ? DUMMY_RECOMMENDATIONS : []);
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }
@@ -55,7 +59,7 @@ export default function DashboardPage() {
     { title: t('totalFoodItems', 'Total Food Items'), value: totalItems, icon: Package, color: 'from-blue-500 to-cyan-500', bg: 'bg-blue-50', text: 'text-blue-600' },
     { title: t('highRiskItems', 'High Risk Items'), value: highRisk, icon: AlertTriangle, color: 'from-red-500 to-rose-500', bg: 'bg-red-50', text: 'text-red-600' },
     { title: t('expiringSoon', 'Expiring Soon'), value: expiringSoon, icon: Clock, color: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-600' },
-    { title: t('savedWasteEst', 'Saved Waste Est.'), value: `${isDemoMode ? DUMMY_ANALYTICS.total_waste_prevented : 0}`, icon: TrendingDown, color: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+    { title: t('savedWasteEst', 'Saved Waste Est.'), value: `${analytics?.total_waste_prevented || analytics?.items_used || (isDemoMode ? DUMMY_ANALYTICS.total_waste_prevented : 0)}`, icon: TrendingDown, color: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-50', text: 'text-emerald-600' },
   ];
 
   const quickActions = [

@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Bell, ShoppingBag, Heart, CheckCircle2, XCircle, X } from 'lucide-react';
 
-const WS_RECONNECT_DELAY = 3000;
+const WS_INITIAL_DELAY = 2000;
+const WS_MAX_DELAY = 60000;
+const WS_MAX_RETRIES = 10;
 const MAX_NOTIFICATIONS = 10;
 const NOTIFICATION_DISPLAY_TIME = 8000;
 
@@ -28,6 +30,8 @@ export default function NotificationListener() {
   const [unreadCount, setUnreadCount] = useState(0);
   const wsRef = useRef(null);
   const reconnectRef = useRef(null);
+  const retriesRef = useRef(0);
+  const delayRef = useRef(WS_INITIAL_DELAY);
 
   const userId = typeof window !== 'undefined'
     ? localStorage.getItem('fresh_user_id') || ''
@@ -35,16 +39,27 @@ export default function NotificationListener() {
 
   const connectWebSocket = useCallback(() => {
     if (!userId || userId === 'demo-user' || userId.startsWith('demo-user')) return;
+    if (retriesRef.current >= WS_MAX_RETRIES) {
+      console.log('[WS] Max retries reached, stopping reconnection.');
+      return;
+    }
 
     const apiUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
     const wsUrl = apiUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    const token = localStorage.getItem('fresh_auth_token') || '';
 
     try {
-      const ws = new WebSocket(`${wsUrl}/ws/notifications/${userId}`);
+      // Pass token as query param for authentication
+      const wsEndpoint = `${wsUrl}/ws/notifications/${userId}${token ? `?token=${token}` : ''}`;
+      const ws = new WebSocket(wsEndpoint);
       wsRef.current = ws;
 
       ws.onopen = () => {
         console.log('[WS] Connected for notifications');
+        // Reset backoff on successful connection
+        retriesRef.current = 0;
+        delayRef.current = WS_INITIAL_DELAY;
+
         // Send ping every 30s to keep alive
         const pingInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -79,16 +94,28 @@ export default function NotificationListener() {
       };
 
       ws.onclose = () => {
-        console.log('[WS] Disconnected, reconnecting...');
         if (ws._pingInterval) clearInterval(ws._pingInterval);
-        reconnectRef.current = setTimeout(connectWebSocket, WS_RECONNECT_DELAY);
+        retriesRef.current += 1;
+
+        if (retriesRef.current < WS_MAX_RETRIES) {
+          // Exponential backoff: 2s, 4s, 8s, 16s, 32s, 60s max
+          const delay = Math.min(delayRef.current * 2, WS_MAX_DELAY);
+          delayRef.current = delay;
+          console.log(`[WS] Disconnected, retry ${retriesRef.current}/${WS_MAX_RETRIES} in ${delay / 1000}s`);
+          reconnectRef.current = setTimeout(connectWebSocket, delay);
+        } else {
+          console.log('[WS] Max retries reached.');
+        }
       };
 
       ws.onerror = () => {
         ws.close();
       };
     } catch {
-      reconnectRef.current = setTimeout(connectWebSocket, WS_RECONNECT_DELAY);
+      retriesRef.current += 1;
+      const delay = Math.min(delayRef.current * 2, WS_MAX_DELAY);
+      delayRef.current = delay;
+      reconnectRef.current = setTimeout(connectWebSocket, delay);
     }
   }, [userId]);
 
@@ -102,6 +129,7 @@ export default function NotificationListener() {
 
   const dismissNotification = (id) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setUnreadCount((prev) => Math.max(0, prev - 1));
   };
 
   return (
@@ -133,15 +161,6 @@ export default function NotificationListener() {
           );
         })}
       </div>
-
-      {/* Notification bell badge (shows unread count) */}
-      {unreadCount > 0 && (
-        <div className="fixed top-4 right-20 z-[140] pointer-events-none">
-          <span className="inline-flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full animate-pulse">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        </div>
-      )}
     </>
   );
 }

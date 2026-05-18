@@ -28,14 +28,17 @@ export default function SettingsPage() {
   const [emailChangeMsg, setEmailChangeMsg] = useState('');
   const [emailChangeError, setEmailChangeError] = useState('');
 
-  const [prefs, setPrefs] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    language,
-    expiryNotification: true,
-    riskAlerts: true,
-    weeklyReport: false,
-    marketplaceUpdates: true,
+  const [prefs, setPrefs] = useState(() => {
+    const savedNotifPrefs = JSON.parse(localStorage.getItem('fresh_notification_prefs') || 'null');
+    return {
+      name: user?.name || '',
+      email: user?.email || '',
+      language,
+      expiryNotification: savedNotifPrefs?.expiryNotification ?? true,
+      riskAlerts: savedNotifPrefs?.riskAlerts ?? true,
+      weeklyReport: savedNotifPrefs?.weeklyReport ?? false,
+      marketplaceUpdates: savedNotifPrefs?.marketplaceUpdates ?? true,
+    };
   });
 
   async function handleSave() {
@@ -43,6 +46,14 @@ export default function SettingsPage() {
     
     // Save language preference
     setLanguage(prefs.language);
+
+    // Save notification preferences to localStorage
+    localStorage.setItem('fresh_notification_prefs', JSON.stringify({
+      expiryNotification: prefs.expiryNotification,
+      riskAlerts: prefs.riskAlerts,
+      weeklyReport: prefs.weeklyReport,
+      marketplaceUpdates: prefs.marketplaceUpdates,
+    }));
     
     // Save display name to backend if changed
     if (prefs.name && prefs.name !== user?.name && token) {
@@ -161,6 +172,9 @@ export default function SettingsPage() {
   }
 
   async function handleCancelSubscription() {
+    if (!window.confirm('Apakah Anda yakin ingin membatalkan langganan? Paket akan di-downgrade ke Free Starter.')) {
+      return;
+    }
     setRole('personal');
     await cancelSubscription();
     refreshSubscription();

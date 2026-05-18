@@ -88,47 +88,6 @@ function generateNotifications(foods, includeStaticTips = true) {
 
   if (!includeStaticTips) return notifs;
 
-  // Add static tips
-  notifs.push({
-    id:       'tip-1',
-    type:     'tip',
-    icon:     Lightbulb,
-    iconBg:   'bg-emerald-100',
-    iconColor:'text-emerald-600',
-    title:    'Tip: Use FIFO method',
-    body:     'Always use older items first (First In, First Out). Move older items to the front of your fridge.',
-    time:     '1 day ago',
-    read:     true,
-    actions:  [],
-    food:     null,
-  });
-  notifs.push({
-    id:       'tip-2',
-    type:     'marketplace',
-    icon:     ShoppingBag,
-    iconBg:   'bg-pink-100',
-    iconColor:'text-pink-600',
-    title:    'New listings near you',
-    body:     'There are 3 new surplus food listings within 5km of your location.',
-    time:     '2 hours ago',
-    read:     true,
-    actions:  [{ label: 'Browse Marketplace', path: '/marketplace', style: 'pink' }],
-    food:     null,
-  });
-  notifs.push({
-    id:       'tip-3',
-    type:     'donation',
-    icon:     Heart,
-    iconBg:   'bg-red-100',
-    iconColor:'text-red-500',
-    title:    'Donation request nearby',
-    body:     'Panti Asuhan Harapan is looking for food donations in your area.',
-    time:     '3 hours ago',
-    read:     false,
-    actions:  [{ label: 'View Donations', path: '/donation', style: 'red' }],
-    food:     null,
-  });
-
   return notifs.sort((a, b) => (a.read ? 1 : 0) - (b.read ? 1 : 0));
 }
 

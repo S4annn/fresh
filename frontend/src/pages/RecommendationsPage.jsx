@@ -48,7 +48,7 @@ export default function RecommendationsPage() {
     .filter((f) => (f.risk_level || f.risk_label) !== 'Safe')
     .sort((a, b) => Number(b.risk_score || 0) - Number(a.risk_score || 0))
     .slice(0, 5);
-  const tips = WASTE_TIPS;
+  const tips = isDemoMode ? WASTE_TIPS : [];
 
   if (loading) {
     return (
