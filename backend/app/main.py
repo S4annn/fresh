@@ -1742,6 +1742,13 @@ def debug_gemini_recommendation_test(payload: dict[str, Any]):
         }
 
 
+@app.get("/debug-gemini/models")
+def debug_gemini_models():
+    """List available Gemini models. Development/debug endpoint."""
+    from .gemini_recommendation import list_available_models
+    return list_available_models()
+
+
 @app.post("/scan-food")
 async def scan_food(
     image: UploadFile = File(...),

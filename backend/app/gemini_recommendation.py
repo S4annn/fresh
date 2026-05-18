@@ -24,15 +24,27 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# Gemini API configuration
-GEMINI_MODEL = "gemini-1.5-flash"
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+# Gemini API configuration — read model from env, default to gemini-2.0-flash
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 GEMINI_TIMEOUT = 12  # seconds
+
+# Fallback models to try if the primary model returns 404
+FALLBACK_MODELS = [
+    GEMINI_MODEL,
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
+]
 
 
 def _get_api_key() -> Optional[str]:
     """Get Gemini API key from environment. Returns None if not configured."""
     return os.getenv("GEMINI_API_KEY")
+
+
+def _get_generate_url(model: str) -> str:
+    """Build the generateContent URL for a given model."""
+    return f"{GEMINI_API_BASE}/{model}:generateContent"
 
 
 def _build_system_instruction() -> str:
@@ -126,6 +138,32 @@ def _validate_recommendation(data: dict[str, Any]) -> bool:
     return all(field in data for field in required_fields)
 
 
+def _call_gemini(model: str, payload: dict[str, Any], api_key: str) -> Optional[requests.Response]:
+    """Make a single Gemini API call. Returns response or None on 404."""
+    url = f"{_get_generate_url(model)}?key={api_key}"
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            timeout=GEMINI_TIMEOUT,
+            headers={"Content-Type": "application/json"},
+        )
+        if response.status_code == 404:
+            logger.warning(
+                f"[gemini_recommendation] Model '{model}' not found (404). Trying next fallback..."
+            )
+            return None
+        response.raise_for_status()
+        return response
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            logger.warning(
+                f"[gemini_recommendation] Model '{model}' not found (404). Trying next fallback..."
+            )
+            return None
+        raise
+
+
 def generate_food_recommendation_with_gemini(
     detected_food: str,
     confidence: float,
@@ -152,37 +190,65 @@ def generate_food_recommendation_with_gemini(
         logger.info("[gemini_recommendation] No GEMINI_API_KEY configured, skipping.")
         return None
 
+    system_instruction = _build_system_instruction()
+    user_prompt = _build_user_prompt(
+        detected_food=detected_food,
+        confidence=confidence,
+        top_predictions=top_predictions,
+        user_role=user_role,
+        language=language,
+    )
+
+    payload = {
+        "system_instruction": {
+            "parts": [{"text": system_instruction}]
+        },
+        "contents": [
+            {"role": "user", "parts": [{"text": user_prompt}]}
+        ],
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 800,
+            "topP": 0.9,
+        },
+    }
+
+    # Try each model in the fallback list (deduplicated, preserving order)
+    seen = set()
+    models_to_try = []
+    for m in FALLBACK_MODELS:
+        if m not in seen:
+            seen.add(m)
+            models_to_try.append(m)
+
+    response = None
+    used_model = None
+
+    for model in models_to_try:
+        try:
+            response = _call_gemini(model, payload, api_key)
+            if response is not None:
+                used_model = model
+                break
+        except requests.Timeout:
+            logger.error(f"[gemini_recommendation] Timeout with model '{model}'.")
+            continue
+        except requests.HTTPError as e:
+            logger.error(
+                f"[gemini_recommendation] HTTP error with model '{model}': "
+                f"{e.response.status_code} {e.response.text[:300]}"
+            )
+            continue
+        except Exception as e:
+            logger.error(f"[gemini_recommendation] Error with model '{model}': {e}")
+            continue
+
+    if response is None:
+        logger.error("[gemini_recommendation] All models failed. Returning None for fallback.")
+        return None
+
+    # Parse response
     try:
-        system_instruction = _build_system_instruction()
-        user_prompt = _build_user_prompt(
-            detected_food=detected_food,
-            confidence=confidence,
-            top_predictions=top_predictions,
-            user_role=user_role,
-            language=language,
-        )
-
-        payload = {
-            "system_instruction": {
-                "parts": [{"text": system_instruction}]
-            },
-            "contents": [
-                {"role": "user", "parts": [{"text": user_prompt}]}
-            ],
-            "generationConfig": {
-                "temperature": 0.7,
-                "maxOutputTokens": 800,
-                "topP": 0.9,
-            },
-        }
-
-        response = requests.post(
-            f"{GEMINI_API_URL}?key={api_key}",
-            json=payload,
-            timeout=GEMINI_TIMEOUT,
-            headers={"Content-Type": "application/json"},
-        )
-        response.raise_for_status()
         data = response.json()
 
         candidates = data.get("candidates", [])
@@ -213,24 +279,15 @@ def generate_food_recommendation_with_gemini(
 
         logger.info(
             f"[gemini_recommendation] Success for '{detected_food}' "
-            f"(confidence={confidence:.2f})"
+            f"(confidence={confidence:.2f}, model={used_model})"
         )
         return result
 
     except json.JSONDecodeError as e:
         logger.error(f"[gemini_recommendation] JSON parse error: {e}")
         return None
-    except requests.HTTPError as e:
-        logger.error(
-            f"[gemini_recommendation] HTTP error: {e.response.status_code} "
-            f"{e.response.text[:300]}"
-        )
-        return None
-    except requests.Timeout:
-        logger.error("[gemini_recommendation] Request timed out.")
-        return None
     except Exception as e:
-        logger.error(f"[gemini_recommendation] Unexpected error: {e}")
+        logger.error(f"[gemini_recommendation] Unexpected error parsing response: {e}")
         return None
 
 
@@ -243,7 +300,56 @@ def gemini_debug_info() -> dict[str, Any]:
     """Return debug info about Gemini configuration (never exposes API key)."""
     return {
         "gemini_configured": is_gemini_configured(),
-        "model": GEMINI_MODEL,
+        "gemini_model": GEMINI_MODEL,
+        "fallback_models": FALLBACK_MODELS,
         "environment": os.getenv("ENVIRONMENT", "development"),
         "timeout_seconds": GEMINI_TIMEOUT,
     }
+
+
+def list_available_models() -> dict[str, Any]:
+    """
+    List available Gemini models via the API.
+    Used by GET /debug-gemini/models endpoint.
+    Never exposes the API key in the response.
+    """
+    api_key = _get_api_key()
+    if not api_key:
+        return {
+            "error": "GEMINI_API_KEY not configured",
+            "models": [],
+        }
+
+    try:
+        response = requests.get(
+            f"{GEMINI_API_BASE}?key={api_key}",
+            timeout=10,
+            headers={"Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        models = []
+        for model in data.get("models", []):
+            models.append({
+                "name": model.get("name", ""),
+                "displayName": model.get("displayName", ""),
+                "supportedGenerationMethods": model.get("supportedGenerationMethods", []),
+            })
+
+        return {
+            "models": models,
+            "count": len(models),
+            "current_model": GEMINI_MODEL,
+        }
+
+    except requests.HTTPError as e:
+        return {
+            "error": f"HTTP {e.response.status_code}: {e.response.text[:200]}",
+            "models": [],
+        }
+    except Exception as e:
+        return {
+            "error": str(e)[:200],
+            "models": [],
+        }
