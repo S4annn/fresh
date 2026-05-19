@@ -264,9 +264,17 @@ export async function getSubscription() {
 
 export async function upgradeSubscription(planId, role, billingCycle = 'monthly') {
   try {
+    const user = getStoredUser();
     const response = await apiFetch('/subscription/upgrade', {
       method: 'POST',
-      body: JSON.stringify({ user_id: getCurrentUserId(), plan_id: planId, role, billing_cycle: billingCycle }),
+      body: JSON.stringify({
+        user_id: getCurrentUserId(),
+        plan_id: planId,
+        role,
+        billing_cycle: billingCycle,
+        email: user?.email || '',
+        name: user?.name || '',
+      }),
     });
     console.log('[API] Subscription upgrade response:', response);
     return saveSubscription(normalizeSubscriptionResponse(response));
