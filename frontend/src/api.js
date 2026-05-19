@@ -264,11 +264,14 @@ export async function getSubscription() {
 
 export async function upgradeSubscription(planId, role, billingCycle = 'monthly') {
   try {
-    return saveSubscription(normalizeSubscriptionResponse(await apiFetch('/subscription/upgrade', {
+    const response = await apiFetch('/subscription/upgrade', {
       method: 'POST',
       body: JSON.stringify({ user_id: getCurrentUserId(), plan_id: planId, role, billing_cycle: billingCycle }),
-    })));
-  } catch {
+    });
+    console.log('[API] Subscription upgrade response:', response);
+    return saveSubscription(normalizeSubscriptionResponse(response));
+  } catch (err) {
+    console.error('[API] Subscription upgrade failed:', err?.message || err);
     return upgradeLocalPlan(planId, role, billingCycle);
   }
 }

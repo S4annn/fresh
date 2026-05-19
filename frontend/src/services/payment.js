@@ -21,8 +21,15 @@ export function createDummyCheckout(planId, billingCycle = 'monthly') {
 
 export async function simulatePaymentSuccess(planId, role, billingCycle = 'monthly') {
   try {
-    return await upgradeSubscription(planId, role || PLANS[planId]?.role, billingCycle);
-  } catch {
+    const result = await upgradeSubscription(planId, role || PLANS[planId]?.role, billingCycle);
+    if (result?.receipt_email_sent) {
+      console.log('[Payment] Receipt email sent successfully.');
+    } else if (result?.receipt_email_sent === false) {
+      console.warn('[Payment] Upgrade succeeded but receipt email was not sent.');
+    }
+    return result;
+  } catch (err) {
+    console.error('[Payment] Backend upgrade failed, using local fallback:', err?.message || err);
     return upgradePlan(planId, role || PLANS[planId]?.role, billingCycle);
   }
 }
