@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
 import { canAccessBusinessFeature } from '../services/subscription';
@@ -12,6 +12,7 @@ export default function SignInPage() {
   const { signInLocal, signInWithGoogle, signInDemo, isFirebaseConfigured } = useAuth();
   const { setRole } = useRole();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [selectedRole, setSelectedRole] = useState(
     () => localStorage.getItem('fresh_user_role') || 'personal'
@@ -42,6 +43,9 @@ export default function SignInPage() {
   }
 
   function getRedirectPath(role) {
+    // If user was redirected from pricing page, go back there
+    const from = location.state?.from;
+    if (from) return from;
     return role === 'business' ? '/business/dashboard' : '/dashboard';
   }
 

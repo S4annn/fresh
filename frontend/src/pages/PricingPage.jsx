@@ -82,6 +82,13 @@ export default function PricingPage() {
       return;
     }
 
+    // Require login before upgrading to paid plan
+    if (!isAuthenticated) {
+      showToast('Silakan masuk atau daftar terlebih dahulu untuk upgrade.', 'error');
+      navigate('/signin', { state: { from: '/pricing', pendingPlan: plan.plan_id, billingCycle } });
+      return;
+    }
+
     if (plan.plan_id === 'business_pro' && role !== 'business') {
       setRole('business');
       showToast('Beralih ke akun Bisnis untuk checkout Business Pro.');
