@@ -1763,6 +1763,32 @@ def debug_gemini_models():
     return list_available_models()
 
 
+@app.post("/debug-receipt-email")
+def debug_receipt_email(payload: dict[str, Any]):
+    """Test receipt email sending directly."""
+    from .email_service import send_subscription_receipt_email
+    import uuid
+    from datetime import datetime as _dt
+
+    to_email = payload.get("email", "")
+    user_name = payload.get("name", "Test User")
+
+    if not to_email:
+        return {"error": "email field is required"}
+
+    result = send_subscription_receipt_email(
+        to_email=to_email,
+        user_name=user_name,
+        plan_name="Personal Plus",
+        amount="Rp 29.000",
+        billing_cycle="monthly",
+        transaction_id=f"FRESH-TEST-{uuid.uuid4().hex[:8].upper()}",
+        payment_status="Paid",
+        paid_at=_dt.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+    )
+    return {"email_to": to_email, "result": result}
+
+
 @app.post("/scan-food")
 async def scan_food(
     image: UploadFile = File(...),
@@ -3195,16 +3221,26 @@ def upgrade_subscription(
 
         # Send receipt email (non-blocking — upgrade succeeds even if email fails)
         receipt_email_sent = False
+        receipt_email_debug = None
         if plan_id != "free":
             try:
                 from .email_service import send_subscription_receipt_email
                 import uuid
                 from datetime import datetime as _dt
+                import logging as _logging
 
-                # Resolve user email
+                _log = _logging.getLogger(__name__)
+
+                # Resolve user email — try DB first, then payload fallback
                 user_record = db.query(User).filter(User.uid == user_id).first()
+                if not user_record:
+                    user_record = db.query(User).filter(User.email == user_id).first()
+
+                user_email = user_record.email if user_record else payload.get("email")
+                user_name = (user_record.name if user_record else payload.get("name")) or "User"
+
                 user_email = user_record.email if user_record else None
-                user_name = user_record.name if user_record else "User"
+                user_name = (user_record.name if user_record else None) or "User"
 
                 if user_email:
                     plan_prices = {
@@ -3225,9 +3261,16 @@ def upgrade_subscription(
                         paid_at=_dt.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
                     )
                     receipt_email_sent = email_result.get("status") == "sent"
+                    if not receipt_email_sent:
+                        receipt_email_debug = email_result.get("email_error")
+                        _log.warning(f"Receipt email not sent: {receipt_email_debug}")
+                else:
+                    receipt_email_debug = f"User not found in DB for uid={user_id}"
+                    _log.warning(f"Receipt email skipped: {receipt_email_debug}")
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).warning(f"Receipt email failed: {e}")
+                receipt_email_debug = str(e)
 
         result = _subscription_payload(
             plan_id=subscription.plan_id,
@@ -3239,6 +3282,8 @@ def upgrade_subscription(
             usage=_normalize_usage(subscription, branch_count),
         )
         result["receipt_email_sent"] = receipt_email_sent
+        if receipt_email_debug:
+            result["receipt_email_debug"] = receipt_email_debug
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upgrade subscription: {str(e)}")
