@@ -3192,7 +3192,44 @@ def upgrade_subscription(
 
         subscription = upgrade_user_subscription(db, user_id, plan_id, billing_cycle)
         branch_count = db.query(BusinessBranch).filter(BusinessBranch.business_id == user_id).count()
-        return _subscription_payload(
+
+        # Send receipt email (non-blocking — upgrade succeeds even if email fails)
+        receipt_email_sent = False
+        if plan_id != "free":
+            try:
+                from .email_service import send_subscription_receipt_email
+                import uuid
+                from datetime import datetime as _dt
+
+                # Resolve user email
+                user_record = db.query(User).filter(User.uid == user_id).first()
+                user_email = user_record.email if user_record else None
+                user_name = user_record.name if user_record else "User"
+
+                if user_email:
+                    plan_prices = {
+                        "personal_plus": {"monthly": "Rp 29.000", "yearly": "Rp 278.400"},
+                        "business_pro": {"monthly": "Rp 99.000", "yearly": "Rp 950.400"},
+                    }
+                    amount = plan_prices.get(plan_id, {}).get(billing_cycle, "Rp 0")
+                    transaction_id = f"FRESH-{uuid.uuid4().hex[:12].upper()}"
+
+                    email_result = send_subscription_receipt_email(
+                        to_email=user_email,
+                        user_name=user_name,
+                        plan_name=subscription.plan_name,
+                        amount=amount,
+                        billing_cycle=billing_cycle,
+                        transaction_id=transaction_id,
+                        payment_status="Paid",
+                        paid_at=_dt.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                    )
+                    receipt_email_sent = email_result.get("status") == "sent"
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Receipt email failed: {e}")
+
+        result = _subscription_payload(
             plan_id=subscription.plan_id,
             role=role,
             status=subscription.status,
@@ -3201,6 +3238,8 @@ def upgrade_subscription(
             expires_at=subscription.expires_at,
             usage=_normalize_usage(subscription, branch_count),
         )
+        result["receipt_email_sent"] = receipt_email_sent
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upgrade subscription: {str(e)}")
 
